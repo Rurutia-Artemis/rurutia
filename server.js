@@ -35,7 +35,7 @@ const TEXT_EXT = new Set([
   'c', 'h', 'cpp', 'hpp', 'cc', 'm', 'mm', 'sh', 'bash', 'zsh', 'fish', 'sql', 'yml',
   'yaml', 'toml', 'ini', 'env', 'conf', 'xml', 'svg', 'vue', 'astro', 'php', 'lua',
   'r', 'dart', 'gradle', 'properties', 'gitignore', 'dockerfile', 'makefile', 'log',
-  'csv', 'tsv', 'gql', 'graphql', 'prisma', 'plist', 'tex', 'rtf',
+  'csv', 'tsv', 'gql', 'graphql', 'prisma', 'plist', 'tex', 'rtf', 'srt', 'vtt', 'ass',
 ]);
 const IMAGE_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif']);
 const VIDEO_EXT = new Set(['mp4', 'webm', 'mov', 'm4v', 'ogv']);
@@ -310,6 +310,63 @@ async function recentFiles(rootPath) {
   return { results: all.slice(0, 60), truncated };
 }
 
+// ---------- 文件操作（编辑 / 废纸篓 / 重命名 / 新建）----------
+// 都带护栏：编辑只认文本类、删除走系统废纸篓可恢复、名称拒绝路径分隔符与空字节。
+
+async function writeTextFile(p, content) {
+  const file = resolvePath(p);
+  if (!TEXT_EXT.has(ext(file))) throw new Error('只支持文本类文件编辑');
+  if (typeof content !== 'string') throw new Error('内容非法');
+  await fsp.writeFile(file, content, 'utf8');
+  const st = await fsp.stat(file);
+  return { ok: true, size: st.size, mtime: st.mtimeMs };
+}
+
+// 移到系统废纸篓（可恢复），而非永久删除——呼应「不删除只归档」
+function trashPath(p) {
+  return new Promise((resolve) => {
+    let target;
+    try { target = resolvePath(p); } catch { return resolve({ ok: false, error: '非法路径' }); }
+    let isDir = false;
+    try { isDir = fs.lstatSync(target).isDirectory(); } catch { return resolve({ ok: false, error: '文件不存在' }); }
+    let cmd;
+    if (PLATFORM === 'darwin') {
+      const esc = target.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      cmd = `osascript -e 'tell application "Finder" to delete (POSIX file "${esc}")'`;
+    } else if (PLATFORM === 'win32') {
+      const method = isDir ? 'DeleteDirectory' : 'DeleteFile';
+      const ps = target.replace(/'/g, "''");
+      cmd = `powershell -NoProfile -Command "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::${method}('${ps}','OnlyErrorDialogs','SendToRecycleBin')"`;
+    } else {
+      cmd = `gio trash ${shellQuote(target)} || trash-put ${shellQuote(target)} || trash ${shellQuote(target)}`;
+    }
+    exec(cmd, (err) => err ? resolve({ ok: false, error: err.message }) : resolve({ ok: true }));
+  });
+}
+
+function validName(name) {
+  return name && typeof name === 'string' && !/[\/\\\0]/.test(name) && name !== '.' && name !== '..';
+}
+
+async function renamePath(p, newName) {
+  const src = resolvePath(p);
+  if (!validName(newName)) throw new Error('名称不合法');
+  const dst = path.join(path.dirname(src), newName);
+  if (fs.existsSync(dst)) throw new Error('已存在同名项');
+  await fsp.rename(src, dst);
+  return { ok: true, path: dst };
+}
+
+async function createEntry(parentPath, name, type) {
+  const parent = resolvePath(parentPath);
+  if (!validName(name)) throw new Error('名称不合法');
+  const target = path.join(parent, name);
+  if (fs.existsSync(target)) throw new Error('已存在同名项');
+  if (type === 'dir') await fsp.mkdir(target);
+  else await fsp.writeFile(target, '', { flag: 'wx' });
+  return { ok: true, path: target, isDir: type === 'dir' };
+}
+
 function openInOS(target, withApp) {
   return new Promise((resolve) => {
     let cmd, args;
@@ -466,6 +523,22 @@ const server = http.createServer(async (req, res) => {
         await writeConfig(cfg);
       }
       return sendJSON(res, 200, result);
+    }
+    if (p === '/api/write' && req.method === 'POST') {
+      const b = await readBody(req);
+      return sendJSON(res, 200, await writeTextFile(b.path, b.content));
+    }
+    if (p === '/api/trash' && req.method === 'POST') {
+      const b = await readBody(req);
+      return sendJSON(res, 200, await trashPath(b.path));
+    }
+    if (p === '/api/rename' && req.method === 'POST') {
+      const b = await readBody(req);
+      return sendJSON(res, 200, await renamePath(b.path, b.newName));
+    }
+    if (p === '/api/create' && req.method === 'POST') {
+      const b = await readBody(req);
+      return sendJSON(res, 200, await createEntry(b.path, b.name, b.type));
     }
     if (p === '/api/favorites') {
       const cfg = await readConfig();

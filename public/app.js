@@ -272,6 +272,7 @@ function bindItem(el, e) {
     onItemClick(e);
   };
   el.ondblclick = (ev) => { if (ev.target.closest('.fav-btn')) return; onItemOpen(e); };
+  el.oncontextmenu = (ev) => { state.cursor = Number(el.dataset.idx); showContextMenu(ev, e); };
 }
 function onItemClick(e) {
   state.selected = e.path;
@@ -389,6 +390,7 @@ function renderPreviewActions(e) {
   const fav = isFav(e.path);
   [
     { icon: ic('link', 'currentColor', 14), label: '默认应用打开', cls: 'primary', fn: () => openWith(e.path, 'default') },
+    ...(e.kind === 'text' ? [{ icon: ic('text', 'currentColor', 14), label: '编辑', fn: () => enterEditMode(e) }] : []),
     { icon: ic('term', 'currentColor', 14), label: '在编辑器打开', fn: () => openWith(e.path, 'editor') },
     { icon: ic('folder', 'currentColor', 14), label: '在 Finder 显示', fn: () => openWith(e.path, 'reveal') },
     { icon: ic('clip', 'currentColor', 14), label: '复制路径', fn: () => copyPath(e.path) },
@@ -447,6 +449,133 @@ async function toggleFav(e) {
   if (!$('#preview').classList.contains('hidden') && state.selected === e.path) renderPreviewActions(e);
   renderFiles();
   toast(isFav(e.path) ? '已收藏' : '已取消收藏');
+}
+
+// ---------- 文件操作（编辑 / 重命名 / 废纸篓 / 新建）----------
+// 重拉当前目录但保留筛选词，操作后刷新视图
+async function refresh() {
+  if (!state.cwd || state.recentMode) return;
+  const data = await api('/api/list?path=' + encodeURIComponent(state.cwd));
+  if (data.error) return;
+  state.entries = data.entries;
+  state.project = data.project;
+  state.breadcrumb = data.breadcrumb;
+  renderBreadcrumb();
+  renderFiles();
+}
+// 文本原地编辑
+async function enterEditMode(e) {
+  $('#preview').classList.remove('hidden');
+  $('#app').classList.add('has-preview');
+  applyPreviewWidth();
+  state.selected = e.path;
+  $('#preview-title').textContent = e.name;
+  renderPreviewActions(e);
+  const body = $('#preview-body');
+  body.innerHTML = '<div class="cmdk-loading">加载中…</div>';
+  const data = await api('/api/read?path=' + encodeURIComponent(e.path));
+  if (data.tooLarge) { toast('文件太大，暂不支持原地编辑', true); openPreview(e); return; }
+  body.innerHTML =
+    `<div class="editor-bar"><button id="ed-save" class="primary">保存</button><button id="ed-cancel" class="ghost-btn">取消</button><span class="editor-hint">⌘S 保存 · Esc 取消</span></div>` +
+    `<textarea id="ed-area" class="editor-area" spellcheck="false"></textarea>`;
+  const ta = $('#ed-area');
+  ta.value = data.content || '';
+  ta.focus();
+  const save = async () => {
+    const r = await apiPost('/api/write', { path: e.path, content: ta.value });
+    if (r.error) { toast('保存失败：' + r.error, true); return; }
+    toast('已保存');
+    await refresh();
+    openPreview(state.entries.find((x) => x.path === e.path) || e);
+  };
+  $('#ed-save').onclick = save;
+  $('#ed-cancel').onclick = () => openPreview(e);
+  ta.addEventListener('keydown', (ev) => {
+    if ((ev.metaKey || ev.ctrlKey) && ev.key === 's') { ev.preventDefault(); save(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); openPreview(e); }
+    ev.stopPropagation(); // 别冒泡到主区键盘导航
+  });
+}
+async function doRename(e) {
+  const name = await inputDialog('重命名', e.name, '输入新名称');
+  if (!name || name === e.name) return;
+  const r = await apiPost('/api/rename', { path: e.path, newName: name });
+  if (r.error) { toast('重命名失败：' + r.error, true); return; }
+  toast('已重命名');
+  if (state.selected === e.path) state.selected = r.path;
+  await refresh();
+}
+async function doTrash(e) {
+  const r = await apiPost('/api/trash', { path: e.path });
+  if (r.error) { toast('删除失败：' + r.error + '（首次需在弹窗里允许控制 Finder）', true); return; }
+  toast('已移到废纸篓，可从废纸篓恢复');
+  if (state.selected === e.path) closePreview();
+  await refresh();
+}
+async function doCreate(type) {
+  const name = await inputDialog(type === 'dir' ? '新建文件夹' : '新建文件', '', type === 'dir' ? '文件夹名称' : '文件名（带扩展名，如 note.md）');
+  if (!name) return;
+  const r = await apiPost('/api/create', { path: state.cwd, name, type });
+  if (r.error) { toast('新建失败：' + r.error, true); return; }
+  toast(type === 'dir' ? '已新建文件夹' : '已新建文件');
+  await refresh();
+  // 新建文件顺手打开编辑
+  if (type === 'file') { const ne = state.entries.find((x) => x.path === r.path); if (ne && ne.kind === 'text') enterEditMode(ne); }
+}
+// 通用输入弹窗（替代原生 prompt，配合皮肤）
+function inputDialog(title, value = '', placeholder = '') {
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.className = 'input-overlay';
+    ov.innerHTML = `<div class="input-dialog"><div class="input-title">${escapeHtml(title)}</div>
+      <input class="input-field" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}" spellcheck="false">
+      <div class="input-actions"><button class="ghost-btn" data-act="cancel">取消</button><button class="primary" data-act="ok">确定</button></div></div>`;
+    document.body.appendChild(ov);
+    const inp = ov.querySelector('.input-field');
+    inp.focus();
+    inp.select();
+    const done = (v) => { ov.remove(); resolve(v); };
+    ov.querySelector('[data-act=ok]').onclick = () => done(inp.value.trim());
+    ov.querySelector('[data-act=cancel]').onclick = () => done(null);
+    ov.onclick = (ev) => { if (ev.target === ov) done(null); };
+    inp.addEventListener('keydown', (ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Enter') { ev.preventDefault(); done(inp.value.trim()); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); done(null); }
+    });
+  });
+}
+// 右键上下文菜单
+function closeContextMenu() { const m = $('#context-menu'); if (m) m.remove(); }
+function showContextMenu(ev, e) {
+  ev.preventDefault();
+  closeContextMenu();
+  const items = [];
+  if (e.isDir) items.push({ label: '打开', fn: () => navigate(e.path) });
+  else items.push({ label: '预览', fn: () => { state.selected = e.path; openPreview(e); renderFiles(); } });
+  if (e.kind === 'text') items.push({ label: '编辑文本', fn: () => enterEditMode(e) });
+  items.push({ label: '在编辑器打开', fn: () => openWith(e.path, 'editor') });
+  items.push({ label: '在 Finder 显示', fn: () => openWith(e.path, 'reveal') });
+  items.push({ label: '复制路径', fn: () => copyPath(e.path) });
+  items.push({ sep: true });
+  items.push({ label: isFav(e.path) ? '取消收藏' : '收藏', fn: () => toggleFav(e) });
+  items.push({ label: '重命名…', fn: () => doRename(e) });
+  items.push({ label: '移到废纸篓', danger: true, fn: () => doTrash(e) });
+  const menu = document.createElement('div');
+  menu.id = 'context-menu';
+  menu.className = 'context-menu';
+  items.forEach((it) => {
+    if (it.sep) { const s = document.createElement('div'); s.className = 'ctx-sep'; menu.appendChild(s); return; }
+    const b = document.createElement('div');
+    b.className = 'ctx-item' + (it.danger ? ' danger' : '');
+    b.textContent = it.label;
+    b.onclick = () => { closeContextMenu(); it.fn(); };
+    menu.appendChild(b);
+  });
+  document.body.appendChild(menu);
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = Math.min(ev.clientX, window.innerWidth - mw - 8) + 'px';
+  menu.style.top = Math.min(ev.clientY, window.innerHeight - mh - 8) + 'px';
 }
 
 // ---------- 侧边栏 ----------
@@ -665,6 +794,33 @@ function bindResizer() {
   window.addEventListener('mouseup', () => { if (dragging) { dragging = false; document.body.style.userSelect = ''; localStorage.setItem('fb_preview_w', state.previewW); } });
 }
 
+// 终端面板拖拽调整大小（底部拖高度 / 右侧拖宽度）
+function bindTerminalResizer() {
+  const handle = $('#terminal-resizer');
+  let dragging = false;
+  handle.addEventListener('mousedown', (e) => { dragging = true; e.preventDefault(); document.body.style.userSelect = 'none'; });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const panel = $('#terminal-panel');
+    const rect = $('#main-body').getBoundingClientRect();
+    if (term.dock === 'bottom') {
+      const h = Math.min(rect.height - 120, Math.max(120, rect.bottom - e.clientY));
+      panel.style.height = Math.round(h) + 'px';
+    } else {
+      const w = Math.min(rect.width - 200, Math.max(240, rect.right - e.clientX));
+      panel.style.width = Math.round(w) + 'px';
+    }
+    term.fitActive();
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false; document.body.style.userSelect = '';
+    const panel = $('#terminal-panel');
+    if (term.dock === 'bottom') localStorage.setItem('fb_term_h', parseInt(panel.style.height, 10) || 280);
+    else localStorage.setItem('fb_term_w', parseInt(panel.style.width, 10) || 480);
+  });
+}
+
 // ---------- 事件绑定 ----------
 function bindEvents() {
   $('#btn-back').onclick = goBack;
@@ -672,7 +828,15 @@ function bindEvents() {
   $('#preview-close').onclick = closePreview;
   $('#cmdk-trigger').onclick = () => cmdk.open();
   $('#btn-recent').onclick = showRecent;
-  $('#btn-terminal').onclick = () => { if (state.cwd) openWith(state.cwd, 'terminal'); };
+  $('#btn-terminal').onclick = () => term.toggle();
+  $('#term-newtab').onclick = () => term.newTab();
+  $('#term-dock').onclick = () => term.setDock(term.dock === 'bottom' ? 'right' : 'bottom');
+  $('#term-close').onclick = () => term.close();
+  bindTerminalResizer();
+  $('#btn-new-dir').onclick = () => doCreate('dir');
+  $('#btn-new-file').onclick = () => doCreate('file');
+  document.addEventListener('click', (e) => { if (!e.target.closest('#context-menu')) closeContextMenu(); });
+  window.addEventListener('blur', closeContextMenu);
   $('#scope-toggle').onclick = () => cmdk.toggleScope();
 
   $('#toggle-hidden').checked = state.showHidden;
@@ -697,6 +861,7 @@ function bindEvents() {
   $('#cmdk').onclick = (e) => { if (e.target.id === 'cmdk') cmdk.close(); };
 
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && $('#context-menu')) { closeContextMenu(); return; }
     const cmdkOpen = !$('#cmdk').classList.contains('hidden');
     const lbOpen = !!document.querySelector('.lightbox');
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); cmdkOpen ? cmdk.close() : cmdk.open(); return; }
@@ -709,7 +874,7 @@ function bindEvents() {
       return;
     }
     if (lbOpen) { if (e.key === 'Escape') document.querySelector('.lightbox').remove(); return; }
-    const inInput = document.activeElement.tagName === 'INPUT';
+    const inInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
     if (e.key === 'Escape' && !$('#preview').classList.contains('hidden')) { closePreview(); return; }
     if (e.key === '/' && !inInput) { e.preventDefault(); $('#quick-filter').focus(); return; }
     if ((e.metaKey || e.ctrlKey) && e.key === '[') { e.preventDefault(); goBack(); return; }
@@ -736,6 +901,7 @@ function applyTheme(skin, rerender = true) {
   const link = document.getElementById('hljs-theme');
   if (link) link.href = 'https://cdn.jsdelivr.net/npm/highlight.js@11/styles/' + (skin === 'terminal' ? 'github-dark' : 'github') + '.min.css';
   document.querySelectorAll('#theme-switch .theme-seg button').forEach((b) => b.classList.toggle('active', b.dataset.skin === skin));
+  if (typeof term !== 'undefined' && term.sessions.length) term.retheme();
   if (rerender && state.entries.length) {
     renderFiles();
     // 预览里的代码高亮配色随皮肤切换，重渲染当前选中项
@@ -744,6 +910,114 @@ function applyTheme(skin, rerender = true) {
       if (e) openPreview(e);
     }
   }
+}
+
+// ---------- 内嵌终端（仅桌面 app；浏览器版优雅降级）----------
+const term = {
+  sessions: [], seq: 0, active: null,
+  dock: localStorage.getItem('fb_term_dock') || 'bottom',
+  available() { return !!(window.fanboxPty && window.Terminal && !window.__noXterm); },
+  theme() {
+    const cs = getComputedStyle(document.documentElement);
+    const v = (n, f) => (cs.getPropertyValue(n).trim() || f);
+    return {
+      background: v('--bg', '#0b0c0a'), foreground: v('--text', '#f2f2ea'),
+      cursor: v('--accent', '#cdf24b'), cursorAccent: v('--bg', '#0b0c0a'),
+      selectionBackground: v('--accent-soft', '#cdf24b33'),
+    };
+  },
+  toggle() {
+    if (!this.available()) { if (state.cwd) openWith(state.cwd, 'terminal'); return; } // 浏览器降级到系统终端
+    const hidden = $('#terminal-panel').classList.contains('hidden');
+    hidden ? this.open() : this.close();
+  },
+  open() {
+    $('#terminal-panel').classList.remove('hidden');
+    $('#terminal-resizer').classList.remove('hidden');
+    this.applyDock();
+    if (!this.sessions.length) this.newTab();
+    else this.fitActive();
+    $('#btn-terminal').classList.add('active');
+  },
+  close() {
+    $('#terminal-panel').classList.add('hidden');
+    $('#terminal-resizer').classList.add('hidden');
+    $('#btn-terminal').classList.remove('active');
+  },
+  applyDock() {
+    const mb = $('#main-body');
+    mb.classList.toggle('dock-bottom', this.dock === 'bottom');
+    mb.classList.toggle('dock-right', this.dock === 'right');
+    const panel = $('#terminal-panel');
+    if (this.dock === 'bottom') { panel.style.height = (Number(localStorage.getItem('fb_term_h')) || 280) + 'px'; panel.style.width = ''; }
+    else { panel.style.width = (Number(localStorage.getItem('fb_term_w')) || 480) + 'px'; panel.style.height = ''; }
+    this.fitActive();
+  },
+  setDock(d) { this.dock = d; localStorage.setItem('fb_term_dock', d); this.applyDock(); },
+  async newTab() {
+    const id = 't' + (++this.seq);
+    const host = document.createElement('div');
+    host.className = 'xterm-instance';
+    $('#xterm-host').appendChild(host);
+    const FitCtor = window.FitAddon ? (window.FitAddon.FitAddon || window.FitAddon) : null;
+    const xterm = new window.Terminal({
+      fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace',
+      fontSize: 13, lineHeight: 1.2, cursorBlink: true, theme: this.theme(), scrollback: 5000,
+    });
+    const fit = FitCtor ? new FitCtor() : null;
+    if (fit) xterm.loadAddon(fit);
+    xterm.open(host);
+    if (fit) try { fit.fit(); } catch { /* */ }
+    const sess = { id, xterm, fit, host, title: baseOf(state.cwd || '') || 'shell' };
+    this.sessions.push(sess);
+    this.activate(id);
+    const r = await window.fanboxPty.spawn({ id, cwd: state.cwd, cols: xterm.cols, rows: xterm.rows });
+    if (!r.ok) { xterm.write('\r\n  \x1b[31m终端启动失败：' + (r.error || '') + '\x1b[0m\r\n'); }
+    xterm.onData((d) => window.fanboxPty.input(id, d));
+    xterm.onResize(({ cols, rows }) => window.fanboxPty.resize(id, cols, rows));
+    this.renderTabs();
+  },
+  activate(id) {
+    this.active = id;
+    this.sessions.forEach((s) => s.host.classList.toggle('show', s.id === id));
+    this.renderTabs();
+    const s = this.sessions.find((x) => x.id === id);
+    if (s) { this.fitActive(); setTimeout(() => s.xterm.focus(), 0); }
+  },
+  closeTab(id) {
+    const i = this.sessions.findIndex((x) => x.id === id);
+    if (i < 0) return;
+    const s = this.sessions[i];
+    try { window.fanboxPty.kill(id); } catch { /* */ }
+    try { s.xterm.dispose(); } catch { /* */ }
+    s.host.remove();
+    this.sessions.splice(i, 1);
+    if (!this.sessions.length) { this.close(); return; }
+    if (this.active === id) this.activate(this.sessions[Math.max(0, i - 1)].id);
+    else this.renderTabs();
+  },
+  fitActive() {
+    const s = this.sessions.find((x) => x.id === this.active);
+    if (!s || !s.fit) return;
+    requestAnimationFrame(() => { try { s.fit.fit(); } catch { /* */ } });
+  },
+  renderTabs() {
+    const bar = $('#term-tabs');
+    bar.innerHTML = '';
+    this.sessions.forEach((s) => {
+      const t = document.createElement('div');
+      t.className = 'term-tab' + (s.id === this.active ? ' active' : '');
+      t.innerHTML = `${ic('term', 'currentColor', 12)}<span>${escapeHtml(s.title)}</span><span class="tab-x" title="关闭">✕</span>`;
+      t.onclick = (e) => { if (e.target.classList.contains('tab-x')) { this.closeTab(s.id); return; } this.activate(s.id); };
+      bar.appendChild(t);
+    });
+  },
+  retheme() { const th = this.theme(); this.sessions.forEach((s) => { s.xterm.options.theme = th; }); },
+};
+// pty 数据回流（全局一次）
+if (window.fanboxPty) {
+  window.fanboxPty.onData(({ id, data }) => { const s = term.sessions.find((x) => x.id === id); if (s) s.xterm.write(data); });
+  window.fanboxPty.onExit(({ id }) => { const s = term.sessions.find((x) => x.id === id); if (s) s.xterm.write('\r\n\x1b[90m[进程已退出，按 ✕ 关闭或回车重开]\x1b[0m\r\n'); });
 }
 
 // ---------- 启动 ----------

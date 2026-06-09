@@ -1,16 +1,28 @@
 {
   "name": "fanbox",
-  "version": "1.0.0",
-  "description": "翻箱 FanBox — 为 vibe coding 而生的本地文件指挥中心。在浏览器里查看、搜索、预览、一键打开本机所有文件夹和文件。",
+  "version": "1.1.0",
+  "description": "翻箱 FanBox — vibe coding 的驾驶舱。浏览/搜索/预览/轻改本机文件，内嵌终端直接指挥 coding agent。",
   "bin": {
     "fanbox": "server.js"
   },
+  "main": "electron/main.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "app": "electron .",
+    "rebuild": "electron-rebuild -f -w node-pty"
   },
   "type": "commonjs",
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "node-pty": "^1.0.0",
+    "@xterm/xterm": "^5.5.0",
+    "@xterm/addon-fit": "^0.10.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "@electron/rebuild": "^3.7.0"
   },
   "license": "MIT"
 }
