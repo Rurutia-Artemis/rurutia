@@ -479,6 +479,68 @@ async function renamePath(p, newName) {
   return { ok: true, path: dst };
 }
 
+// ---------- 发版向导：检查项目状态 → 改版本号/CHANGELOG → 命令序列交给内嵌终端跑（每步可见可拦）----------
+async function releaseInspect(p) {
+  const dir = resolvePath(p);
+  const sh = (cmd, args) => new Promise((resolve) => execFile(cmd, args, { cwd: dir, timeout: 8000 }, (err, stdout) => resolve(err ? null : String(stdout).trim())));
+  let pkg;
+  try { pkg = JSON.parse(await fsp.readFile(path.join(dir, 'package.json'), 'utf8')); }
+  catch { return { ok: false, error: '这里没有 package.json——发版向导目前只认 node 项目' }; }
+  const out = { ok: true, dir, name: pkg.name || path.basename(dir), version: pkg.version || '0.0.0' };
+  out.hasDist = !!(pkg.scripts && pkg.scripts.dist);
+  out.remote = await sh('git', ['remote', 'get-url', 'origin']);
+  out.branch = await sh('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
+  const status = await sh('git', ['status', '--porcelain']);
+  out.isRepo = status !== null;
+  out.dirty = !!(status && status.length);
+  out.gh = !!(await sh('/bin/sh', ['-lc', 'command -v gh']));
+  out.unreleased = ''; out.hasChangelog = false;
+  try {
+    const cl = await fsp.readFile(path.join(dir, 'CHANGELOG.md'), 'utf8');
+    out.hasChangelog = true;
+    const m = cl.match(/## \[Unreleased\]\s*([\s\S]*?)(?=\n## \[|$)/);
+    if (m) out.unreleased = m[1].trim();
+  } catch { /* 没有 CHANGELOG 不挡发版 */ }
+  return out;
+}
+
+async function releasePrepare(b) {
+  const dir = resolvePath(b.path);
+  const version = String(b.version || '').trim();
+  if (!/^\d+\.\d+\.\d+/.test(version)) return { ok: false, error: '版本号格式不对（要 x.y.z）' };
+  const notes = String(b.notes || '').trim();
+  // 1) package.json 版本号
+  const pkgFile = path.join(dir, 'package.json');
+  let pkgRaw;
+  try { pkgRaw = await fsp.readFile(pkgFile, 'utf8'); } catch { return { ok: false, error: '读不到 package.json' }; }
+  if (!/"version"\s*:\s*"[^"]*"/.test(pkgRaw)) return { ok: false, error: 'package.json 里没有 version 字段' };
+  await fsp.writeFile(pkgFile, pkgRaw.replace(/"version"\s*:\s*"[^"]*"/, `"version": "${version}"`), 'utf8');
+  // 2) CHANGELOG：Unreleased 段落升格为新版本，开新的空 Unreleased
+  const clFile = path.join(dir, 'CHANGELOG.md');
+  try {
+    const cl = await fsp.readFile(clFile, 'utf8');
+    if (cl.includes('## [Unreleased]')) {
+      const date = new Date().toISOString().slice(0, 10);
+      const next = cl.replace(/## \[Unreleased\][\s\S]*?(?=\n## \[|$)/, `## [Unreleased]\n\n## [${version}] - ${date}\n\n${notes}\n\n`);
+      await fsp.writeFile(clFile, next, 'utf8');
+    }
+  } catch { /* 没有 CHANGELOG 跳过 */ }
+  // 3) 发布说明落临时文件给 gh 用；命令序列拼好交还前端注入终端
+  const notesFile = path.join(os.tmpdir(), `fanbox-release-notes-${Date.now()}.md`);
+  await fsp.writeFile(notesFile, notes || `v${version}`, 'utf8');
+  // 标题优先取第一个要点的内容，「### Added」这类小节头当不了标题
+  const lines = notes.split('\n').map((l) => l.trim()).filter(Boolean);
+  const firstBullet = lines.find((l) => /^[-*]\s/.test(l));
+  const firstPlain = lines.find((l) => !/^#/.test(l));
+  const title = (firstBullet || firstPlain || '').replace(/^[#\-*\s]+/, '').slice(0, 60);
+  const steps = [];
+  if (b.doDist) steps.push('npm run dist');
+  steps.push('git add -A', `git commit -m ${shellQuote(`v${version}: ${title || '发版'}`)}`);
+  if (b.doPush) steps.push('git push');
+  if (b.doRelease) steps.push(`gh release create v${version} --title ${shellQuote(`v${version}${title ? ' · ' + title : ''}`)} --notes-file ${shellQuote(notesFile)}${b.doDist ? ` dist/*${version}*.dmg` : ''}`);
+  return { ok: true, cmd: steps.join(' && ') };
+}
+
 // ---------- 项目记忆：这个文件夹里 AI 干过什么 ----------
 // 数据源：~/.claude/projects/<munge(cwd)>/*.jsonl + ~/.codex/sessions/**/rollout-*.jsonl（头部 cwd 匹配）。
 // 单会话解析结果按 (size, mtime) 缓存，再次打开只重解析有变化的文件。
@@ -1690,6 +1752,12 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/project-memory') {
       return sendJSON(res, 200, await projectMemory(url.searchParams.get('path')));
+    }
+    if (p === '/api/release/inspect') {
+      return sendJSON(res, 200, await releaseInspect(url.searchParams.get('path')));
+    }
+    if (p === '/api/release/prepare' && req.method === 'POST') {
+      return sendJSON(res, 200, await releasePrepare(await readBody(req)));
     }
     if (p === '/api/trash' && req.method === 'POST') {
       const b = await readBody(req);

@@ -349,9 +349,10 @@ function renderStatusbar() {
   const files = list.length - dirs;
   const bytes = list.reduce((a, e) => a + (e.isDir ? 0 : e.size || 0), 0);
   sb.classList.remove('hidden');
-  sb.innerHTML = `<span>${list.length} 项${dirs ? ` · ${dirs} 文件夹` : ''}${files ? ` · ${files} 文件 ${fmtSize(bytes)}` : ''}</span><span class="sb-links"><a id="sb-mem" title="这个文件夹里 AI 干过什么：历史会话、改过的文件、一键续上">项目记忆</a><a id="sb-du" title="算上子目录的真实磁盘占用">占用透视</a></span>`;
+  sb.innerHTML = `<span>${list.length} 项${dirs ? ` · ${dirs} 文件夹` : ''}${files ? ` · ${files} 文件 ${fmtSize(bytes)}` : ''}</span><span class="sb-links">${state.project ? '<a id="sb-rel" title="版本号→CHANGELOG→打包→push→Release 一条龙，在终端跑">发版</a>' : ''}<a id="sb-mem" title="这个文件夹里 AI 干过什么：历史会话、改过的文件、一键续上">项目记忆</a><a id="sb-du" title="算上子目录的真实磁盘占用">占用透视</a></span>`;
   $('#sb-du').onclick = () => diskPanel(state.cwd);
   $('#sb-mem').onclick = () => memoryPanel(state.cwd);
+  const rel = $('#sb-rel'); if (rel) rel.onclick = () => releasePanel();
 }
 function renderFiles() {
   if (state.skillsMode) return; // skills 视图自管 #file-area，文件渲染不要清掉它
@@ -1373,7 +1374,7 @@ async function memoryPanel(dirPath) {
       const s = d.sessions[Number(b.dataset.i)];
       const cmd = s.agent === 'codex' ? `codex resume ${s.id}` : `claude --dangerously-skip-permissions --resume ${s.id}`;
       close();
-      term.resumeAgent(dirPath, cmd);
+      term.runInDir(dirPath, cmd, '已在终端续上会话');
     };
   });
   body.querySelectorAll('.mem-file').forEach((f) => {
@@ -1385,6 +1386,51 @@ async function memoryPanel(dirPath) {
       if (e) { state.selected = p; openPreview(e); renderFiles(); }
     };
   });
+}
+
+// 发版向导：版本号 + 发布说明（预填 CHANGELOG 的 Unreleased 段）→ 命令序列在内嵌终端跑，每步可见可拦
+async function releasePanel() {
+  const dirPath = state.cwd;
+  const old = $('.rel-overlay'); if (old) old.remove();
+  const ov = document.createElement('div');
+  ov.className = 'input-overlay rel-overlay';
+  ov.innerHTML = `<div class="input-dialog rel-dialog"><div class="input-title">发版</div><div class="rel-body"><div class="cmdk-loading">检查项目状态…</div></div></div>`;
+  document.body.appendChild(ov);
+  const onKey = (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); close(); } };
+  const close = () => { ov.remove(); document.removeEventListener('keydown', onKey, true); };
+  ov.onclick = (ev) => { if (ev.target === ov) close(); };
+  document.addEventListener('keydown', onKey, true);
+  const d = await api('/api/release/inspect?path=' + encodeURIComponent(dirPath));
+  const body = ov.querySelector('.rel-body');
+  if (!d.ok) { body.innerHTML = `<div class="empty-state">${escapeHtml(d.error)}</div>`; return; }
+  const bump = d.version.replace(/(\d+)(\D*)$/, (m, n, t) => (Number(n) + 1) + t);
+  body.innerHTML = `
+    <div class="rel-row"><label>版本号</label><span class="rel-cur">当前 v${escapeHtml(d.version)} →</span><input id="rel-ver" value="${escapeHtml(bump)}" spellcheck="false"></div>
+    <div class="rel-row rel-col"><label>发布说明${d.unreleased ? '（预填自 CHANGELOG 的 Unreleased 段）' : ''}</label><textarea id="rel-notes" rows="8" spellcheck="false">${escapeHtml(d.unreleased)}</textarea></div>
+    <div class="rel-opts">
+      ${d.hasDist ? '<label><input type="checkbox" id="rel-dist" checked> 打包（npm run dist）</label>' : ''}
+      ${d.remote ? '<label><input type="checkbox" id="rel-push" checked> 推送（git push）</label>' : ''}
+      ${d.gh && d.remote ? '<label><input type="checkbox" id="rel-gh" checked> GitHub Release' + (d.hasDist ? '（附 dmg）' : '') + '</label>' : ''}
+    </div>
+    ${d.dirty ? '<div class="rel-hint">工作区有未提交改动，会一并进这次发版 commit</div>' : ''}
+    ${!d.isRepo ? '<div class="rel-hint">这里不是 git 仓库，只能改版本号</div>' : ''}
+    <div class="input-actions"><button class="ghost-btn" id="rel-cancel">取消</button><button class="primary" id="rel-go">在终端开跑</button></div>`;
+  $('#rel-cancel').onclick = close;
+  $('#rel-go').onclick = async () => {
+    const version = $('#rel-ver').value.trim();
+    if (!/^\d+\.\d+\.\d+/.test(version)) { toast('版本号要 x.y.z 格式', true); return; }
+    $('#rel-go').disabled = true;
+    const r = await apiPost('/api/release/prepare', {
+      path: dirPath, version,
+      notes: $('#rel-notes').value,
+      doDist: !!($('#rel-dist') && $('#rel-dist').checked),
+      doPush: !!($('#rel-push') && $('#rel-push').checked),
+      doRelease: !!($('#rel-gh') && $('#rel-gh').checked),
+    });
+    if (!r.ok) { toast(r.error || '准备失败', true); $('#rel-go').disabled = false; return; }
+    close();
+    term.runInDir(dirPath, r.cmd, `v${version} 发版序列已在终端开跑`);
+  };
 }
 
 // 磁盘占用透视：du 口径的真实占用条形榜，目录行可下钻
@@ -2065,11 +2111,11 @@ const term = {
     if (sess && !sess.dead) { this.input(sess.id, cmd + '\r'); sess.xterm.focus(); toast('已在终端启动 ' + cmd); }
     else toast('终端启动失败', true);
   },
-  // 续上历史会话：必须在项目目录新开标签（claude --resume 按当前目录找会话），不复用别处的空闲 shell
-  async resumeAgent(dir, cmd) {
+  // 在指定目录新开标签跑命令（续会话/发版等）：不复用别处的空闲 shell，目录必须对
+  async runInDir(dir, cmd, msg) {
     if (!this.available()) { openWith(dir, 'terminal'); return; }
     const sess = await this.openInDir(dir);
-    if (sess && !sess.dead) { this.input(sess.id, cmd + '\r'); sess.xterm.focus(); toast('已在终端续上会话'); }
+    if (sess && !sess.dead) { this.input(sess.id, cmd + '\r'); sess.xterm.focus(); toast(msg || '已在终端启动'); }
     else toast('终端启动失败', true);
   },
   // 该会话前台是不是裸 shell？判断不了一律按「不是」处理——宁可新开标签，也不往运行中的程序里打字
