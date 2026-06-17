@@ -100,9 +100,18 @@ const bridge = {
   push(cid, role, text) {
     const c = this.conv(cid);
     c.messages.push({ role, text, time: now() });
+    c.updatedAt = Date.now();        // 最近活跃时间：决定打开面板默认显示哪个会话（落盘随 persistConvos）
     if (c.messages.length > 400) c.messages = c.messages.slice(-400);
     this.persistConvos();
     if (cid === this.activeCid) this.emit('wechat:message', { cid });
+  },
+  // 最近活跃的会话 id：打开面板默认显示它，而不是写死的 desktop（否则重启/用过桌面框后总先看到旧线）。
+  // 老数据没时间戳时偏向手机会话（@im.wechat）——那才是花叔遥控的真进展，桌面框只是本地草稿。
+  latestCid() {
+    const entries = Object.entries(this.conversations).filter(([, c]) => c && c.messages && c.messages.length);
+    if (!entries.length) return 'desktop';
+    entries.sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0) || ((a[0] === 'desktop') - (b[0] === 'desktop')));
+    return entries[0][0];
   },
 
   async targets() {
@@ -141,7 +150,12 @@ const bridge = {
   },
   setTarget(t) { if (t === 'codex' || t === 'claude') { this.target = t; this.persistState(); } return { ok: true, target: this.target }; },
   setCwd(dir) { if (dir && typeof dir === 'string') { this.cwd = dir; this.persistState(); } return { ok: true }; },
-  conversation(cid) { const c = this.conv(cid || this.activeCid); return { ok: true, id: c.id, messages: c.messages }; },
+  conversation(cid) {
+    const id = cid || this.latestCid();            // 不指定就取最近活跃会话，别再写死回 desktop
+    this.activeCid = id;                            // 同步活跃会话，让后续推送的 emit 门控跟着当前展示的线走
+    const c = this.conv(id);
+    return { ok: true, id: c.id, messages: c.messages };
+  },
 
   // 本机其他终端实时状态：花名册（编号/目录/进程/忙闲）+ 最近输出尾巴，注入给 agent 感知
   async buildTermContext() {
