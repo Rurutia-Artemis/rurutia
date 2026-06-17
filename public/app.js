@@ -250,10 +250,12 @@ function escapeHtml(s) {
 let dirtyCheck = null; // () => boolean，true=有未保存改动；null=当前没有编辑器
 let autosaveFlush = null; // 自动保存编辑器挂上：离开前把未落盘的改动写掉，不弹「放弃？」
 let edStatusTimer = null; // 代码编辑器「xx 之前已保存」每秒刷新的定时器；编辑器关掉时自清
+// 当前打开的 md 编辑器，供「外部文件变更」时重载用。{ path, isDirty(), reload() }；离开时清空。
+let currentEditor = null;
 async function guardDirty() {
   if (autosaveFlush) {
     const f = autosaveFlush;
-    autosaveFlush = null; dirtyCheck = null;
+    autosaveFlush = null; dirtyCheck = null; currentEditor = null;
     await f();
     return true;
   }
@@ -1188,6 +1190,7 @@ async function refresh() {
 async function enterEditMode(e) {
   if (follow.on) setFileFollow(false, '手动接管，文件跟随已停'); // 编辑时绝不能被跟随抢屏
   if (!await guardDirty()) return;
+  currentEditor = null; // 新编辑器接管前先清旧重载钩子；md 会在 mdEditor 里重新挂
   mona.disposeIfAny();
   crepe.disposeIfAny();
   showPreviewPanel();
@@ -1306,11 +1309,23 @@ async function enterEditMode(e) {
 async function mdEditor(e, data, mode = 'rich') {
   const body = $('#preview-body');
   let baseMtime = data.mtime;
-  let content0 = data.content || '';
+  let content0 = data.content || ''; // canonical：磁盘原始 markdown，唯一事实源；编辑器只从它初始化
   let getValue = null, baseline = '';
   let timer = null, paused = false;
+  let forceCode = false; // 该文件 Milkdown 往返有损 → 锁源码模式，富文本按钮灰显（用户选「无损才用富文本」）
+  let reloading = false; // 外部变更重载 in-flight 锁：fs.watch 同一文件会连发多个事件，去重防并发 render 互踩
   let chain = Promise.resolve(); // 写盘串行化：防抖到点的保存和离开时的 flush 不互相踩
   const setStatus = (t) => { const s = $('#md-status'); if (s) s.textContent = t; };
+  // Milkdown 往返是否「语义无损」：所见即所得必然规范化语法（- → *、紧凑列表变松散、强调记号等），逐字节比会把干净文件也误判有损。
+  // 改用渲染结果比对：两份 markdown 渲成 HTML（去掉 <p> 包裹消除松/紧列表假阳性 + 折叠空白）后相等 = 内容无损 → 放行富文本；
+  // 不等 = 真丢了内容（如 <br/> 被吞、HTML 被删）→ 锁源码。marked 不可用时退回严格比对（保守锁源码，绝不误放行有损）。
+  const semanticEqual = (a, b) => {
+    if (!window.marked || window.__noMarked) return a === b;
+    let ha, hb;
+    try { ha = window.marked.parse(a || ''); hb = window.marked.parse(b || ''); } catch { return a === b; }
+    const n = (s) => String(s).replace(/>\s+</g, '><').replace(/<\/?p>/g, '').replace(/\s+/g, ' ').trim();
+    return n(ha) === n(hb);
+  };
   const doSave = async (force) => {
     if (!getValue || paused) return;
     const content = getValue();
@@ -1326,7 +1341,7 @@ async function mdEditor(e, data, mode = 'rich') {
       return;
     }
     if (r.ok === false || r.error) { setStatus('保存失败'); toast('保存失败：' + (r.error || ''), true); return; }
-    baseMtime = r.mtime; baseline = content;
+    baseMtime = r.mtime; baseline = content; content0 = content; // 落盘成功 → canonical 跟进，重载基准对齐
     setStatus('已保存');
   };
   const queue = () => { clearTimeout(timer); timer = setTimeout(() => { chain = chain.then(() => doSave()); }, 800); };
@@ -1334,14 +1349,18 @@ async function mdEditor(e, data, mode = 'rich') {
   autosaveFlush = flush;
   dirtyCheck = null;
   const render = async (m) => {
+    if (forceCode) m = 'code'; // 有损文件只允许源码，杜绝静默改写
     mode = m;
     mona.disposeIfAny(); crepe.disposeIfAny();
+    const dis = forceCode; // 富文本按钮是否灰显
     body.innerHTML =
-      `<div class="editor-bar"><button id="md-mode" class="ghost-btn">${m === 'rich' ? '源码' : '富文本'}</button><span id="md-status" class="editor-hint">自动保存 · ⌘S 立即保存</span></div>` +
+      `<div class="editor-bar"><button id="md-mode" class="ghost-btn"${dis ? ' disabled title="此文件含富文本无法无损保存的语法，已锁定源码模式"' : ''}>${m === 'rich' ? '源码' : '富文本'}</button><span id="md-status" class="editor-hint">${dis ? '源码模式（此文件富文本往返有损，已锁定）' : '自动保存 · ⌘S 立即保存'}</span></div>` +
       `<div id="ed-host" class="${m === 'rich' ? 'crepe-host' : 'mona-host'}"></div>`;
-    $('#md-mode').onclick = async () => {
+    const modeBtn = $('#md-mode');
+    if (modeBtn && !dis) modeBtn.onclick = async () => {
       await flush();
-      content0 = getValue ? getValue() : content0;
+      const cur = getValue ? getValue() : content0;
+      if (cur !== baseline) content0 = cur; // 只有真编辑过才采纳编辑器的值；没改就保留磁盘原文，源码视图不被 Milkdown 规范化
       render(m === 'rich' ? 'code' : 'rich');
     };
     const host = $('#ed-host');
@@ -1352,9 +1371,16 @@ async function mdEditor(e, data, mode = 'rich') {
       const fm = /^(---\r?\n[\s\S]*?\r?\n---\r?\n)/.exec(content0);
       const front = fm ? fm[1] : '';
       const inst = new C.Crepe({ root: host, defaultValue: front ? content0.slice(front.length) : content0 });
+      await inst.create();
+      // 语义无损校验：Milkdown 序列化回来若渲染结果和磁盘原文不同（<br/> 被吞、HTML 被删等真丢内容）→ 锁源码，绝不让它静默落盘
+      if (!semanticEqual(front + inst.getMarkdown(), content0)) {
+        crepe.disposeIfAny();
+        forceCode = true;
+        toast('此文件含富文本无法无损表示的内容，已切到源码模式编辑');
+        return render('code');
+      }
       try { inst.on((l) => l.markdownUpdated(() => queue())); } catch { /* 旧版 Crepe 无 .on，靠下面的 input 兜底 */ }
       host.addEventListener('input', () => queue(), true); // 兜底：键入路径一定触发
-      await inst.create();
       crepe.editor = inst;
       getValue = () => front + inst.getMarkdown();
       // ⌘S 立即保存：捕获阶段拦在 ProseMirror 与全局键盘导航之前
@@ -1387,6 +1413,25 @@ async function mdEditor(e, data, mode = 'rich') {
       });
     }
     baseline = getValue(); // 以编辑器规范化后的内容为基准：打开不编辑就不会触发写盘
+  };
+  // 外部变更重载钩子（option 4）：编辑器未脏 → 静默重载磁盘最新内容；脏 → 不动，靠保存时的 mtime 冲突保护兜底
+  currentEditor = {
+    path: e.path,
+    // 防御：render 切换/重载途中旧编辑器已 dispose、新 getValue 未赋值，此刻被调到就当「未脏」放行重载
+    isDirty: () => { try { return !!getValue && getValue() !== baseline; } catch { return false; } },
+    reload: async () => {
+      if (reloading) return; // 同一文件连发多个变更事件 → 只跑一次，避免并发 render 互相 dispose
+      reloading = true;
+      try {
+        const fresh = await api('/api/read?path=' + encodeURIComponent(e.path));
+        if (!fresh || fresh.error || fresh.tooLarge) return;
+        if (Math.abs((fresh.mtime || 0) - baseMtime) <= 1) return; // 自己刚写的 / 无实质变化，不折腾（容差对齐 server 端冲突判定）
+        const wasForced = forceCode; // 之前是被迫锁源码的吗？
+        content0 = fresh.content || ''; baseMtime = fresh.mtime; forceCode = false; // 重新读盘 → 重做无损判定
+        await render(wasForced ? 'rich' : mode); // 被迫锁源码过 → 重走富文本入口重判无损（锁定指示器才准）；否则保持当前模式
+        toast('文件已被外部更新，编辑器已重新加载');
+      } finally { reloading = false; }
+    },
   };
   await render(mode);
 }
@@ -4210,6 +4255,11 @@ if (window.fanboxFs) {
     if (filename) recordChange(dir, String(filename));
     // 文件跟随：必须在「不是当前目录就 return」之前喂，跨目录改动才跟得上
     if (filename) followChange(dir, String(filename));
+    // 打开中的 md 编辑器若对应的磁盘文件被外部（如 agent / 命令行）改了：未脏就静默重载，脏则不动（保存时 mtime 冲突保护会拦）
+    if (filename && currentEditor) {
+      const abs = dir.replace(/\/$/, '') + '/' + String(filename);
+      if (abs === currentEditor.path && !currentEditor.isDirty()) currentEditor.reload();
+    }
     if (dir !== state.cwd || state.recentMode) return;
     // 高亮被 agent 改动的项：递归监听下 src/foo.js 归到顶层 src，并累计计数 + 记子路径供 tooltip 定位
     if (filename) {
