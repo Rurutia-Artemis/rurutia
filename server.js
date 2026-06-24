@@ -1146,6 +1146,14 @@ function defaultRoots() {
     .map(([name, p]) => ({ name, path: p }));
 }
 
+// 生效的「快速入口」列表：用户自定义过(quickRoots)就用它（含其增/删结果），否则用默认；过滤掉已不存在的目录
+function effectiveRoots(cfg) {
+  const list = Array.isArray(cfg && cfg.quickRoots) ? cfg.quickRoots : defaultRoots();
+  return list
+    .filter((r) => r && r.path && (() => { try { return fs.statSync(r.path).isDirectory(); } catch { return false; } })())
+    .map((r) => ({ name: r.name || path.basename(r.path) || r.path, path: r.path }));
+}
+
 // ---------- 静态资源 ----------
 
 async function serveStatic(req, res, urlPath) {
@@ -1538,24 +1546,28 @@ async function curlSysProxyLine() {
   return '';
 }
 
+// 返回值约定：成功 = { fiveHour, sevenDay }；取不到时不再返回 null，而是带原因
+// { unavailable: 'no-oauth' | 'request-failed' | 'no-windows' }，让前端能恒显「官方限额」区并解释原因。
 async function claudeOfficialLimits() {
   const token = await claudeOAuthToken();
-  if (!token) return null;
+  if (!token) return { unavailable: 'no-oauth' };
   // 不用 Node https：该接口的防护按 TLS 指纹拦——同样的请求头 curl 能 200、Node 直接 403。
   // 走系统 curl（macOS/Win10+ 自带），顺带继承用户的代理环境变量；
   // token 经 stdin 的 curl 配置传入，不暴露在进程列表里
-  const proxyLine = await curlSysProxyLine();
-  const body = await new Promise((resolve, reject) => {
-    const cp = execFile('curl', ['-sS', '--max-time', '8', '-K', '-', 'https://api.anthropic.com/api/oauth/usage'],
-      { timeout: 10000 }, (err, stdout) => (err ? reject(err) : resolve(stdout)));
-    cp.stdin.end(`${proxyLine}header = "Authorization: Bearer ${token}"\nheader = "anthropic-beta: oauth-2025-04-20"\n`);
-  });
-  const d = JSON.parse(body);
-  const win = (w) => (w && w.utilization != null)
-    ? { usedPercent: w.utilization, resetsAt: w.resets_at ? Math.floor(Date.parse(w.resets_at) / 1000) : 0 }
-    : null;
-  const fiveHour = win(d.five_hour), sevenDay = win(d.seven_day);
-  return (fiveHour || sevenDay) ? { fiveHour, sevenDay } : null;
+  try {
+    const proxyLine = await curlSysProxyLine();
+    const body = await new Promise((resolve, reject) => {
+      const cp = execFile('curl', ['-sS', '--max-time', '8', '-K', '-', 'https://api.anthropic.com/api/oauth/usage'],
+        { timeout: 10000 }, (err, stdout) => (err ? reject(err) : resolve(stdout)));
+      cp.stdin.end(`${proxyLine}header = "Authorization: Bearer ${token}"\nheader = "anthropic-beta: oauth-2025-04-20"\n`);
+    });
+    const d = JSON.parse(body);
+    const win = (w) => (w && w.utilization != null)
+      ? { usedPercent: w.utilization, resetsAt: w.resets_at ? Math.floor(Date.parse(w.resets_at) / 1000) : 0 }
+      : null;
+    const fiveHour = win(d.five_hour), sevenDay = win(d.seven_day);
+    return (fiveHour || sevenDay) ? { fiveHour, sevenDay } : { unavailable: 'no-windows' };
+  } catch { return { unavailable: 'request-failed' }; }
 }
 
 // ---------- Agent 项目（最近被 coding agent 处理过的项目文件夹）----------
@@ -1632,6 +1644,22 @@ async function agentProjects() {
   const data = { ok: true, projects };
   agentProjCache = { at: Date.now(), data };
   return data;
+}
+
+// Agent 项目「展示视图」：自动扫描结果上叠加用户的隐藏清单(agentHidden)与置顶清单(agentPinned)
+//  · 隐藏的项过滤掉（下次扫描也不会冒回来）；· 置顶的项放最前、标 pinned；· 都过滤掉已不存在的目录
+async function agentProjectsView(cfg) {
+  const base = await agentProjects();
+  const hidden = new Set(Array.isArray(cfg.agentHidden) ? cfg.agentHidden : []);
+  const pinnedArr = Array.isArray(cfg.agentPinned) ? cfg.agentPinned : [];
+  const pinnedSet = new Set(pinnedArr.map((x) => x.path));
+  const scanned = (base.projects || []).filter((pj) => !hidden.has(pj.path) && !pinnedSet.has(pj.path));
+  const pinned = [];
+  for (const x of pinnedArr) {
+    try { if (!(await fsp.stat(x.path)).isDirectory()) continue; } catch { continue; }
+    pinned.push({ path: x.path, name: x.name || path.basename(x.path), agents: [], lastActive: 0, pinned: true });
+  }
+  return { ok: true, projects: [...pinned, ...scanned] };
 }
 
 // ---------- Skills 透视（本机 agent skills 的扫描 / 触发统计 / 健康检查 / 启停）----------
@@ -1929,9 +1957,12 @@ async function agentUsage() {
   const [claude, codex, claudeLimits] = await Promise.all([
     claudeUsage().catch(() => null),
     codexUsage().catch(() => null),
-    claudeOfficialLimits().catch(() => null),
+    claudeOfficialLimits().catch(() => ({ unavailable: 'request-failed' })),
   ]);
-  const claudeOut = (claude || claudeLimits) ? { ...(claude || {}), official: claudeLimits } : null;
+  // 有本地会话日志、或官方拿到真数据 → 显示 Claude 区（官方子区恒显：有数据给进度条、没有给原因）。
+  // 既无日志又无官方数据（根本没用过 Claude Code）→ 不显示，免噪音。
+  const officialHasData = claudeLimits && (claudeLimits.fiveHour || claudeLimits.sevenDay);
+  const claudeOut = (claude || officialHasData) ? { ...(claude || {}), official: claudeLimits } : null;
   const data = { ok: true, at: Date.now(), claude: claudeOut, codex };
   usageResultCache = { at: Date.now(), data };
   return data;
@@ -1966,7 +1997,21 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (p === '/api/roots') {
-      return sendJSON(res, 200, { home: HOME, platform: PLATFORM, sep: path.sep, roots: defaultRoots() });
+      if (req.method === 'POST') {
+        const body = await readBody(req);
+        const cfg = await updateConfig((c) => {
+          // 首次自定义：把当前默认快照成可编辑列表（这样默认项也能删）
+          let list = Array.isArray(c.quickRoots) ? c.quickRoots.slice() : defaultRoots();
+          if (body.action === 'add' && body.path) {
+            if (!list.some((r) => r.path === body.path)) list.push({ name: body.name || path.basename(body.path) || body.path, path: body.path });
+          } else if (body.action === 'remove' && body.path) {
+            list = list.filter((r) => r.path !== body.path);
+          }
+          c.quickRoots = list;
+        });
+        return sendJSON(res, 200, { home: HOME, platform: PLATFORM, sep: path.sep, roots: effectiveRoots(cfg) });
+      }
+      return sendJSON(res, 200, { home: HOME, platform: PLATFORM, sep: path.sep, roots: effectiveRoots(await readConfig()) });
     }
     if (p === '/api/list') {
       return sendJSON(res, 200, await listDir(qp.get('path') || HOME));
@@ -2087,7 +2132,24 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, await createEntry(b.path, b.name, b.type));
     }
     if (p === '/api/agent-projects') {
-      return sendJSON(res, 200, await agentProjects());
+      if (req.method === 'POST') {
+        const body = await readBody(req);
+        const cfg = await updateConfig((c) => {
+          c.agentHidden = Array.isArray(c.agentHidden) ? c.agentHidden : [];
+          c.agentPinned = Array.isArray(c.agentPinned) ? c.agentPinned : [];
+          if (body.action === 'hide' && body.path) {
+            if (!c.agentHidden.includes(body.path)) c.agentHidden.push(body.path);
+            c.agentPinned = c.agentPinned.filter((x) => x.path !== body.path);
+          } else if (body.action === 'add' && body.path) {
+            if (!c.agentPinned.some((x) => x.path === body.path)) c.agentPinned.unshift({ path: body.path, name: body.name || path.basename(body.path) || body.path });
+            c.agentHidden = c.agentHidden.filter((x) => x !== body.path);
+          } else if (body.action === 'unhide' && body.path) {
+            c.agentHidden = c.agentHidden.filter((x) => x !== body.path);
+          }
+        });
+        return sendJSON(res, 200, await agentProjectsView(cfg));
+      }
+      return sendJSON(res, 200, await agentProjectsView(await readConfig()));
     }
     if (p === '/api/skills') {
       return sendJSON(res, 200, await skillsData());

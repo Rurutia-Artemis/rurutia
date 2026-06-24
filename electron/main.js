@@ -78,7 +78,7 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) {
     try { app.dock.setIcon(nativeImage.createFromPath(path.join(__dirname, '..', 'build', 'icon.png'))); } catch { /* */ }
   }
-  app.setName('FanBox');
+  app.setName('Rurutia');
   // 后端跑在 localhost，访问它永不该走代理。个别环境（clash 强制系统代理、企业 PAC 把 loopback 也代理）
   // 会把本地请求拦成 502 → 整个界面白屏。给 loopback 显式加旁路；其余（如查更新走 GitHub）仍按系统代理，互不影响。
   session.defaultSession.setProxy({ mode: 'system', proxyBypassRules: 'localhost;127.0.0.1;[::1]' }).catch(() => { /* 设置失败就退回默认行为，不影响启动 */ });
@@ -348,8 +348,8 @@ async function setLidIntent(on) {
 function buildMenu() {
   const isMac = process.platform === 'darwin';
   const template = [
-    ...(isMac ? [{ label: 'FanBox', submenu: [
-      { role: 'about', label: M('关于 FanBox', 'About FanBox') },
+    ...(isMac ? [{ label: 'Rurutia', submenu: [
+      { role: 'about', label: M('关于 Rurutia', 'About Rurutia') },
       { label: M('检查更新…', 'Check for Updates…'), click: () => checkUpdate({ manual: true }) },
       { type: 'separator' },
       { role: 'hide', label: M('隐藏 FanBox', 'Hide FanBox') }, { role: 'hideOthers', label: M('隐藏其他', 'Hide Others') }, { role: 'unhide', label: M('全部显示', 'Show All') },

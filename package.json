@@ -1,7 +1,7 @@
 {
   "name": "fanbox",
   "version": "2.3.1",
-  "description": "FanBox — the cockpit for coding agents. Command Claude Code or Codex, watch every file and line they change, and take over anytime.",
+  "description": "Rurutia — the cockpit for coding agents. Command Claude Code or Codex, watch every file and line they change, and take over anytime.",
   "bin": {
     "fanbox": "server.js"
   },
@@ -18,7 +18,7 @@
   },
   "build": {
     "appId": "com.huashu.fanbox",
-    "productName": "FanBox",
+    "productName": "Rurutia",
     "directories": {
       "buildResources": "build",
       "output": "dist"
@@ -44,7 +44,7 @@
       ]
     },
     "dmg": {
-      "title": "FanBox",
+      "title": "Rurutia",
       "writeUpdateInfo": false
     }
   },

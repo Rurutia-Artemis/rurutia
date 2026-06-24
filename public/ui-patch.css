@@ -1,0 +1,404 @@
+/* ============================================================
+ * ui-patch.css — 二次开发 UI 视觉补丁（Rurutia）
+ * 加载顺序在 style.css 之后，靠后覆盖；零侵入、可整文件移除还原。
+ *
+ * 设计原则（参照官方 Frontend Design 技能）：
+ *  · 把「大胆」只花在当前皮肤的强调色(--accent)上，signature 单一，其余克制；
+ *  · 全程跟随主题 CSS 变量，不写死任何颜色 → 自动适配全部皮肤；
+ *  · 只做视觉层（描边/留白/层次/状态反馈/过渡），不改 DOM、不改逻辑；
+ *  · 质量底线：清晰的 hover / active / 键盘 focus，尊重 prefers-reduced-motion。
+ * ============================================================ */
+
+/* ============================================================
+ * Maple Mono 字体（内嵌 woff2）—— 用于代码 / 终端（等宽 + 连字）
+ * 中文字符走系统回退；powerline/Nerd 字形靠用户已装的 Nerd Font 回退。
+ * ============================================================ */
+@font-face { font-family: 'Maple Mono'; font-weight: 400; font-style: normal; font-display: swap; src: url('/vendor/fonts/maple/MapleMono-Regular.woff2') format('woff2'); }
+@font-face { font-family: 'Maple Mono'; font-weight: 700; font-style: normal; font-display: swap; src: url('/vendor/fonts/maple/MapleMono-Bold.woff2') format('woff2'); }
+@font-face { font-family: 'Maple Mono'; font-weight: 400; font-style: italic; font-display: swap; src: url('/vendor/fonts/maple/MapleMono-Italic.woff2') format('woff2'); }
+@font-face { font-family: 'Maple Mono'; font-weight: 700; font-style: italic; font-display: swap; src: url('/vendor/fonts/maple/MapleMono-BoldItalic.woff2') format('woff2'); }
+/* 全局都用 Maple Mono（CN 版，含中文+日文假名）。!important 压过各主题自带的字体变量。 */
+:root, [data-theme] {
+  --font-ui: 'Maple Mono', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
+  --font-mono: 'Maple Mono', ui-monospace, 'SF Mono', Menlo, monospace !important;
+  --font-term: 'Maple Mono', 'JetBrainsMono Nerd Font', 'MesloLGS NF', 'FiraCode Nerd Font', 'Symbols Nerd Font Mono', ui-monospace, Menlo, monospace !important;
+  --font-display: 'Maple Mono', -apple-system, 'PingFang SC', sans-serif !important;
+  --font-fname: 'Maple Mono', ui-monospace, Menlo, monospace !important;
+}
+/* 兜底：强制所有 DOM 文本用 Maple，压过各处写死的 font-family（这就是「有些中文没换」的根因）。
+   终端(xterm)/编辑器(monaco) 自己管字体（也读到 Maple 变量），单独放行避免度量错乱。 */
+* { font-family: var(--font-ui) !important; }
+.xterm, .xterm * { font-family: var(--font-term) !important; }
+.monaco-editor, .monaco-editor * { font-family: var(--font-mono) !important; }
+
+/* ---------- #3 窗口拖拽：侧栏左上空白条也能拖动整窗 ----------
+ * 仅桌面版（.desktop）。在侧栏顶部留出的 padding 区盖一条固定拖拽条，
+ * 它不挡任何按钮（那段是空白 padding），也不进入滚动内容 → 不破坏滚轮。
+ * 交通灯是系统层，照常可点。 */
+.desktop #sidebar::before {
+  content: '';
+  position: fixed; top: 0; left: 0;
+  width: var(--sidebar-w, 248px); height: 38px;
+  -webkit-app-region: drag;
+  z-index: 1;
+}
+.desktop #app.sidebar-collapsed #sidebar::before { display: none; }
+/* 右上角让位给侧栏宽度拖拽条 */
+.desktop #sidebar-resizer { -webkit-app-region: no-drag; }
+
+/* ---------- #4 侧栏品牌 logo 改为图片 ---------- */
+.brand .logo img {
+  width: 48px; height: 48px;
+  border-radius: 9px;
+  display: block;
+  object-fit: cover;
+  box-shadow: none;
+}
+.brand-name { letter-spacing: 0.4px; }
+
+/* ============================================================
+ * #7 工具栏按钮重绘
+ * 统一圆角 8px、统一过渡、清晰的 hover / active / focus 三态。
+ * ============================================================ */
+
+/* 分段控件（排序 / 视图 / 缩略图大小）—— 悬浮胶囊：容器内描边收起，激活项是一颗带阴影的圆角药丸 */
+#topbar .seg {
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--bg-3);
+  border-color: color-mix(in srgb, var(--border) 80%, transparent);
+}
+#topbar .seg button {
+  border: none;
+  border-radius: 6px;
+  padding: 4px 11px;
+  font-weight: 500;
+  background: transparent;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+#topbar .seg button + button { margin-left: 2px; }
+#topbar .seg button:not(.active):hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+#topbar .seg button.active {
+  font-weight: 600;
+  border-radius: 6px;
+  box-shadow: 0 1px 5px -1px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+/* 幽灵按钮（变更 / 最近 / 终端） */
+#topbar .ghost-btn {
+  border-radius: 8px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.08s ease;
+}
+#topbar .ghost-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text);
+}
+#topbar .ghost-btn:active { transform: translateY(0.5px); }
+
+/* 「终端」是主动作，给一点点优先级（描边偏强调色），但不抢戏 */
+#btn-terminal { border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); }
+#btn-terminal:hover { background: var(--accent-soft); border-color: var(--accent); }
+
+/* 折叠侧栏按钮等导航按钮，统一圆角与过渡 */
+.nav-buttons button {
+  border-radius: 8px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.nav-buttons button:hover { background: var(--accent-soft); }
+
+/* 隐藏文件勾选项：和分段控件等高、可点区域更舒展 */
+#topbar .toggle {
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+#topbar .toggle:hover { color: var(--text); background: var(--bg-3); }
+
+/* 统一动作区所有控件的高度与垂直居中，整排不再参差 */
+#topbar .seg,
+#topbar .ghost-btn,
+#topbar .toggle,
+.nav-buttons button {
+  height: 30px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+}
+/* 单图标按钮（侧栏折叠等）图标必须水平居中——之前只设了 align 没设 justify，图标靠左了 */
+.nav-buttons button, #topbar .ghost-btn:not(#btn-terminal) { justify-content: center; }
+/* 分段容器与背景拉开一点对比，激活药丸更清楚 */
+#topbar .seg { background: color-mix(in srgb, var(--bg-3) 75%, var(--bg)); }
+
+/* 工具栏按钮的键盘可达性（全局 :focus-visible 之外再兜一层，确保描边在按钮上清晰） */
+#topbar button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ============================================================
+ * #8 整体视觉打磨：侧栏分区 / 列表态 / 搜索框 / 面包屑
+ * 节奏与层次统一，全部跟随皮肤变量。
+ * ============================================================ */
+
+/* 分区标题（快速入口 / 收藏 / AGENT 项目）—— 更克制的字号与字距，顶部细分割 */
+.nav-section { margin-top: 4px; }
+.nav-title {
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+/* 导航列表行：行间留白(防上下顶到一起) + 干净的选中态(去掉糙左条，改 accent 细描边药丸) */
+.nav-list li {
+  margin-bottom: 3px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  transition: background 0.13s ease, color 0.13s ease, box-shadow 0.13s ease;
+}
+.nav-list li:hover { background: var(--bg-3); }
+.nav-list li.active {
+  background: var(--accent-soft);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+.nav-list li.active .label { color: var(--text); font-weight: 600; }
+/* 嵌套子树行也跟着留白 */
+.nav-sub li { margin-bottom: 2px; }
+
+/* 搜索触发器（⌘K）：更精致的内描边与 hover */
+.cmdk-trigger {
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.cmdk-trigger:hover { background: var(--bg-2); }
+
+/* 面包屑：当前项更突出，分隔符更轻 */
+#breadcrumb .crumb.last { font-weight: 600; }
+#breadcrumb .sep { opacity: 0.5; }
+
+/* 分区标题里的「+ 添加当前文件夹」按钮（快速入口 / Agent 项目） */
+.nav-add {
+  margin-left: auto;
+  width: 18px; height: 18px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--text-faint);
+  font-size: 14px; cursor: pointer; padding: 0;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.nav-add:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+/* 快速入口 / Agent 行删除 ✕：行内悬停才显，hover 时更明显、移上去变强调色 */
+.nav-list li .unfav { border-radius: 5px; transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease; }
+.nav-list li:hover .unfav:hover { opacity: 1; color: var(--accent); }
+/* Agent 行 hover 时让出右侧时间位给 ✕（只有 agent 行带 .when，其它列表无影响） */
+.nav-list li:hover .when { display: none; }
+
+/* ============================================================
+ * 第三波打磨
+ * ============================================================ */
+
+/* 「隐藏文件」复选框跟随主题强调色，并和分段控件等高 */
+#toggle-hidden { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; }
+
+/* 侧栏文件夹图标：强调色描边 + 柔和实底（双调感），选中时填充更实，更像「设计过的图标」 */
+.nav-list li .ico svg { color: color-mix(in srgb, var(--accent) 80%, var(--text-dim)); }
+.nav-list li .ico svg path { fill: color-mix(in srgb, var(--accent) 15%, transparent); fill-opacity: 1; }
+.nav-list li.active .ico svg { color: var(--accent); }
+.nav-list li.active .ico svg path { fill: color-mix(in srgb, var(--accent) 26%, transparent); }
+
+/* 顶栏整体节奏：动作区元素间距更舒展、垂直居中更稳 */
+.topbar-actions { gap: 9px; }
+
+/* ---------- 禁止选中 UI 文字与图标（截图里那种拖蓝高亮很碍眼）----------
+ * 整个 app 外壳设为不可选；但正文/编辑器/终端/输入框等「真正要选文字」的地方放行。 */
+#app { -webkit-user-select: none; user-select: none; }
+#preview-body, #ed-host, .xterm, .milkdown, .cm-editor, .monaco-editor,
+.lightbox, .cp-name, .cp-dir, input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text; user-select: text;
+}
+/* 图标本身也不该被拖选/拖动 */
+.nav-list li .ico, .brand .logo, .svg-icon, #topbar svg { -webkit-user-drag: none; user-select: none; }
+
+/* 尊重「减少动态效果」偏好 */
+@media (prefers-reduced-motion: reduce) {
+  #topbar .seg button,
+  #topbar .ghost-btn,
+  .nav-buttons button,
+  .nav-list li,
+  .cmdk-trigger { transition: none; }
+}
+
+/* ============================================================
+ * 现代化改造（按交接文档 §0–§3）—— 现代深色驾驶舱
+ * 全部从「现有每套主题变量」派生新语义变量 → 21 套主题(含浅色)自动适配。
+ * 文档把边框写死成白色会让浅色主题瞎，这里改为由 --text 混出，明暗皆稳。
+ * 本段靠后，覆盖上面的早期微调。
+ * ============================================================ */
+:root {
+  /* —— 发丝边框：半透明「文字色」，浅色主题=淡黑线，深色主题=淡白线（v2: 12%/22%）—— */
+  --line:        color-mix(in srgb, var(--text) 12%, transparent);
+  --line-strong: color-mix(in srgb, var(--text) 22%, transparent);
+  /* —— 中性面（派生）—— */
+  --raise:     var(--bg-3);
+  --track:     var(--bg-3);
+  --panel-2:   color-mix(in srgb, var(--panel) 70%, var(--bg));  /* 终端面板，更深一点 */
+  --toolbar-bg: var(--panel);
+  --muted:     var(--text-faint);
+  /* —— 强调色家族（派生）—— */
+  --accent-bright: color-mix(in srgb, var(--accent) 86%, #fff);
+  --accent-border: color-mix(in srgb, var(--accent) 30%, transparent);
+  --accent-glow:   color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent:     var(--accent-ink);
+  /* —— 文字别名（对齐文档命名）—— */
+  --txt: var(--text); --txt-2: var(--text-dim); --txt-3: var(--text-faint);
+  --text-2: var(--text-dim); --text-3: var(--text-faint);
+  /* —— 圆角节奏 —— */
+  --r-card: 16px; --r-ctrl: 11px; --r-chip: 9px; --r-badge: 6px;
+}
+@keyframes pulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* —— §2 分段控件：抬升底 + 发丝边 + 激活药丸(accent 填充 + 辉光) —— */
+#topbar .seg {
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 5px;
+}
+/* 同心圆角：容器 12、四周均匀内距 5 → 内层激活块 7（12−5），两层圆弧平行，视觉一致 */
+#topbar .seg button { border-radius: 7px; color: var(--txt-3); }
+#topbar .seg button:not(.active):hover { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--txt); }
+#topbar .seg button.active {
+  background: var(--accent); color: var(--on-accent);
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+
+/* —— §2 按钮：图标按钮(抬升底+发丝边) / 终端=主按钮(accent 填充+辉光) —— */
+#topbar .ghost-btn {
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctrl);
+  color: var(--txt-2);
+}
+#topbar .ghost-btn:hover { border-color: var(--line-strong); background: var(--raise); color: var(--txt); }
+#btn-terminal {
+  background: var(--accent); color: var(--on-accent);
+  border: 1px solid transparent;
+  box-shadow: 0 2px 10px var(--accent-glow);
+  font-weight: 600;
+}
+#btn-terminal:hover { background: var(--accent-bright); border-color: transparent; }
+#btn-terminal svg { color: var(--on-accent); }
+.nav-buttons button { background: var(--raise); border: 1px solid var(--line); border-radius: 10px; }
+.nav-buttons button:hover { border-color: var(--line-strong); background: var(--raise); }
+
+/* —— §2 侧栏列表项：hover 微亮 + 当前项 accent 渐变高亮 + 左侧 3px 辉光条 + 呼吸点 —— */
+.nav-list li { position: relative; border-radius: var(--r-chip); }
+.nav-list li:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.nav-list li.active {
+  background: linear-gradient(90deg, var(--accent-soft), transparent 72%);
+  box-shadow: none;
+}
+.nav-list li.active::before {
+  content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+  width: 3px; border-radius: 3px;
+  background: var(--accent); box-shadow: 0 0 10px var(--accent-glow);
+}
+.nav-list li .tab-dot, .nav-list li .agent-dot { /* 占位：状态点呼吸在终端标签里 */ }
+
+/* —— §2 搜索框：focus 时 accent 描边 + 柔光环 —— */
+.cmdk-trigger { border-radius: var(--r-ctrl); }
+.cmdk-trigger:focus-within, .cmdk-trigger:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* —— §1/§2 进度条：圆头 + accent 渐变 + 辉光，底槽 --track —— */
+.usage-bar { height: 5px; border-radius: 3px; background: var(--track); }
+.usage-bar i {
+  border-radius: 3px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 80%, var(--bg)), var(--accent));
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* —— §3 统计卡 / 预算卡：发丝边 + 16 圆角 + hover 抬升，去掉硬分隔线 —— */
+.sk-stats { border-bottom: none; gap: 10px; padding: 12px 14px; }
+.sk-stat {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  margin-right: 0;
+  padding: 13px 14px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.sk-stat:hover { transform: translateY(-2px); border-color: var(--accent-border); }
+.sk-budget {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 13px 14px;
+}
+
+/* —— §3 侧栏文件夹图标：放大到 20px（形状若要换成圆润款需改 1 行 app.js，另议）—— */
+.nav-list li .ico svg { width: 20px; height: 20px; }
+.nav-list li .ico { width: 20px; height: 20px; }
+
+/* —— §1 面板/卡片统一圆角节奏（发丝边，不用硬实线）—— */
+.cmdk-panel, .input-dialog, .context-menu, .guide-card,
+.changes-pop, .skills-pop { border-radius: var(--r-card); border-color: var(--line); }
+
+/* ============================================================
+ * §C 终端外壳现代化（仅桌面 app 渲染；CSS 跟随变量契约）
+ * 只做外壳——顶栏 / 标签 / 动作按钮；终端正文(xterm)的配色字体走 app.js term 配置。
+ * ============================================================ */
+.term-head { background: var(--panel-2); border-bottom: 1px solid var(--line); height: 46px; }
+/* 标签加宽 ~50%：给个更大的最小宽度 + 更宽内距，窄标签也舒展 */
+.term-tab { border-radius: 8px; padding: 10px 14px; transition: background 0.15s ease, color 0.15s ease; }
+.term-tab.active {
+  background: var(--accent-soft);
+  color: var(--txt);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+.term-tab .tab-dot.busy { background: var(--accent); animation: pulseDot 1.8s ease-in-out infinite; }
+.term-actions button { border-radius: 8px; transition: background 0.15s ease, color 0.15s ease; }
+.term-actions button:hover { background: var(--raise); color: var(--txt); }
+/* 启动按钮(Claude/Codex/微信)：统一可点区与 hover，但不动它们固定的品牌色 */
+.term-actions .agent-launch { border-radius: 8px; }
+.term-actions .agent-launch:hover { background: var(--raise); }
+
+/* ============================================================
+ * Agent 用量：官方限额恒显 + 取不到给原因/重试 + 接近上限警告条
+ * ============================================================ */
+.usage-reason {
+  font-size: 11.5px; color: var(--text-faint);
+  padding: 4px 2px 8px; line-height: 1.45;
+}
+.usage-retry {
+  color: var(--accent); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.usage-retry:hover { color: var(--accent-bright); }
+.usage-warn {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 0 9px; padding: 7px 10px;
+  font-size: 12px; font-weight: 600; line-height: 1.35;
+  color: #e8584d;
+  background: color-mix(in srgb, #e8584d 13%, transparent);
+  border: 1px solid color-mix(in srgb, #e8584d 34%, transparent);
+  border-radius: 9px;
+}
+
+
+/* 终端动作按钮：重绘图标(位图)统一尺寸 */
+.term-ico-img { height: 17px; width: 17px; object-fit: contain; display: block; pointer-events: none; }
+
+/* 终端动作图标：自绘内联 SVG，单色跟随主题色 */
+.term-svg { width: 16px; height: 16px; display: block; }
+
+/* 录像按钮的「有录像」红点提示：按要求隐藏，保持图标固定单色 */
+#term-replay.has-rec::after { display: none !important; }
+
+/* 微信「已连接」态不再把图标染绿，保持单色（连接由旁边的绿点指示）*/
+.term-actions .wechat-btn.on { color: var(--text) !important; }

@@ -7,7 +7,7 @@ const apiPost = (p, body) => fetch(p, { method: 'POST', headers: { 'Content-Type
 
 // ---------- SVG 图标系统（替代 emoji，统一矢量审美） ----------
 const SVG = {
-  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  folder: '<path d="M3.5 8.5a3 3 0 0 1 3-3h2.6a2 2 0 0 1 1.5.7l1 1.1a2 2 0 0 0 1.5.7h4.4a3 3 0 0 1 3 3v6.3a3 3 0 0 1-3 3H6.5a3 3 0 0 1-3-3z"/>',
   file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
   text: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/>',
   code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
@@ -1808,7 +1808,22 @@ async function loadRoots() {
   state.sep = data.sep || '/';
   const ul = $('#roots-list');
   ul.innerHTML = '';
-  data.roots.forEach((r) => ul.appendChild(navDirLi(r.name, r.path)));
+  data.roots.forEach((r) => {
+    const li = navDirLi(r.name, r.path);
+    const rm = document.createElement('span');
+    rm.className = 'unfav';
+    rm.title = '从快速入口移除';
+    rm.textContent = '✕';
+    rm.onclick = (ev) => { ev.stopPropagation(); apiPost('/api/roots', { action: 'remove', path: r.path }).then(loadRoots); };
+    li.appendChild(rm);
+    ul.appendChild(li);
+  });
+  renderRootsActive();
+}
+// 把当前所在文件夹加入快速入口
+function addCurrentToRoots() {
+  if (!state.cwd) return;
+  apiPost('/api/roots', { action: 'add', path: state.cwd }).then(loadRoots);
 }
 function renderRootsActive() {
   // 快速入口 / 收藏 / agent 项目 三个列表统一高亮「当前所在目录」，让用户清楚自己点开/身处哪一项
@@ -1868,20 +1883,36 @@ async function loadAgentProjects() {
   if (!list.length) { ul.innerHTML = '<div class="nav-empty">用 Claude Code / Codex 跑过的项目会出现在这里</div>'; return; }
   list.forEach((pj) => {
     const li = navDirLi(pj.name, pj.path);
-    li.querySelector('.label').title = `${pj.path}\n${pj.agents.join(' + ')} · ${agoShort(pj.lastActive)}前活跃`;
     const when = document.createElement('span');
     when.className = 'when';
-    pj.agents.forEach((a) => {
-      const dot = document.createElement('i');
-      dot.className = 'agent-dot ' + a;
-      dot.title = a;
-      when.appendChild(dot);
-    });
-    when.append(agoShort(pj.lastActive));
+    if (pj.pinned) {
+      li.querySelector('.label').title = `${pj.path}\n已固定`;
+      when.append('固定');
+    } else {
+      li.querySelector('.label').title = `${pj.path}\n${pj.agents.join(' + ')} · ${agoShort(pj.lastActive)}前活跃`;
+      pj.agents.forEach((a) => {
+        const dot = document.createElement('i');
+        dot.className = 'agent-dot ' + a;
+        dot.title = a;
+        when.appendChild(dot);
+      });
+      when.append(agoShort(pj.lastActive));
+    }
     li.appendChild(when);
+    const rm = document.createElement('span');
+    rm.className = 'unfav';
+    rm.title = pj.pinned ? '取消固定 / 移除' : '从列表隐藏（不再自动出现）';
+    rm.textContent = '✕';
+    rm.onclick = (ev) => { ev.stopPropagation(); apiPost('/api/agent-projects', { action: 'hide', path: pj.path }).then(() => { loadAgentProjects._sig = null; loadAgentProjects(); }); };
+    li.appendChild(rm);
     ul.appendChild(li);
   });
   renderRootsActive(); // 重渲后补一次高亮，让「当前所在的 agent 项目」保持选中态
+}
+// 把当前所在文件夹加入 Agent 项目（置顶固定）
+function addCurrentToAgents() {
+  if (!state.cwd) return;
+  apiPost('/api/agent-projects', { action: 'add', path: state.cwd }).then(() => { loadAgentProjects._sig = null; loadAgentProjects(); });
 }
 
 // ---------- 最近修改 ----------
@@ -2420,7 +2451,10 @@ function bindEvents() {
   $('#term-dock').onclick = () => term.setDock(term.dock === 'bottom' ? 'right' : 'bottom');
   $('#term-replay').onclick = () => player.open();
   const muteBtn = $('#term-mute');
-  const syncMute = () => { muteBtn.textContent = state.muted ? '🔕' : '🔔'; muteBtn.title = state.muted ? '提示音已关（点击开启）' : '提示音已开（点击静音）'; };
+  // 二次开发：铃铛用自绘 SVG（单色跟随主题），不再用 emoji（emoji 会盖掉图标且固定金色）
+  const BELL_ON = '<svg class="term-svg" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 7 2 7H4s2-2 2-7" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 20a1.7 1.7 0 0 0 3 0" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  const BELL_OFF = '<svg class="term-svg" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 9.4-4.8M17.9 11.3c.3 3.6 2.1 5.7 2.1 5.7H7M10.5 20a1.7 1.7 0 0 0 3 0M3 3l18 18" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const syncMute = () => { muteBtn.innerHTML = state.muted ? BELL_OFF : BELL_ON; muteBtn.title = state.muted ? '提示音已关（点击开启）' : '提示音已开（点击静音）'; };
   syncMute();
   muteBtn.onclick = () => { state.muted = !state.muted; localStorage.setItem('fb_muted', state.muted ? '1' : '0'); syncMute(); if (!state.muted) playChime('tick'); };
   $('#term-close').onclick = () => term.close();
@@ -3558,10 +3592,35 @@ const usagePanel = {
       <span class="usage-num${danger}">${v}%</span></div>
       ${extra ? `<div class="usage-sub">${extra}</div>` : ''}`;
   },
+  reasonText(code) {
+    return ({
+      'no-oauth': '官方限额需 Claude 订阅登录（用 API key 时取不到）',
+      'request-failed': '官方限额暂时取不到（网络 / 代理受限）',
+      'no-windows': '当前账号没有 5h / 周窗口数据',
+    })[code] || '官方限额取不到';
+  },
+  // 用量接近上限时桌面通知，按内容 + 30 分钟节流，避免反复打扰
+  notifyHigh(warns) {
+    try {
+      const key = warns.join('|');
+      if (key === this._notifKey && Date.now() - (this._notifAt || 0) < 1800000) return;
+      this._notifKey = key; this._notifAt = Date.now();
+      if (!('Notification' in window)) return;
+      const fire = () => new Notification('Rurutia · 用量接近上限', { body: warns.join('\n') });
+      if (Notification.permission === 'granted') fire();
+      else if (Notification.permission !== 'denied') Notification.requestPermission().then((p) => { if (p === 'granted') fire(); });
+    } catch { /* 通知失败不影响面板 */ }
+  },
   render(d) {
     const box = $('#usage-body');
     if (!d || !d.ok) { box.innerHTML = '<div class="usage-sub">读取失败</div>'; return; }
     let h = '';
+    // 接近上限警告：任一官方窗口 ≥85% → 顶部醒目警告条 + 桌面通知（节流）
+    const warns = [];
+    const ck = (label, w) => { if (w && w.usedPercent != null && w.usedPercent >= 85) warns.push(`${label} ${Math.round(w.usedPercent)}%`); };
+    if (d.claude && d.claude.official) { ck('5h 窗口', d.claude.official.fiveHour); ck('周配额', d.claude.official.sevenDay); }
+    if (d.codex) { ck('Codex 5h', d.codex.primary); ck('Codex 周', d.codex.secondary); }
+    if (warns.length) { h += `<div class="usage-warn">⚠ 用量接近上限 · ${warns.join(' / ')}</div>`; this.notifyHigh(warns); }
     if (d.codex) {
       const c = d.codex;
       h += `<div class="usage-agent">Codex${c.planType ? ` <i class="usage-plan">${escapeHtml(c.planType)}</i>` : ''}</div>`;
@@ -3572,10 +3631,13 @@ const usagePanel = {
     if (d.claude) {
       const c = d.claude;
       h += `<div class="usage-agent">Claude Code</div>`;
-      if (c.official) {
-        // 官方限额窗口（和 Claude Code /usage 面板同源）：5h 滚动窗口 + 周配额，优先展示
-        if (c.official.fiveHour) h += this.bar('5h 窗口', c.official.fiveHour.usedPercent, this.fmtReset(c.official.fiveHour.resetsAt));
-        if (c.official.sevenDay) h += this.bar('周配额', c.official.sevenDay.usedPercent, this.fmtReset(c.official.sevenDay.resetsAt));
+      // 官方限额窗口（和 Claude Code /usage 面板同源）：恒显——有数据给进度条，取不到给原因+重试
+      const o = c.official;
+      if (o && (o.fiveHour || o.sevenDay)) {
+        if (o.fiveHour) h += this.bar('5h 窗口', o.fiveHour.usedPercent, this.fmtReset(o.fiveHour.resetsAt));
+        if (o.sevenDay) h += this.bar('周配额', o.sevenDay.usedPercent, this.fmtReset(o.sevenDay.resetsAt));
+      } else if (o && o.unavailable) {
+        h += `<div class="usage-reason">${this.reasonText(o.unavailable)} <a class="usage-retry" onclick="usagePanel.refresh()">重试</a></div>`;
       }
       if (c.last5h) {
         // 本地 token 统计照常保留（拿不到官方数据时就只剩这块）
@@ -3600,7 +3662,7 @@ const usagePanel = {
     $('#usage-body').classList.toggle('hidden', !on);
     $('#usage-arrow').textContent = on ? '▾' : '▸';
     clearInterval(this.timer); this.timer = null;
-    if (on) { this.refresh(); this.timer = setInterval(() => this.refresh(), 60000); }
+    if (on) { this.refresh(); this.timer = setInterval(() => this.refresh(), 45000); }
   },
   bind() {
     $('#usage-toggle').onclick = () => {
@@ -4539,6 +4601,8 @@ async function init() {
     img.src = '/fs' + encodeURI(abs);
   }, true);
   document.querySelectorAll('#theme-switch .theme-seg button').forEach((b) => { b.onclick = () => applyTheme(b.dataset.skin); });
+  $('#add-root')?.addEventListener('click', addCurrentToRoots);
+  $('#add-agent')?.addEventListener('click', addCurrentToAgents);
   await loadRoots();
   await loadFavorites();
   loadAgentProjects();
