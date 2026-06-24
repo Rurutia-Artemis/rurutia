@@ -60,8 +60,9 @@ function createWindow() {
   win.on('move', remember);
   win.on('close', saveBounds);
 
-  // 等后端起来再加载（首次 listen 有几十毫秒延迟）
-  const load = () => win.loadURL(`http://localhost:${PORT}`).catch(() => setTimeout(load, 150));
+  // 等后端起来再加载（首次 listen 有几十毫秒延迟）。Rurutia：端口被占时 server.js 会顺延，
+  // 实际端口写在 global.__rurutiaPort，这里每次重试都读最新值，确保加载到真正绑定的端口。
+  const load = () => { const p = global.__rurutiaPort || PORT; win.loadURL(`http://localhost:${p}`).catch(() => setTimeout(load, 150)); };
   setTimeout(load, 250);
 
   // 外部链接走系统浏览器，不在 app 里开新窗口

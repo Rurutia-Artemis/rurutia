@@ -2187,23 +2187,46 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`\n  ⚠️  端口 ${PORT} 已被占用——FanBox 很可能已经在运行了。`);
-    console.error(`      直接打开浏览器访问  http://localhost:${PORT}  就行；`);
-    console.error(`      想另开一个，换端口：FANBOX_PORT=8080 node server.js\n`);
-  } else {
-    console.error('\n  启动失败：', err.message, '\n');
-  }
-  process.exit(1);
-});
+// Rurutia：端口被占就自动换下一对(p, p+1)，最多试 20 次；实际端口写进 global 让 electron 主进程读到。
+let ACTUAL_PORT = PORT;
+function tryListen(p, triesLeft) {
+  // 清掉上一次尝试遗留的监听器：listen(port,host,cb) 会把 cb 注册成 'listening' 监听，
+  // 失败那次的 cb 不会触发但会累积，成功时全部一起跑 → 端口记错。每次重试前清空。
+  server.removeAllListeners('error');
+  server.removeAllListeners('listening');
+  server.once('error', (err) => {
+    if (err.code === 'EADDRINUSE' && triesLeft > 0) {
+      console.error(`  ⚠️  端口 ${p} 被占用，改用 ${p + 2}…`);
+      tryListen(p + 2, triesLeft - 1);
+    } else {
+      console.error('\n  启动失败：', err.message, '\n');
+      process.exit(1);
+    }
+  });
+  server.listen(p, '127.0.0.1', () => {
+    ACTUAL_PORT = p;
+    PREVIEW_PORT = p + 1;
+    try { global.__rurutiaPort = p; } catch (e) { /* */ }
+    previewServer.listen(PREVIEW_PORT, '127.0.0.1', () => { console.log(`  🖼  预览源（隔离）：http://localhost:${PREVIEW_PORT}`); });
+    const link = `http://localhost:${p}`;
+    console.log('\n  📦  Rurutia 已启动');
+    console.log(`  🔗  ${link}`);
+    console.log('  🏠  根目录:', HOME);
+    console.log('\n  按 Ctrl+C 退出\n');
+    pruneThumbs().catch(() => {}); // 启动时裁剪缩略图缓存，防止无限增长
+    if (!process.env.FANBOX_NO_OPEN) {
+      const opener = PLATFORM === 'darwin' ? 'open' : PLATFORM === 'win32' ? 'start' : 'xdg-open';
+      exec(`${opener} ${link}`, () => {});
+    }
+  });
+}
 
 // 预览专用服务器：只出 /fs/ 静态文件，绝不暴露 /api（删文件/开应用等危险接口）。
 // HTML 预览 iframe 指到这个独立端口 + 开 allow-same-origin：页面拿到「自己的」完整源
 // （localStorage/fetch 都能跑），却与 App 跨源——碰不到 App 的 DOM、localStorage 和 /api，
 // 也无法摘掉 sandbox 反向接管（那要求同源）。可读范围再收紧到主目录、挡掉点目录（.ssh/.aws/.config…），
 // 防止恶意预览页 same-origin 下读敏感文件外泄。
-const PREVIEW_PORT = PORT + 1;
+let PREVIEW_PORT = PORT + 1;
 function previewPathAllowed(file) {
   const real = path.resolve(file);
   const home = path.resolve(HOME);
@@ -2226,17 +2249,6 @@ const previewServer = http.createServer(async (req, res) => {
   } catch (err) { res.writeHead(500); res.end(String((err && err.message) || err)); }
 });
 previewServer.on('error', (err) => { console.error('  ⚠️  预览服务器启动失败：', err.message); });
-previewServer.listen(PREVIEW_PORT, '127.0.0.1', () => { console.log(`  🖼  预览源（隔离）：http://localhost:${PREVIEW_PORT}`); });
 
-server.listen(PORT, '127.0.0.1', () => {
-  const link = `http://localhost:${PORT}`;
-  console.log('\n  📦  FanBox 已启动');
-  console.log(`  🔗  ${link}`);
-  console.log('  🏠  根目录:', HOME);
-  console.log('\n  按 Ctrl+C 退出\n');
-  pruneThumbs().catch(() => {}); // 启动时裁剪缩略图缓存，防止无限增长
-  if (!process.env.FANBOX_NO_OPEN) {
-    const opener = PLATFORM === 'darwin' ? 'open' : PLATFORM === 'win32' ? 'start' : 'xdg-open';
-    exec(`${opener} ${link}`, () => {});
-  }
-});
+// 启动主服务（端口被占自动顺延），预览服务在主服务绑定成功后跟着起（端口 = 主端口+1）
+tryListen(PORT, 20);
