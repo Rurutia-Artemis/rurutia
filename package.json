@@ -17,7 +17,7 @@
     "dist": "electron-builder --mac"
   },
   "build": {
-    "appId": "com.huashu.fanbox",
+    "appId": "com.rurutia.app",
     "productName": "Rurutia",
     "directories": {
       "buildResources": "build",
