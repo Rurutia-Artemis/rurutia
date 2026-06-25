@@ -1,0 +1,443 @@
+/* =========================================================================
+ * soft-patch.css — Rurutia「柔和座舱」视觉层
+ *   叠在 style.css / ui-patch.css 之后，纯覆盖、零侵入，可整行删除回退。
+ *   全部走皮肤 token（--accent / --bg / --panel …），18 套皮肤自动适配。
+ *   改动点：圆角化 + 柔光 + 仪表化用量 + 文件卡片 + 终端项目色脊。
+ * ====================================================================== */
+
+/* ---------- 1. 全局柔化：圆角更大、过渡更顺 ---------- */
+:root {
+  --soft-ease: cubic-bezier(.22, .68, .18, 1);
+  --soft-radius: 13px;
+}
+
+/* ---------- 2. 侧栏：搜索框 / 导航项 / 分区 ---------- */
+.cmdk-trigger {
+  border-radius: var(--soft-radius);
+  padding: 10px 13px;
+  transition: 0.18s var(--soft-ease);
+}
+.cmdk-trigger:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 60%, var(--bg-3));
+}
+.nav-title { letter-spacing: 0.06em; }
+/* 行间距对齐 mockup：用 flex gap:2px 取代 ui-patch 的 margin-bottom:3px，整体更紧凑 */
+.nav-list { display: flex; flex-direction: column; gap: 2px; }
+.nav-list li {
+  margin-bottom: 0 !important;
+  border-radius: 10px;
+  padding: 8px 11px;
+  gap: 10px;
+  transition: 0.16s var(--soft-ease);
+}
+.nav-list li.active {
+  background: linear-gradient(100deg, var(--accent-soft), transparent 85%);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+/* Agent 项目：左缘项目色脊（与终端标签同一套色系呼应）。色相由 JS 写在 --th 上 */
+#agent-projects-list li {
+  position: relative;
+  padding-left: 14px;
+}
+#agent-projects-list li::before {
+  content: "";
+  position: absolute;
+  left: 2px; top: 8px; bottom: 8px;
+  width: 3px; border-radius: 3px;
+  background: hsl(var(--th, 280) 55% 60%);
+  opacity: 0.45;
+  transition: 0.16s var(--soft-ease);
+}
+#agent-projects-list li:hover::before,
+#agent-projects-list li.active::before {
+  opacity: 0.95;
+  box-shadow: 0 0 9px -1px hsl(var(--th, 280) 60% 60%);
+}
+
+/* ---------- 3. 用量面板：仪表化 ---------- */
+/* 整块用量框成一张卡（对齐 mockup 的 #usage 容器：bg-2 + 边框 + 圆角）*/
+/* Agent 用量：侧栏底部的醒目大卡（强调色描边 + 顶部染色标题条 + 内高光）。Skills 已挪到顶栏，这里独占 */
+#usage-sec {
+  margin: auto 2px 10px !important; /* top:auto 钉底部；左右收到 2px → 卡更宽，贴近导航项宽度 */
+  flex: 0 0 auto;
+  padding: 0 !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, var(--bg-2)), var(--bg-2));
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-radius: 14px;
+  box-shadow: 0 12px 32px -18px rgba(0, 0, 0, 0.45), inset 0 1px 0 color-mix(in srgb, var(--accent) 14%, transparent);
+  overflow: hidden;
+}
+#usage-sec #usage-toggle {
+  font-size: 12.5px !important; font-weight: 700; color: var(--text) !important; letter-spacing: 0.02em;
+  padding: 11px 13px !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 11%, transparent), transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+}
+#usage-body { padding: 12px 13px 13px !important; }
+/* render() 现在直接吐出 mockup 的 .ux-chan / .ux-meter / .ux-ticks / .ux-odo 结构，
+ * 这里 1:1 端口 mockup 原版样式（scoped 到 #usage-body，全部走皮肤 token）。 */
+#usage-body { font-size: 12px; padding-top: 4px; }
+#usage-body .ux-chan { padding: 0 2px 4px; }
+#usage-body .ux-chan + .ux-chan { border-top: 1px solid color-mix(in srgb, var(--text) 9%, transparent); margin-top: 10px; padding-top: 12px; }
+#usage-body .ux-chan-head { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+#usage-body .ux-chan-name { font-size: 13px; font-weight: 600; color: var(--text); }
+/* 订阅档位徽章：渐变 + 内高光 + 一抹斜向流光，做出"质感"。tier-pro 跟随强调色、tier-max 金质感、tier-free 低调灰 */
+#usage-body .ux-plan {
+  position: relative; overflow: hidden; isolation: isolate;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 800; letter-spacing: 0.04em;
+  padding: 3px 9px; border-radius: 8px; color: var(--accent-ink);
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 56%, #fff));
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 3px 10px -3px var(--accent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+#usage-body .ux-plan::after {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.45) 50%, transparent 58%);
+}
+#usage-body .ux-plan.tier-max {
+  color: #3a2607;
+  background: linear-gradient(135deg, #ffd97a, #f0ab3d 52%, #d98324);
+  border-color: #f0ab3d;
+  box-shadow: 0 3px 12px -3px rgba(240, 171, 61, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+#usage-body .ux-plan.tier-free {
+  color: var(--text-dim); background: var(--bg-3); border-color: var(--border); box-shadow: none;
+}
+#usage-body .ux-plan.tier-free::after { display: none; }
+#usage-body .ux-live { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 9.5px; letter-spacing: 0.05em; color: var(--text-dim); text-transform: uppercase; }
+#usage-body .ux-live .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: uxpulse 2.6s var(--soft-ease) infinite; }
+@keyframes uxpulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent); } 70% { box-shadow: 0 0 0 6px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+#usage-body .ux-meter { margin-bottom: 12px; }
+#usage-body .ux-meter-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; }
+#usage-body .ux-meter-label { font-size: 11.5px; color: var(--text-dim); }
+#usage-body .ux-meter-val { font-family: var(--font-mono); font-size: 13.5px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--text); }
+#usage-body .ux-meter-val small { font-size: 9px; color: var(--text-faint); }
+/* 签名元素：18 格分段刻度表 */
+#usage-body .ux-ticks { display: flex; gap: 3px; height: 10px; }
+#usage-body .ux-ticks i { flex: 1; border-radius: 3px; background: color-mix(in srgb, var(--text) 9%, transparent); transition: 0.5s var(--soft-ease); }
+#usage-body .ux-ticks i.on { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 65%, #fff), var(--accent)); }
+#usage-body .ux-ticks i.head { box-shadow: 0 0 8px 0 var(--accent); }
+#usage-body .ux-ticks.danger i.on { background: linear-gradient(180deg, #ff8a80, #e2453a); }
+#usage-body .ux-meter-foot { display: flex; justify-content: space-between; margin-top: 6px; font-size: 9.5px; color: var(--text-faint); }
+#usage-body .ux-note, #usage-body .ux-empty { font-size: 10.5px; color: var(--text-faint); line-height: 1.6; padding: 1px 0 3px; }
+/* token 里程表三连 */
+#usage-body .ux-odo-cap { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin: 9px 0 6px 2px; }
+#usage-body .ux-odo { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+#usage-body .ux-odo > div { position: relative; overflow: hidden; border-radius: 11px; padding: 10px 3px 8px; text-align: center; background: var(--bg-2); border: 1px solid var(--border); }
+#usage-body .ux-odo > div::before { content: ""; position: absolute; inset: 0 22% auto; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0.45; }
+#usage-body .ux-odo .n { font-family: var(--font-mono); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: var(--text); }
+#usage-body .ux-odo .n u { text-decoration: none; font-size: 9px; color: var(--text-dim); }
+#usage-body .ux-odo .k { font-size: 8.5px; color: var(--text-faint); margin-top: 3px; }
+
+/* 皮肤选择器 / 分区按钮：圆角统一 */
+.theme-seg { border-radius: 10px; }
+.theme-seg button.active { background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #fff)); }
+
+/* ---------- 4. 顶栏：分段控件玻璃化 ---------- */
+.seg { border-radius: 10px; padding: 2px; gap: 2px; border-color: var(--border); background: var(--bg-2); }
+.seg button { border: none !important; border-radius: 8px; padding: 5px 11px; transition: 0.14s var(--soft-ease); }
+.seg button.active {
+  background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 72%, #fff));
+  color: var(--accent-ink);
+  box-shadow: 0 4px 12px -5px var(--accent);
+}
+.ghost-btn { border-radius: 10px; transition: 0.15s var(--soft-ease); }
+#btn-terminal { border-radius: 10px; }
+
+/* ---------- 5. 文件网格：柔光卡片 ---------- */
+.grid .item {
+  border-radius: 14px;
+  /* 常驻发丝描边 + 一点点抬起的底色 → 浅色皮肤也能看出是"卡片"（不靠 bg 差异） */
+  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+  transition: transform 0.16s var(--soft-ease), background 0.16s, border-color 0.16s, box-shadow 0.16s;
+}
+.grid .item:hover {
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  box-shadow: 0 12px 26px -16px rgba(0, 0, 0, 0.6);
+}
+.grid .item.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+/* 实体彩色图标加一层柔投影，立体感更足 */
+.grid .item .icon .rich-glyph { filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.28)); }
+
+/* ---------- 6. 终端：项目色脊 + 活动标签下划线（背景淡染已在 JS 里做）---------- */
+.term-tab {
+  position: relative;
+  border-radius: 9px 9px 5px 5px;
+  padding-left: 11px;
+  transition: 0.16s var(--soft-ease);
+  /* 整块标签都填项目色（不只激活）——每个终端是一整个色块，拖动时整块在动 */
+  background: hsl(var(--th, 280) 42% 50% / 0.16);
+}
+/* 标签左缘项目色脊 */
+.term-tab::before {
+  content: "";
+  position: absolute;
+  left: 3px; top: 7px; bottom: 7px;
+  width: 3px; border-radius: 3px;
+  background: hsl(var(--th, 280) 60% 58%);
+  opacity: 0.5;
+  transition: 0.16s var(--soft-ease);
+}
+.term-tab:hover { background: hsl(var(--th, 280) 46% 50% / 0.24); }
+.term-tab:hover::before { opacity: 0.8; }
+.term-tab.active { background: hsl(var(--th, 280) 50% 50% / 0.32); }
+.term-tab.active::before { opacity: 1; box-shadow: 0 0 9px -1px hsl(var(--th, 280) 62% 60%); }
+/* 活动标签底部项目色下划线 */
+.term-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 8px; right: 8px; bottom: -1px; height: 2px;
+  border-radius: 2px;
+  background: hsl(var(--th, 280) 60% 58%);
+  opacity: 0.85;
+}
+.term-actions button { border-radius: 8px; }
+.term-actions button:hover { background: hsl(var(--th, 280) 30% 30% / 0.4); }
+/* 终端标签拖拽排序：拖动半透明 + 落点插入指示线（拖到哪插到哪）*/
+.term-tab.tab-dragging { opacity: 0.4; }
+.term-tab.tab-insert { box-shadow: inset 3px 0 0 var(--accent); }
+.term-tab.tab-insert-end { box-shadow: inset -3px 0 0 var(--accent); }
+.term-tab { cursor: grab; }
+.term-tab:active { cursor: grabbing; }
+
+/* ---------- 8. 顶部统一留白带：容纳红绿灯 + 整条空置区可拖窗 ---------- */
+/* 顶部留出一条 26px 的标题留白带：红绿灯落在这条带里，整条空白都能拖动窗口。
+ * 做法是让 #app 底盘可拖，再把两块面板本身设为 no-drag——
+ * 于是面板之外的留白（顶部 26px + 侧栏/主区之间的缝）都成了拖拽手柄，面板内的点击/滚动/选择不受影响。 */
+.desktop #app { padding-top: 40px; -webkit-app-region: drag; }
+.desktop #sidebar, .desktop #main-body { -webkit-app-region: no-drag; }
+/* 顶部留白加大 + 侧栏/品牌为交通灯留足空间，确保红绿灯和 logo/Rurutia 拉开、不重叠 */
+.desktop #sidebar { padding-top: 28px; }
+.desktop .brand { padding-top: 18px; }
+/* 旧的红绿灯毛玻璃暗化带：浅色皮肤下是一块突兀的深色，直接取消（红绿灯本身自带色，无需垫底）*/
+.desktop #sidebar::before { display: none !important; }
+
+/* ---------- 9. 截图直通卡重设计：柔和卡 + 头部标签 + 主操作强调色 ---------- */
+.shot-card {
+  width: 256px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: linear-gradient(180deg, var(--panel), var(--bg-2));
+  box-shadow: 0 20px 50px -16px rgba(0, 0, 0, 0.6), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.shot-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 11px 8px;
+}
+.shot-badge {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700;
+}
+.shot-x {
+  width: 20px; height: 20px; border-radius: 6px; border: none; background: transparent;
+  color: var(--text-faint); font-size: 12px; cursor: pointer; line-height: 1; transition: 0.13s;
+}
+.shot-x:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+.shot-thumb { max-height: 156px; border-radius: 0; }
+.shot-info { padding: 10px 11px 12px; }
+.shot-name {
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 9px;
+}
+.shot-acts { display: flex; gap: 6px; }
+.shot-acts button {
+  flex: 1; font-size: 11.5px; padding: 7px 4px; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--bg-3); color: var(--text-dim);
+  cursor: pointer; transition: 0.14s var(--soft-ease); white-space: nowrap;
+}
+.shot-acts button:hover { color: var(--text); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); background: var(--bg-2); }
+.shot-acts .shot-primary {
+  flex: 1.3;
+  background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 72%, #fff));
+  border-color: transparent; color: var(--accent-ink); font-weight: 600;
+  box-shadow: 0 4px 12px -5px var(--accent);
+}
+.shot-acts .shot-primary:hover { color: var(--accent-ink); filter: brightness(1.06); }
+
+/* ---------- 7. 浮起卡片外壳：染色 backdrop + 中性面板 = 面板悬浮 ---------- */
+/* 关键：整个 backdrop 染上 accent 并压暗一点；面板保持中性 var(--bg)，
+ * 于是中性面板"浮"在染色底盘上——浅色 / 深色皮肤都成立。 */
+/* 视觉规范（深浅主题统一）：底盘 = 主题底色 --bg + 左上一抹很淡的 accent 光晕；
+ * 面板 = 比底盘"亮一档"（往 --bg-2 方向），靠"更亮 + 发丝边 + 柔光"浮起。
+ * 不再用 #000 压暗底盘——那在浅色皮肤下会把四角圆角缺口染成脏黑块（用户反馈的"黑色色块"根因）。 */
+#app {
+  padding: 12px;
+  gap: 12px;
+  background:
+    radial-gradient(85% 50% at 12% -10%, color-mix(in srgb, var(--accent) 10%, transparent) 0%, transparent 55%),
+    var(--bg) !important;
+}
+#sidebar,
+#topbar,
+#main-body {
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  box-shadow: 0 16px 40px -24px rgba(0, 0, 0, 0.4), 0 2px 8px -4px rgba(0, 0, 0, 0.24);
+  background: color-mix(in srgb, var(--bg-2) 50%, var(--bg));
+}
+#main { gap: 12px; background: transparent; }
+#main-body { overflow: hidden; }
+/* 内缩后让出 12px：侧栏拖拽手柄跟着右移，别错位 */
+#sidebar-resizer { left: calc(var(--sidebar-w, 248px) + 9px); }
+/* 桌面端高优先级规则：面板用同一套"亮一档"底色浮在 --bg 底盘上；content 透明好露出 main-body 的底 */
+.desktop #sidebar, .desktop #topbar, .desktop #main-body { background: color-mix(in srgb, var(--bg-2) 50%, var(--bg)) !important; }
+.desktop #content { background: transparent !important; }
+.desktop #main { background: transparent; }
+
+/* ---------- 10. 终端：找回头部导航栏的圆弧（对齐 mockup 圆角卡的上沿）---------- */
+/* 终端与文件区之间留一条缝，整框发丝边 + 圆角 → 终端像一张独立的圆角卡，
+ * 头部导航栏（term-head）两个上角做成圆弧，正是之前丢掉的那个圆弧效果。 */
+.dock-bottom #terminal-panel,
+.dock-right #terminal-panel {
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 26px -16px rgba(0, 0, 0, 0.5);
+}
+.dock-bottom #terminal-panel { margin-top: 9px; }
+.dock-right #terminal-panel { margin-left: 9px; }
+/* 头部圆弧上沿（圆角卡的顶）*/
+.dock-bottom .term-head, .dock-right .term-head { border-radius: 14px 14px 0 0; }
+/* resizer 充当那条缝，透明不抢眼 */
+.dock-bottom #terminal-resizer, .dock-right #terminal-resizer { background: transparent; }
+
+/* ---------- 11. 全局强制 Maple Mono（含中/英/日）：覆盖一切硬编码 ui-monospace / 系统字体 ---------- */
+/* ui-patch 已把 --font-* 变量设成 Maple，但 style.css 里有些地方硬编码了字体、绕过了变量；
+ * 这里用全局规则兜住所有元素。xterm 终端单独走 --font-term（同样是 Maple，带 Nerd 兜底）。 */
+body * { font-family: 'Maple Mono', ui-monospace, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif !important; }
+.xterm, .xterm * { font-family: var(--font-term, 'Maple Mono'), ui-monospace, monospace !important; }
+/* Monaco 的 codicon 是图标字体，被强制成 Maple 会变豆腐——保留它本来的字体 */
+[class*="codicon"] { font-family: 'codicon' !important; }
+
+/* ---------- 12. 滚动条美化：细、圆、跟随强调色；轨道上下/左右缩进，让 thumb 避开圆角卡的圆角不再凸出 ---------- */
+::-webkit-scrollbar:vertical { width: 11px; }
+::-webkit-scrollbar:horizontal { height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+/* 关键：轨道两端缩进，thumb 不会顶到圆角卡的顶/底（左/右）圆角处，消除「凸出来」的突兀 */
+::-webkit-scrollbar-track:vertical { margin: 12px 0; }
+::-webkit-scrollbar-track:horizontal { margin: 0 12px; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 36%, transparent);
+  border-radius: 10px; border: 3.5px solid transparent; background-clip: content-box; min-height: 28px;
+}
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--accent) 58%, transparent); background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+/* 列表内拖动重排的落点插入线 */
+.nav-list li.sort-insert { box-shadow: inset 0 2px 0 var(--accent); }
+.nav-list li.sort-insert-end { box-shadow: inset 0 -2px 0 var(--accent); }
+
+/* ---------- 14. Agent 项目：更新时间统一右对齐到最右端（名字过长则省略号，不再跟名字长度漂移）---------- */
+#agent-projects-list li .label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#agent-projects-list li .when { margin-left: 8px; flex: 0 0 auto; }
+
+/* ---------- 15. 变更收件箱：统一到柔和卡片风（大圆角 / 柔光 / 强调色药丸 / 行内圆角 hover），全走皮肤 token 自适应 18 主题 ---------- */
+.changes-pop {
+  width: 384px; border-radius: 16px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  background: linear-gradient(180deg, var(--panel), var(--bg-2));
+  box-shadow: 0 22px 60px -22px rgba(0, 0, 0, 0.6), 0 3px 12px -5px rgba(0, 0, 0, 0.45);
+}
+.changes-pop .cp-head {
+  padding: 12px 13px; font-size: 12.5px; font-weight: 650; color: var(--text);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 9%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent);
+}
+.changes-pop .cp-head-btns { display: flex; gap: 6px; }
+.changes-pop .cp-head .ghost-btn {
+  font-size: 11px; padding: 4px 10px; border-radius: 9px;
+  border: 1px solid var(--border); color: var(--text-dim); transition: 0.15s var(--soft-ease);
+}
+.changes-pop .cp-head .ghost-btn:hover { color: var(--text); background: var(--bg-2); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
+/* ▶ 回放 = 主操作，用强调色渐变；清空保持 ghost */
+.changes-pop .cp-head #cp-replay {
+  color: var(--accent-ink); border-color: transparent;
+  background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #fff));
+  box-shadow: 0 3px 10px -4px var(--accent);
+}
+.changes-pop .cp-head #cp-replay:hover { color: var(--accent-ink); filter: brightness(1.06); }
+.changes-pop .cp-list { padding: 6px; }
+.changes-pop .cp-row {
+  border-radius: 11px; border-bottom: none !important; padding: 8px 10px; margin-bottom: 1px;
+  transition: 0.14s var(--soft-ease);
+}
+.changes-pop .cp-row:hover { background: color-mix(in srgb, var(--accent) 11%, var(--bg-2)); }
+/* ×N 改动计数 → 强调色小药丸 */
+.changes-pop .cp-name em {
+  font-style: normal; font-weight: 700; font-size: 10px; margin-left: 6px; padding: 1px 6px;
+  border-radius: 6px; color: var(--accent); background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.changes-pop .cp-time { color: var(--text-faint); }
+.changes-pop .cp-empty { padding: 26px 18px; color: var(--text-dim); line-height: 1.8; }
+
+/* ---------- 16. 侧栏分区标题：放大 + 去掉风格不统一的小图标（星/终端/网格/闪电）+ 排版精修 ---------- */
+.nav-title {
+  font-size: 13px; font-weight: 650; letter-spacing: 0.01em;
+  color: var(--text-dim); padding: 4px 8px 10px;
+}
+/* 去掉那些显得像颜文字的小图标，标题更干净统一；右侧的 + 添加按钮是 <button> 不受影响 */
+.nav-title > svg { display: none; }
+/* 分区之间多留一点呼吸，层次更清楚 */
+.nav-section { margin-bottom: 8px; }
+/* 导航项文字与标题拉开层级：项目名稍小、行高舒展 */
+.nav-list li { font-size: 12.5px; }
+.nav-list li .label { letter-spacing: 0; }
+
+/* ---------- 17. 主体拆成独立板块：文件卡 ┄ 状态行(空隙) ┄ 终端卡（不再挤在一张大卡里）---------- */
+/* main-body 退化为透明容器，不再是包住一切的大卡 */
+#main-body, .desktop #main-body {
+  background: transparent !important; border: none !important; box-shadow: none !important;
+  overflow: visible !important; border-radius: 0 !important;
+}
+#filemgmt { overflow: visible; }
+#content { overflow: visible; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+/* 文件区 = 独立圆角卡，自己滚动 */
+#file-area {
+  flex: 1 1 0; overflow-y: auto; min-height: 0; padding: 14px 16px 18px;
+  background: color-mix(in srgb, var(--bg-2) 50%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px -24px rgba(0, 0, 0, 0.4), 0 2px 8px -4px rgba(0, 0, 0, 0.24);
+}
+/* 状态行（N 项·文件夹·占用透视）= 落在文件卡与终端卡之间的空隙；统计走等宽、对比抬一档，链接做成小药丸 */
+#statusbar, .desktop #statusbar {
+  flex: 0 0 auto; background: transparent !important; border: none !important;
+  padding: 9px 12px 7px; font-size: 11.5px; color: var(--text-dim);
+}
+/* 统计：标签退到背景（UI 字体、变浅），数字加粗稍大、等宽对齐 → 有意的强调，不再松散突兀 */
+#statusbar > span:first-child { font-family: var(--font-ui); letter-spacing: 0; color: var(--text-faint); }
+#statusbar > span:first-child b { font-family: var(--font-mono); font-weight: 700; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+#statusbar .sb-links { display: inline-flex; gap: 6px; }
+#statusbar .sb-links a {
+  padding: 3px 9px; border-radius: 8px; font-size: 11px; color: var(--text-dim);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+  transition: 0.14s var(--soft-ease);
+}
+#statusbar .sb-links a:hover { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 42%, transparent); }
+/* 顶栏图标按钮的激活态（Skills 透视开着时高亮）*/
+.topbar-actions .ghost-btn.active { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); }
+/* 预览面板也独立成卡，和文件卡风格一致 */
+#preview {
+  border-radius: 16px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  background: color-mix(in srgb, var(--bg-2) 50%, var(--bg));
+  box-shadow: 0 16px 40px -24px rgba(0, 0, 0, 0.4);
+}
+/* 终端卡（已是独立圆角卡）与上面的状态行之间留一点空隙 */
+.dock-bottom #terminal-panel { margin-top: 2px; }
+
+/* ---------- 13. 拖目录到收藏 / 快速入口的落点高亮 ---------- */
+.nav-list.drop-target {
+  outline: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 1px; border-radius: 10px;
+  background: var(--accent-soft);
+}

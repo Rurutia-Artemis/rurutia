@@ -1,6 +1,17 @@
 /* FanBox 前端 */
 'use strict';
 
+// 截图预览钩子：URL 带 ?shot 时跳过首次引导、展开用量面板；?shot=<皮肤id> 还可指定皮肤。仅供开发预览，正常使用不受影响。
+try {
+  if (typeof location !== 'undefined' && location.search.indexOf('shot') >= 0) {
+    localStorage.setItem('fb_guided', '1');
+    localStorage.setItem('fb_usage_open', '1');
+    localStorage.setItem('fb_gridsize', 'md');
+    const __m = location.search.match(/shot=([a-z]+)/);
+    if (__m) localStorage.setItem('fb_skin', __m[1]);
+  }
+} catch (e) { /* */ }
+
 const $ = (s) => document.querySelector(s);
 const api = (p) => fetch(p).then((r) => r.json());
 const apiPost = (p, body) => fetch(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
@@ -8,6 +19,9 @@ const apiPost = (p, body) => fetch(p, { method: 'POST', headers: { 'Content-Type
 // ---------- SVG 图标系统（替代 emoji，统一矢量审美） ----------
 const SVG = {
   folder: '<path d="M3.5 8.5a3 3 0 0 1 3-3h2.6a2 2 0 0 1 1.5.7l1 1.1a2 2 0 0 0 1.5.7h4.4a3 3 0 0 1 3 3v6.3a3 3 0 0 1-3 3H6.5a3 3 0 0 1-3-3z"/>',
+  home: '<path d="M3 11.4 12 4l9 7.4"/><path d="M5.2 10v8.6a1.2 1.2 0 0 0 1.2 1.2h11.2a1.2 1.2 0 0 0 1.2-1.2V10"/>',
+  docs: '<rect x="4.5" y="3.5" width="15" height="17" rx="2"/><line x1="8" y1="8.5" x2="16" y2="8.5"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15.5" x2="13" y2="15.5"/>',
+  downloads: '<path d="M12 3.5v10.5"/><path d="M7.5 10 12 14.5 16.5 10"/><path d="M5 20h14"/>',
   file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
   text: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/>',
   code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
@@ -111,12 +125,23 @@ function svgWrap(inner, color, size, fill) {
 // 文档族：实色页面 + 折角 + 白色短标签；代码族：品牌色圆角徽章 + 字母；媒体/压缩各有专属形。
 // 颜色烧死在图标里，跨三套皮肤都醒目——一眼认出「这是个 PDF / JS / 压缩包」。
 function gWrap(size, inner) { return `<svg class="rich-glyph" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">${inner}</svg>`; }
+// 柔和文档：圆角主体 + 折角 + 顶部一道极淡高光，整体更立体
 function gDoc(color, fold) {
-  return `<path d="M5 3.6A1.6 1.6 0 0 1 6.6 2H14l5 5v11.4A1.6 1.6 0 0 1 17.4 20H6.6A1.6 1.6 0 0 1 5 18.4z" fill="${color}"/>`
-    + `<path d="M14 2l5 5h-3.4A1.6 1.6 0 0 1 14 5.4z" fill="${fold}"/>`;
+  return `<path d="M5.2 4A2 2 0 0 1 7.2 2H14l5 5v11A2 2 0 0 1 17 20H7.2A2 2 0 0 1 5.2 18z" fill="${color}"/>`
+    + `<path d="M14 2l5 5h-3.2A1.8 1.8 0 0 1 14 5.2z" fill="${fold}"/>`
+    + `<rect x="5.2" y="2.2" width="13.8" height="3" rx="1.6" fill="#fff" opacity="0.10"/>`;
 }
 function gLabel(t, fs) { return `<text x="11.6" y="16.6" text-anchor="middle" font-family="-apple-system,'Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="${fs}" letter-spacing="0.1" fill="#fff">${t}</text>`; }
-function gBadge(color) { return `<rect x="3" y="3" width="18" height="18" rx="5" fill="${color}"/>`; }
+// 柔和代码徽章：更圆的方角 + 顶部玻璃高光
+function gBadge(color) {
+  return `<rect x="2.6" y="2.6" width="18.8" height="18.8" rx="6.4" fill="${color}"/>`
+    + `<rect x="2.6" y="2.6" width="18.8" height="9" rx="6.4" fill="#fff" opacity="0.10"/>`;
+}
+// 描边 chip（对齐 mockup 的 .file-doc）：彩色细边框 + 极淡同色底 + 同色标签，所有文件统一这一种
+function gChip(label, fs, color) {
+  return `<rect x="3.3" y="2.4" width="17.4" height="19.2" rx="4.4" fill="${color}" fill-opacity="0.11" stroke="${color}" stroke-width="1.6"/>`
+    + `<text x="12" y="${(12 + fs * 0.35).toFixed(1)}" text-anchor="middle" font-family="-apple-system,'Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="${fs}" letter-spacing="0.04" fill="${color}">${label}</text>`;
+}
 function gInit(t, fs, color) { return `<text x="12" y="15.7" text-anchor="middle" font-family="-apple-system,'Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="${fs}" fill="${color}">${t}</text>`; }
 // 文档族：[标签, 字号, 主体色, 折角色]
 const DOC_TYPES = {
@@ -152,16 +177,50 @@ const ARCHIVE_EXT = new Set(['zip', 'rar', '7z', 'gz', 'tar', 'tgz', 'bz2', 'xz'
 // 首尾边界都含全角胶水标点：「生成了 a.png、b.png」顿号列举的两个名字才都识别得到
 const TERM_LINK_RE_BARE = /(?<=^|[\s'"`(\[（【>：:=；，。、？！])[\p{L}\p{N}_@][\p{L}\p{N}_.\-@/]*\.(?:md|markdown|txt|pdf|png|jpe?g|gif|webp|svg|avif|heic|icns|ico|mp4|mov|webm|mkv|mp3|wav|m4a|flac|json|jsonl|js|mjs|cjs|ts|tsx|jsx|css|scss|sass|less|html?|xml|ya?ml|toml|ini|conf|lock|log|sh|zsh|bash|py|rb|go|rs|java|kt|swift|c|h|cpp|hpp|cs|php|sql|csv|tsv|xlsx?|docx?|pptx?|key|numbers|pages|zip|tar|gz|tgz|dmg|app|plist|epub|srt|vtt|command)(?=$|[.\s'"`)\],:;。，）】、？！；：])/gu;
 // 文件夹：干净扁平的单色实心文件夹（强色 + 简洁几何，不做作）
+// 调色：p>0 压暗、p<0 提亮（混向黑/白），给图标做立体的明暗面，无需 SVG 渐变 def（免 id 冲突）
+function shade(hex, p) {
+  const m = String(hex).replace('#', '').match(/.{2}/g);
+  if (!m || m.length < 3) return hex;
+  const tgt = p < 0 ? 255 : 0, a = Math.min(1, Math.abs(p));
+  return '#' + m.slice(0, 3).map((h) => {
+    const v = parseInt(h, 16);
+    return Math.round(v + (tgt - v) * a).toString(16).padStart(2, '0');
+  }).join('');
+}
+// hsl → hex（h:0-360, s/l:0-100）：给终端背景调一抹项目色相
+function hslHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l), k = (n) => (n + h / 30) % 12;
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const to = (v) => Math.round(v * 255).toString(16).padStart(2, '0');
+  return '#' + to(f(0)) + to(f(8)) + to(f(4));
+}
+// 把 b 以 t 比例混进 a
+function mixHex(a, b, t) {
+  const pa = String(a).replace('#', '').match(/.{2}/g), pb = String(b).replace('#', '').match(/.{2}/g);
+  if (!pa || !pb) return a;
+  return '#' + pa.slice(0, 3).map((h, i) => {
+    const va = parseInt(h, 16), vb = parseInt(pb[i], 16);
+    return Math.round(va + (vb - va) * t).toString(16).padStart(2, '0');
+  }).join('');
+}
+// 柔和立体文件夹（对齐 mockup 的 .fo：宽、满、对角渐变 + 左上干净表舌）
 function gFolder(size, color) {
-  return `<svg class="rich-glyph" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">`
-    + `<path d="M3.6 5.5h4.4a1.2 1.2 0 0 1 .85.35l1.3 1.3a1.2 1.2 0 0 0 .85.35H20a1.6 1.6 0 0 1 1.6 1.6v8.45A1.6 1.6 0 0 1 20 19.1H4A1.6 1.6 0 0 1 2.4 17.5V6.7A1.2 1.2 0 0 1 3.6 5.5z" fill="${color}"/>`
-    + `</svg>`;
+  const id = 'fg' + String(color).replace(/[^0-9a-fA-F]/g, '');
+  return gWrap(size,
+      `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0.6" y2="1">`
+    +   `<stop offset="0" stop-color="${shade(color, -0.16)}"/>`
+    +   `<stop offset="1" stop-color="${shade(color, 0.26)}"/>`
+    + `</linearGradient></defs>`
+    + `<rect x="1.6" y="3.6" width="9.6" height="4.6" rx="1.7" fill="${shade(color, 0.5)}"/>`
+    + `<rect x="1.4" y="6.2" width="21.2" height="14.6" rx="3.4" fill="url(#${id})"/>`
+    + `<rect x="2.8" y="7" width="18.4" height="3" rx="1.5" fill="#fff" opacity="0.16"/>`);
 }
 function richIcon(e, size) {
   if (e.isDir) return gFolder(size, iconColorFor(e));
   const ex = (e.name.split('.').pop() || '').toLowerCase();
-  if (DOC_TYPES[ex]) { const [l, fs, c, f] = DOC_TYPES[ex]; return gWrap(size, gDoc(c, f) + gLabel(l, fs)); }
-  if (CODE_BADGES[ex]) { const [l, fs, c, t] = CODE_BADGES[ex]; return gWrap(size, gBadge(c) + gInit(l, fs, t)); }
+  if (DOC_TYPES[ex]) { const [l, fs, c] = DOC_TYPES[ex]; return gWrap(size, gChip(l, fs, c)); }
+  if (CODE_BADGES[ex]) { const [l, fs, c] = CODE_BADGES[ex]; return gWrap(size, gChip(l, fs, c)); }
   if (ARCHIVE_EXT.has(ex)) {
     return gWrap(size, `<rect x="4" y="3.5" width="16" height="17" rx="2.2" fill="#E0A23B"/><rect x="4" y="3.5" width="16" height="17" rx="2.2" fill="#000" opacity="0.06"/>`
       + `<rect x="10.6" y="3.5" width="2.8" height="17" fill="#C8862A"/>`
@@ -187,7 +246,7 @@ const state = {
   theme: localStorage.getItem('fb_theme') || 'warm',
   entries: [], project: null, history: [],
   view: localStorage.getItem('fb_view') || 'grid',
-  gridSize: localStorage.getItem('fb_gridsize') || 'sm',
+  gridSize: localStorage.getItem('fb_gridsize') || 'md',
   sort: localStorage.getItem('fb_sort') || 'name',
   showHidden: localStorage.getItem('fb_hidden') === '1',
   filter: '', selected: null, cursor: -1, cols: 1, visible: [],
@@ -315,6 +374,7 @@ function render() {
 function renderBreadcrumb() {
   const bc = $('#breadcrumb');
   bc.innerHTML = '';
+  $('#btn-skills')?.classList.toggle('active', state.skillsMode); // 进入透视时按钮高亮，退出复原
   if (state.skillsMode) { bc.innerHTML = `<span class="crumb last">Skills 透视</span>`; return; }
   if (state.recentMode) { bc.innerHTML = `<span class="crumb last">${ic('clock', 'currentColor', 15)} 最近修改的文件</span>`; return; }
   (state.breadcrumb || []).forEach((c, i, arr) => {
@@ -369,7 +429,7 @@ function renderStatusbar() {
   const files = list.length - dirs;
   const bytes = list.reduce((a, e) => a + (e.isDir ? 0 : e.size || 0), 0);
   sb.classList.remove('hidden');
-  sb.innerHTML = `<span>${list.length} 项${dirs ? ` · ${dirs} 文件夹` : ''}${files ? ` · ${files} 文件 ${fmtSize(bytes)}` : ''}</span><span class="sb-links">${state.project ? '<a id="sb-rel" title="版本号→CHANGELOG→打包→push→Release 一条龙，在终端跑">发版</a>' : ''}<a id="sb-mem" title="这个文件夹里 AI 干过什么：历史会话、改过的文件、一键续上">项目记忆</a><a id="sb-du" title="算上子目录的真实磁盘占用">占用透视</a></span>`;
+  sb.innerHTML = `<span><b>${list.length}</b> 项${dirs ? ` · <b>${dirs}</b> 文件夹` : ''}${files ? ` · <b>${files}</b> 文件 <b>${fmtSize(bytes)}</b>` : ''}</span><span class="sb-links">${state.project ? '<a id="sb-rel" title="版本号→CHANGELOG→打包→push→Release 一条龙，在终端跑">发版</a>' : ''}<a id="sb-mem" title="这个文件夹里 AI 干过什么：历史会话、改过的文件、一键续上">项目记忆</a><a id="sb-du" title="算上子目录的真实磁盘占用">占用透视</a></span>`;
   $('#sb-du').onclick = () => diskPanel(state.cwd);
   $('#sb-mem').onclick = () => memoryPanel(state.cwd);
   const rel = $('#sb-rel'); if (rel) rel.onclick = () => releasePanel();
@@ -536,9 +596,64 @@ async function dropUrlInto(url, dir) {
 function makeDraggablePath(el, p) {
   el.draggable = true;
   el.addEventListener('dragstart', (ev) => {
+    ev.stopPropagation(); // 避免冒泡到父列表的排序拖拽
     ev.dataTransfer.setData('text/plain', p);
     ev.dataTransfer.setData('application/x-fanbox-path', p);
-    ev.dataTransfer.effectAllowed = 'copy';
+    ev.dataTransfer.effectAllowed = 'copyMove';
+  });
+}
+// 让侧栏列表（收藏 / 快速入口）能接收拖入的文件夹：从 Agent 项目 / 文件区拖一个目录过来即加入。
+// 绑在容器上（内容会被 innerHTML 重渲，但容器本身不变），用 dataset 防重复绑定。
+function makeDropZone(ul, onDrop) {
+  if (!ul || ul.dataset.dz) return;
+  ul.dataset.dz = '1';
+  ul.addEventListener('dragover', (e) => {
+    if (![...e.dataTransfer.types].includes('application/x-fanbox-path')) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; ul.classList.add('drop-target');
+  });
+  ul.addEventListener('dragleave', (e) => { if (!ul.contains(e.relatedTarget)) ul.classList.remove('drop-target'); });
+  ul.addEventListener('drop', (e) => {
+    ul.classList.remove('drop-target');
+    const p = e.dataTransfer.getData('application/x-fanbox-path') || e.dataTransfer.getData('text/plain');
+    if (!p) return;
+    e.preventDefault(); onDrop(p);
+  });
+}
+// Agent 项目列表内拖动重排：自定义顺序存 localStorage，渲染时套用（排过的按自定义序在前，没排过的按原活跃序）
+function agentOrder() { try { return JSON.parse(localStorage.getItem('fb_agent_order') || '[]'); } catch { return []; } }
+function setAgentOrder(paths) { try { localStorage.setItem('fb_agent_order', JSON.stringify(paths)); } catch { /* */ } }
+function applyAgentOrder(list) {
+  const order = agentOrder();
+  if (!order.length) return list;
+  return list.map((x, i) => [x, i]).sort((a, b) => {
+    const ra = order.indexOf(a[0].path), rb = order.indexOf(b[0].path);
+    const ka = ra < 0 ? 1e6 : ra, kb = rb < 0 ? 1e6 : rb;
+    return ka !== kb ? ka - kb : a[1] - b[1]; // 都没排过 → 维持原相对序（稳定排序）
+  }).map((x) => x[0]);
+}
+// 让列表支持「拖动其中的项重排」：落点上方显示插入线，松手回调新的 path 顺序
+function makeSortable(ul, onReorder) {
+  if (!ul || ul.dataset.sortable) return;
+  ul.dataset.sortable = '1';
+  const clear = () => ul.querySelectorAll('.sort-insert, .sort-insert-end').forEach((li) => li.classList.remove('sort-insert', 'sort-insert-end'));
+  ul.addEventListener('dragover', (e) => {
+    if (![...e.dataTransfer.types].includes('application/x-fanbox-path')) return;
+    e.preventDefault(); clear();
+    const lis = [...ul.querySelectorAll('li')]; let placed = false;
+    for (const li of lis) { const r = li.getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { li.classList.add('sort-insert'); placed = true; break; } }
+    if (!placed && lis.length) lis[lis.length - 1].classList.add('sort-insert-end');
+  });
+  ul.addEventListener('dragleave', (e) => { if (!ul.contains(e.relatedTarget)) clear(); });
+  ul.addEventListener('drop', (e) => {
+    const p = e.dataTransfer.getData('application/x-fanbox-path'); clear();
+    if (!p) return;
+    const lis = [...ul.querySelectorAll('li')]; const cur = lis.map((li) => li.dataset.path);
+    const from = cur.indexOf(p); if (from < 0) return; // 拖来的不是本列表的项 → 不管（交给别的 drop zone）
+    e.preventDefault();
+    let to = lis.length;
+    for (let i = 0; i < lis.length; i++) { const r = lis[i].getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { to = i; break; } }
+    cur.splice(from, 1); if (from < to) to--; cur.splice(to, 0, p);
+    onReorder(cur);
   });
 }
 // 只切换选中态的 class，绝不重建整个网格（重建会把所有缩略图重新解码 → 点击卡顿元凶）
@@ -1545,13 +1660,13 @@ const shotTray = {
     const el = document.createElement('div');
     el.className = 'shot-card';
     el.innerHTML = `
+      <div class="shot-head"><span class="shot-badge">✦ 新截图</span><button data-act="close" class="shot-x" title="不理它也会自己走">✕</button></div>
       <img class="shot-thumb" draggable="true" src="/api/thumb?path=${encodeURIComponent(m.path)}&w=480&v=${m.size}" title="新截图 · 可拖进终端" data-retry="0">
       <div class="shot-info"><div class="shot-name">${escapeHtml(m.name)}</div>
       <div class="shot-acts">
-        <button data-act="term" title="把路径喂给终端里的 agent">→ 终端</button>
+        <button data-act="term" class="shot-primary" title="把路径喂给终端里的 agent">→ 终端</button>
         <button data-act="save" title="移动到当前文件夹的 素材/ 子目录">收进素材</button>
         <button data-act="edit" title="圈重点再发">标注</button>
-        <button data-act="close" title="不理它也会自己走">✕</button>
       </div></div>`;
     document.body.appendChild(el);
     this.el = el;
@@ -1767,7 +1882,16 @@ function popupMenu(ev, items) {
 
 // ---------- 侧边栏 ----------
 // 侧栏目录树：目录项带展开箭头，点箭头逐级懒加载子目录（只列文件夹），点行本身仍是跳转
-function navDirLi(name, p) {
+// 快速入口的常用目录给专属线性图标（home/文档/下载/桌面），其余仍是文件夹
+function rootIconName(p) {
+  const base = String(p || '').replace(/\/+$/, '').split('/').pop().toLowerCase();
+  if (p === state.home || base === 'home') return 'home';
+  if (base === 'documents' || base === '文档') return 'docs';
+  if (base === 'downloads' || base === '下载') return 'downloads';
+  if (base === 'desktop' || base === '桌面') return 'monitor';
+  return 'folder';
+}
+function navDirLi(name, p, iconName) {
   const li = document.createElement('li');
   li.dataset.path = p;
   const twirl = document.createElement('span');
@@ -1777,7 +1901,8 @@ function navDirLi(name, p) {
   twirl.onclick = (ev) => { ev.stopPropagation(); toggleNavSub(li, p, twirl); };
   const ico = document.createElement('span');
   ico.className = 'ico';
-  ico.innerHTML = svgWrap(SVG.folder, 'currentColor', 16, true);
+  const ik = iconName || 'folder';
+  ico.innerHTML = svgWrap(SVG[ik] || SVG.folder, 'currentColor', 16, ik === 'folder');
   const label = document.createElement('span');
   label.className = 'label';
   label.textContent = name;
@@ -1809,7 +1934,7 @@ async function loadRoots() {
   const ul = $('#roots-list');
   ul.innerHTML = '';
   data.roots.forEach((r) => {
-    const li = navDirLi(r.name, r.path);
+    const li = navDirLi(r.name, r.path, rootIconName(r.path));
     const rm = document.createElement('span');
     rm.className = 'unfav';
     rm.title = '从快速入口移除';
@@ -1817,6 +1942,11 @@ async function loadRoots() {
     rm.onclick = (ev) => { ev.stopPropagation(); apiPost('/api/roots', { action: 'remove', path: r.path }).then(loadRoots); };
     li.appendChild(rm);
     ul.appendChild(li);
+  });
+  // 拖入目录 → 加进快速入口
+  makeDropZone(ul, (p) => {
+    if (data.roots.some((r) => r.path === p)) { toast('已在快速入口'); return; }
+    apiPost('/api/roots', { action: 'add', path: p }).then(loadRoots).then(() => toast('已加入快速入口'));
   });
   renderRootsActive();
 }
@@ -1840,8 +1970,13 @@ async function loadFavorites() {
 }
 function renderFavs() {
   const ul = $('#favs-list');
+  // 拖入目录 → 加进收藏（绑在容器上，空收藏时也能接收拖入）
+  makeDropZone(ul, (p) => {
+    if (state.favorites.some((f) => f.path === p)) { toast('已在收藏'); return; }
+    apiPost('/api/favorites', { path: p, name: baseOf(p), isDir: true }).then(loadFavorites).then(() => toast('已加入收藏'));
+  });
   ul.innerHTML = '';
-  if (!state.favorites.length) { ul.innerHTML = '<div class="nav-empty">悬停文件点 ☆ 即可收藏</div>'; return; }
+  if (!state.favorites.length) { ul.innerHTML = '<div class="nav-empty">悬停文件点 ☆ 即可收藏 · 也可把 Agent 项目拖进来</div>'; return; }
   state.favorites.forEach((f) => {
     let li;
     if (f.isDir) {
@@ -1873,13 +2008,16 @@ function agoShort(ms) {
 async function loadAgentProjects() {
   let data;
   try { data = await api('/api/agent-projects'); } catch { return; }
-  const list = (data.projects || []).slice(0, 8);
-  // 数据没变就不动 DOM，免得定时刷新把用户展开的子树抹掉
-  const sig = JSON.stringify(list);
+  const list = applyAgentOrder((data.projects || []).slice(0, 8));
+  // 数据没变就不动 DOM（排序变 / 活跃时间变 / 固定态变 → sig 变 → 重渲）。
+  // 必须带上 lastActive、pinned：只比 path 顺序会漏掉「项目有新活动但位置没变」时的时间刷新。
+  const sig = JSON.stringify(list.map((p) => [p.path, p.lastActive, p.pinned]));
   if (sig === loadAgentProjects._sig) return;
   loadAgentProjects._sig = sig;
   const ul = $('#agent-projects-list');
   ul.innerHTML = '';
+  // 列表内拖动重排（持久化顺序）；拖出到收藏/快速入口仍是「加入」（各有各的 drop zone）
+  makeSortable(ul, (order) => { setAgentOrder(order); loadAgentProjects._sig = null; loadAgentProjects(); });
   if (!list.length) { ul.innerHTML = '<div class="nav-empty">用 Claude Code / Codex 跑过的项目会出现在这里</div>'; return; }
   list.forEach((pj) => {
     const li = navDirLi(pj.name, pj.path);
@@ -2035,6 +2173,7 @@ function hlTerm(text, term) {
 
 // ---------- 首次引导 ----------
 function maybeShowGuide() {
+  if (location.search.includes('shot')) return; // 截图预览用：?shot 跳过首次引导
   if (localStorage.getItem('fb_guided')) return;
   const ov = document.createElement('div');
   ov.className = 'guide-overlay';
@@ -2440,7 +2579,7 @@ function bindEvents() {
   $('#term-codex').onclick = () => { wechatView.close(); term.launchAgent('codex'); };
   usagePanel.bind();
   shotTray.init();
-  $('#skills-entry').onclick = () => skillsView.show();
+  $('#btn-skills').onclick = () => { if (state.skillsMode) navigate(state.cwd); else skillsView.show(); }; // 再点切回文件
   $('#term-newtab').onclick = () => { wechatView.close(); term.newTab(); };
   $('#term-max').onclick = () => term.toggleMax();
   // 双击终端顶栏空白处（避开标签/按钮/输入框）= 铺满终端：agent 交互窗口最重要，给它一键放到最大
@@ -3267,6 +3406,7 @@ const term = {
     }
     if (fit) try { fit.fit(); } catch { /* */ }
     const sess = { id, xterm, fit, host, dead: false, status: 'idle', unread: false, startDir, title: baseOf(startDir || '') || 'shell' };
+    xterm.options.theme = this.tintTheme(this.theme(), startDir); // 背景按项目色相淡染
     this.sessions.push(sess);
     this.activate(id);
     updateWatches(); // 新终端的项目目录也纳入监听
@@ -3538,7 +3678,70 @@ const term = {
       else if (Notification.permission !== 'denied') Notification.requestPermission().then((p) => { if (p === 'granted') fire(); });
     } catch { /* 通知不可用就算了 */ }
   },
+  // 弹性拖拽排序：被拖标签跟手平移，其中心越过相邻标签中心时相邻标签实时让位（带过渡）；
+  // 松手落到当前计算出的位置——不必精准拖到目标格，越过一半即交换。
+  startTabDrag(e, sid, el) {
+    if (e.button !== 0 || (e.target.closest && e.target.closest('.tab-x'))) return;
+    const bar = $('#term-tabs');
+    const tabs = [...bar.querySelectorAll('.term-tab')];
+    const idx0 = tabs.indexOf(el);
+    if (idx0 < 0) return;
+    const rects = tabs.map((t) => t.getBoundingClientRect());
+    const w = rects[idx0].width;
+    const startX = e.clientX;
+    let dragging = false; let curIndex = idx0;
+    const onMove = (ev) => {
+      const dx = ev.clientX - startX;
+      if (!dragging) {
+        if (Math.abs(dx) < 4) return; // 阈值：小抖动不算拖
+        dragging = true; this._dragging = true; el.classList.add('tab-dragging'); el.style.position = 'relative'; el.style.zIndex = '6';
+      }
+      ev.preventDefault();
+      el.style.transform = `translateX(${dx}px)`;
+      const dragCenter = rects[idx0].left + rects[idx0].width / 2 + dx;
+      let target = idx0;
+      for (let i = 0; i < tabs.length; i++) {
+        if (i === idx0) continue;
+        const c = rects[i].left + rects[i].width / 2;
+        if (i < idx0 && dragCenter < c) target = Math.min(target, i);
+        else if (i > idx0 && dragCenter > c) target = Math.max(target, i);
+      }
+      if (target !== curIndex) {
+        curIndex = target;
+        tabs.forEach((t, i) => {
+          if (t === el) return;
+          let shift = 0;
+          if (idx0 < curIndex && i > idx0 && i <= curIndex) shift = -w;       // 被拖标签右移 → 中间的左让
+          else if (idx0 > curIndex && i >= curIndex && i < idx0) shift = w;    // 被拖标签左移 → 中间的右让
+          t.style.transition = 'transform .16s var(--soft-ease, ease)';
+          t.style.transform = shift ? `translateX(${shift}px)` : '';
+        });
+      }
+    };
+    const onUp = () => {
+      this._dragging = false;
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      tabs.forEach((t) => { t.style.transition = ''; t.style.transform = ''; t.style.zIndex = ''; t.style.position = ''; });
+      el.classList.remove('tab-dragging');
+      if (dragging) {
+        // 吞掉拖拽尾随的那次 click，避免误切换 / 误定位到目录。
+        // 若拖拽后浏览器没有补发 click，则在本轮事件结束后主动摘掉监听，避免它泄漏吞掉用户下一次点击。
+        const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); document.removeEventListener('click', swallow, true); };
+        document.addEventListener('click', swallow, true);
+        setTimeout(() => document.removeEventListener('click', swallow, true), 0);
+        if (curIndex !== idx0) {
+          const [moved] = this.sessions.splice(idx0, 1);
+          this.sessions.splice(curIndex, 0, moved);
+        }
+        this.renderTabs();
+      }
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  },
   renderTabs() {
+    if (this._dragging) return; // 拖拽换位进行中：别重建 DOM，否则被拖的标签会被卸载、拖拽错乱（onUp 收尾时再渲染）
     const bar = $('#term-tabs');
     bar.innerHTML = '';
     this.sessions.forEach((s) => {
@@ -3549,6 +3752,10 @@ const term = {
       const dotTitle = s.dead ? '进程已退出' : (s.status === 'busy' ? 'agent 运行中' : '空闲');
       // 终端图标按项目路径染色：同项目同色，和面包屑的配对色点呼应
       const hue = this.hueOf(s.cwd || s.startDir);
+      t.style.setProperty('--th', hue); // 给 CSS 画标签项目色脊用
+      // 弹性拖拽排序：按住标签横向拖，越过相邻标签即实时让位（见 startTabDrag）
+      t.dataset.sid = s.id;
+      t.addEventListener('pointerdown', (e) => this.startTabDrag(e, s.id, t));
       t.title = followed ? '文件跟随正盯着这个终端 · 双击跳到它所在目录' : '双击：文件区跳到该终端所在目录';
       const eye = followed ? `<span class="tab-eye" title="文件跟随盯着它">${ic('eye', 'currentColor', 11)}</span>` : '';
       t.innerHTML = `<span class="tab-dot ${dotState}" title="${dotTitle}"></span>${eye}${ic('term', `hsl(${hue} 62% 48%)`, 12)}<span>${escapeHtml(s.title)}</span><span class="tab-x" title="关闭">✕</span>`;
@@ -3557,7 +3764,17 @@ const term = {
       bar.appendChild(t);
     });
   },
-  retheme() { const th = this.theme(); this.sessions.forEach((s) => { s.xterm.options.theme = th; }); },
+  // 终端背景跟随主题面板底色（--bg），让终端融入整体配色——
+  // 不再是和深紫/彩色面板格格不入的纯黑方块。文字仍用 terminal/warm 的前景色，
+  // 深浅主题各自可读；项目归属感交给标签色脊 / 图标色去表达。
+  tintTheme(th) {
+    try {
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      if (bg) return { ...th, background: bg };
+    } catch (e) { /* 取不到就退回原配色 */ }
+    return th;
+  },
+  retheme() { const th = this.theme(); this.sessions.forEach((s) => { s.xterm.options.theme = this.tintTheme(th, s.startDir || s.cwd); }); },
 };
 
 // ---------- Agent 用量面板（侧栏常驻，可开合）----------
@@ -3584,20 +3801,46 @@ const usagePanel = {
     if (m < 1440) return Math.round(m / 60) + ' 小时前';
     return Math.round(m / 1440) + ' 天前';
   },
-  bar(label, pct, extra) {
-    const v = Math.max(0, Math.min(100, Math.round(pct)));
-    const danger = v >= 85 ? ' danger' : '';
-    return `<div class="usage-row"><span class="usage-label">${label}</span>
-      <span class="usage-bar"><i class="${danger.trim()}" style="width:${v}%"></i></span>
-      <span class="usage-num${danger}">${v}%</span></div>
-      ${extra ? `<div class="usage-sub">${extra}</div>` : ''}`;
+  // 分段刻度表：18 格按百分比点亮，表头一格带辉光（和 mockup 一致）
+  ticks(pct) {
+    const N = 18, v = Math.max(0, Math.min(100, Math.round(pct)));
+    let on = Math.round((v / 100) * N); if (v > 0 && on === 0) on = 1;
+    let s = '';
+    for (let i = 0; i < N; i++) s += `<i class="${i < on ? ('on' + (i === on - 1 ? ' head' : '')) : ''}"></i>`;
+    return s;
   },
+  meter(label, pct, footL, footR) {
+    const v = Math.max(0, Math.min(100, Math.round(pct)));
+    return `<div class="ux-meter"><div class="ux-meter-top"><span class="ux-meter-label">${label}</span><span class="ux-meter-val">${v}<small>%</small></span></div>`
+      + `<div class="ux-ticks${v >= 85 ? ' danger' : ''}">${this.ticks(v)}</div>`
+      + ((footL || footR) ? `<div class="ux-meter-foot"><span>${footL || ''}</span><span>${footR || ''}</span></div>` : '')
+      + `</div>`;
+  },
+  // 把 "139M" 拆成数字 + 小单位，给里程表读数用
+  splitTok(n) { const t = this.fmtTok(n); const m = t.match(/^([\d.]+)([A-Za-z]*)$/); return m ? `${m[1]}<u>${m[2]}</u>` : t; },
   reasonText(code) {
     return ({
       'no-oauth': '官方限额需 Claude 订阅登录（用 API key 时取不到）',
       'request-failed': '官方限额暂时取不到（网络 / 代理受限）',
+      'rate-limited': '官方限额接口限流中，稍后自动恢复',
       'no-windows': '当前账号没有 5h / 周窗口数据',
     })[code] || '官方限额取不到';
+  },
+  // 订阅档位徽章：把 Claude 的 rateLimitTier / Codex 的 plan_type 映射成好看的标签 + 档位 class（tier-max/pro/free）
+  planBadge(raw, isClaude) {
+    if (!raw) return '';
+    const r = String(raw).toLowerCase();
+    let label; let tier;
+    if (/max[_-]?20/.test(r)) { label = 'Max 20×'; tier = 'max'; }
+    else if (/max[_-]?5/.test(r)) { label = 'Max 5×'; tier = 'max'; }
+    else if (/max/.test(r)) { label = 'Max'; tier = 'max'; }
+    else if (/team|business|enterprise/.test(r)) { label = r[0].toUpperCase() + r.slice(1); tier = 'max'; }
+    else if (/pro[_\- ]?lite|prolite/.test(r)) { label = isClaude ? 'Pro' : 'Pro 5×'; tier = 'pro'; } // ChatGPT Pro Lite ≈ Plus 的 5x（CodexBar 约定）
+    else if (/pro/.test(r)) { label = isClaude ? 'Pro' : 'Pro 20×'; tier = isClaude ? 'pro' : 'max'; } // ChatGPT Pro ≈ Plus 的 20x（CodexBar 约定）；Claude Pro 无倍率
+    else if (/plus/.test(r)) { label = 'Plus'; tier = 'pro'; }
+    else if (/free/.test(r)) { label = 'Free'; tier = 'free'; }
+    else { label = isClaude ? '订阅' : (r[0].toUpperCase() + r.slice(1)); tier = 'pro'; }
+    return `<span class="ux-plan tier-${tier}">${escapeHtml(label)}</span>`;
   },
   // 用量接近上限时桌面通知，按内容 + 30 分钟节流，避免反复打扰
   notifyHigh(warns) {
@@ -3623,31 +3866,36 @@ const usagePanel = {
     if (warns.length) { h += `<div class="usage-warn">⚠ 用量接近上限 · ${warns.join(' / ')}</div>`; this.notifyHigh(warns); }
     if (d.codex) {
       const c = d.codex;
-      h += `<div class="usage-agent">Codex${c.planType ? ` <i class="usage-plan">${escapeHtml(c.planType)}</i>` : ''}</div>`;
-      if (c.primary) h += this.bar('5h 窗口', c.primary.usedPercent, c.primary.stale ? '窗口已重置，跑一次 Codex 才有新数' : '');
-      if (c.secondary) h += this.bar('周配额', c.secondary.usedPercent, c.secondary.stale ? '窗口已重置，跑一次 Codex 才有新数' : this.fmtReset(c.secondary.resetsAt));
-      h += `<div class="usage-sub">快照：${this.ago(c.capturedAt)}的 Codex 会话</div>`;
+      h += `<div class="ux-chan"><div class="ux-chan-head"><span class="ux-chan-name">Codex</span>`
+        + this.planBadge(c.planType, false)
+        + (c.live ? '<span class="ux-live"><span class="dot"></span>实时</span>' : '')
+        + `</div>`;
+      if (c.primary) h += this.meter('5h 窗口', c.primary.usedPercent, c.primary.stale ? '已重置' : '', c.primary.stale ? '跑一次 Codex 刷新' : this.fmtReset(c.primary.resetsAt));
+      if (c.secondary) h += this.meter('周配额', c.secondary.usedPercent, c.secondary.stale ? '已重置' : '', c.secondary.stale ? '跑一次 Codex 刷新' : this.fmtReset(c.secondary.resetsAt));
+      if (!c.live) h += `<div class="ux-note">快照：${this.ago(c.capturedAt)}的会话（旧值）</div>`;
+      h += `</div>`;
     }
     if (d.claude) {
       const c = d.claude;
-      h += `<div class="usage-agent">Claude Code</div>`;
-      // 官方限额窗口（和 Claude Code /usage 面板同源）：恒显——有数据给进度条，取不到给原因+重试
+      h += `<div class="ux-chan"><div class="ux-chan-head"><span class="ux-chan-name">Claude Code</span>${this.planBadge(c.plan, true)}</div>`;
+      // 官方限额窗口（和 Claude Code /usage 面板同源）：有数据给刻度表，取不到给原因+重试
       const o = c.official;
       if (o && (o.fiveHour || o.sevenDay)) {
-        if (o.fiveHour) h += this.bar('5h 窗口', o.fiveHour.usedPercent, this.fmtReset(o.fiveHour.resetsAt));
-        if (o.sevenDay) h += this.bar('周配额', o.sevenDay.usedPercent, this.fmtReset(o.sevenDay.resetsAt));
+        if (o.fiveHour) h += this.meter('5h 窗口', o.fiveHour.usedPercent, '', this.fmtReset(o.fiveHour.resetsAt));
+        if (o.sevenDay) h += this.meter('周配额', o.sevenDay.usedPercent, '', this.fmtReset(o.sevenDay.resetsAt));
       } else if (o && o.unavailable) {
-        h += `<div class="usage-reason">${this.reasonText(o.unavailable)} <a class="usage-retry" onclick="usagePanel.refresh()">重试</a></div>`;
+        h += `<div class="ux-empty">${this.reasonText(o.unavailable)} <a class="usage-retry" onclick="usagePanel.refresh()">重试</a></div>`;
       }
       if (c.last5h) {
-        // 本地 token 统计照常保留（拿不到官方数据时就只剩这块）
-        h += `<div class="usage-trio">
-          <span><b>${this.fmtTok(c.last5h.total)}</b>近5h</span>
-          <span><b>${this.fmtTok(c.today.total)}</b>今日</span>
-          <span><b>${this.fmtTok(c.week.total)}</b>本周</span>
-        </div>
-        <div class="usage-sub">token 总量 · 本地会话日志统计</div>`;
+        // 本地 token 统计：里程表三连
+        h += `<div class="ux-odo-cap">Token 总量 · 本地会话日志</div>`
+          + `<div class="ux-odo">`
+          + `<div><div class="n">${this.splitTok(c.last5h.total)}</div><div class="k">近 5h</div></div>`
+          + `<div><div class="n">${this.splitTok(c.today.total)}</div><div class="k">今日</div></div>`
+          + `<div><div class="n">${this.splitTok(c.week.total)}</div><div class="k">本周</div></div>`
+          + `</div>`;
       }
+      h += `</div>`;
     }
     if (!d.codex && !d.claude) h = '<div class="usage-sub">没找到 Claude Code / Codex 的本机会话记录</div>';
     box.innerHTML = h;
@@ -3656,7 +3904,7 @@ const usagePanel = {
     try { this.render(await api('/api/agent-usage')); }
     catch { this.render(null); }
   },
-  open() { return localStorage.getItem('fb_usage_open') === '1'; },
+  open() { return localStorage.getItem('fb_usage_open') !== '0'; }, // 默认展开：用量是重点板块，醒目呈现
   apply() {
     const on = this.open();
     $('#usage-body').classList.toggle('hidden', !on);

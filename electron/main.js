@@ -115,36 +115,62 @@ function screenshotDir() {
   return path.join(os.homedir(), 'Desktop');
 }
 let shotWatcher = null;
-const shotSent = new Map(); // path -> t，fs.watch 同一文件会连发多个事件，3s 内去重
+let shotPollTimer = null;
+let shotWatchStart = 0;
+const shotSent = new Map(); // path -> t，同一文件会连发多个事件，3s 内去重
+const shotPending = new Set(); // 正在等写盘稳定的文件，避免 watch+轮询重复处理同一张
+const isShotName = (name) => /^(截屏|截圖|截图|Screenshot|Screen Shot|CleanShot|SCR-)/i.test(name) && /\.(png|jpe?g)$/i.test(name);
 function startShotWatch() {
   if (process.platform !== 'darwin' || shotWatcher) return;
   const dir = screenshotDir();
   if (!fs.existsSync(dir)) return;
+  shotWatchStart = Date.now();
+  // 一张新截图落盘 → 等写盘稳定后推给渲染层。watch 和轮询都走这里，内部去重。
+  const maybeNotify = (name) => {
+    if (!isShotName(name)) return; // 「.截屏xxx.png」点前缀的中间态等会被这条挡掉
+    const fp = path.join(dir, name);
+    if (shotPending.has(fp)) return;
+    if (Date.now() - (shotSent.get(fp) || 0) < 3000) return;
+    shotPending.add(fp);
+    // 等写盘「真正完成」：Retina 全屏截图有几 MB，固定等时间可能还没写完→缩略图裂。
+    // 轮询直到大小连续两次不变（最多 ~3s）再通知。
+    const waitStable = (tries, lastSize) => {
+      fs.stat(fp, (err, st) => {
+        if (err || !st.isFile()) { shotPending.delete(fp); return; }
+        if (st.size >= 1000 && st.size === lastSize) { // 大小稳定 = 写完
+          shotPending.delete(fp);
+          shotSent.set(fp, Date.now());
+          if (shotSent.size > 50) { const k = shotSent.keys().next().value; shotSent.delete(k); }
+          if (win && !win.isDestroyed()) win.webContents.send('shot:new', { path: fp, name, size: st.size });
+          return;
+        }
+        if (tries > 0) setTimeout(() => waitStable(tries - 1, st.size), 250); // 还在涨，再等
+        else shotPending.delete(fp);
+      });
+    };
+    setTimeout(() => waitStable(12, -1), 350);
+  };
   try {
     shotWatcher = fs.watch(dir, { persistent: false }, (evt, filename) => {
-      const name = filename ? filename.toString() : '';
-      // 截屏写盘有「.截屏xxx.png」点前缀的中间态，跳过；只认系统截屏的命名习惯
-      if (!/^(截屏|截圖|截图|Screenshot|Screen Shot|CleanShot|SCR-)/i.test(name) || !/\.(png|jpe?g)$/i.test(name)) return;
-      const fp = path.join(dir, name);
-      // 等写盘「真正完成」再通知：Retina 全屏截图有几 MB，固定等 600ms 可能文件还在写，
-      // 缩略图会拿到半截文件生成失败→裂图。改成轮询直到大小连续两次不变（最多 ~3s）。
-      const waitStable = (tries, lastSize) => {
-        fs.stat(fp, (err, st) => {
-          if (err || !st.isFile()) return;
-          if (st.size >= 1000 && st.size === lastSize) { // 大小稳定 = 写完
-            const last = shotSent.get(fp) || 0;
-            if (Date.now() - last < 3000) return;
-            shotSent.set(fp, Date.now());
-            if (shotSent.size > 50) { const k = shotSent.keys().next().value; shotSent.delete(k); }
-            if (win && !win.isDestroyed()) win.webContents.send('shot:new', { path: fp, name, size: st.size });
-            return;
-          }
-          if (tries > 0) setTimeout(() => waitStable(tries - 1, st.size), 250); // 还在涨，再等
-        });
-      };
-      setTimeout(() => waitStable(12, -1), 350);
+      maybeNotify(filename ? filename.toString() : '');
     });
-  } catch { /* 无权限等，静默放弃 */ }
+  } catch { /* 无权限等，静默放弃 watch，仍有轮询兜底 */ }
+  // 轮询兜底：fs.watch 在 macOS（FSEvents）上常漏掉「第一张」截图事件，
+  // 每 1.2s 扫一遍目录，把启动后出现、还没发过的新截图补上 → 第一张也稳。
+  clearInterval(shotPollTimer);
+  shotPollTimer = setInterval(() => {
+    fs.readdir(dir, (err, names) => {
+      if (err) return;
+      for (const name of names) {
+        if (!isShotName(name) || shotPending.has(name)) continue;
+        const fp = path.join(dir, name);
+        if (shotSent.has(fp)) continue; // 已发过
+        fs.stat(fp, (e2, st) => {
+          if (!e2 && st.isFile() && st.mtimeMs >= shotWatchStart - 1500) maybeNotify(name);
+        });
+      }
+    });
+  }, 1200);
 }
 
 // ---------- 更新检测：查 GitHub Releases，有新版本通知渲染层引导下载 ----------

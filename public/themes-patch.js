@@ -42,7 +42,7 @@
   var BUILTINS = [];
   var BUILTIN_IDS = { warm: 1, terminal: 1, editorial: 1 };
 
-  var DEFAULT_SKIN = 'disco'; // 默认主题：电子舞厅
+  var DEFAULT_SKIN = 'pixel'; // 默认主题：像素光
 
   // 个别主题的精修覆盖（在通用推导之上微调）
   var OVERRIDES = {

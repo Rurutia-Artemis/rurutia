@@ -1453,7 +1453,9 @@ async function claudeUsage() {
 }
 
 // 从最近改动的 rollout 文件尾部抓最后一条带 rate_limits 的 token_count（官方配额快照）
-async function codexUsage() {
+// 回退源：翻 ~/.codex/sessions 日志里 Codex 自己写下的最后一条 rate_limits 快照。
+// 实时接口（codexUsageLive）拿不到时（token 过期 / 没网 / 被墙）才用它，至少离线能显示个旧值。
+async function codexUsageFromLogs() {
   const files = [];
   const walk = async (dir, depth) => {
     let names;
@@ -1506,10 +1508,55 @@ async function codexUsage() {
   return null;
 }
 
+// 实时源：直连 ChatGPT 后端的用量接口（和 CodexBar 同一个接口），拿「当下」真实的
+// plan + 5h/周窗口百分比，不再吃 ~/.codex/sessions 旧日志的陈货（旧快照会卡在过期的
+// plan_type、用量也不更新）。鉴权用 ~/.codex/auth.json 里的 access_token；Codex CLI
+// 平时也在刷这个 token，活跃使用时它一直新鲜。
+async function codexAuthToken() {
+  try {
+    const d = JSON.parse(await fsp.readFile(path.join(HOME, '.codex', 'auth.json'), 'utf8'));
+    const t = d && d.tokens;
+    return t && t.access_token ? t.access_token : null;
+  } catch { return null; }
+}
+
+async function codexUsageLive() {
+  const token = await codexAuthToken();
+  if (!token) return null;
+  // 同样走系统 curl：继承代理、躲开 Node https 的 TLS 指纹拦截，token 经 stdin 不进进程列表
+  const proxyLine = await curlSysProxyLine();
+  const body = await new Promise((resolve, reject) => {
+    const cp = execFile('curl', ['-sS', '--max-time', '8', '-K', '-', 'https://chatgpt.com/backend-api/wham/usage'],
+      { timeout: 10000 }, (err, stdout) => (err ? reject(err) : resolve(stdout)));
+    cp.stdin.end(`${proxyLine}header = "Authorization: Bearer ${token}"\nheader = "User-Agent: Rurutia"\nheader = "Accept: application/json"\n`);
+  });
+  const d = JSON.parse(body);
+  const rl = d && d.rate_limit;
+  if (!rl || (!rl.primary_window && !rl.secondary_window)) return null; // token 过期等会返回 detail 错误体，落回退
+  const now = Math.floor(Date.now() / 1000);
+  const win = (w) => {
+    if (!w) return null;
+    let resetsAt = w.reset_at || 0;
+    if (!resetsAt && w.reset_after_seconds != null) resetsAt = now + w.reset_after_seconds;
+    return {
+      usedPercent: w.used_percent != null ? w.used_percent : 0,
+      windowMinutes: w.limit_window_seconds ? Math.round(w.limit_window_seconds / 60) : 0,
+      resetsAt, stale: false, // 实时值永远不 stale
+    };
+  };
+  return { live: true, planType: d.plan_type || '', capturedAt: Date.now(), primary: win(rl.primary_window), secondary: win(rl.secondary_window) };
+}
+
+// 先实时、拿不到再回退到日志快照——任一成功都返回同一套结构给前端
+async function codexUsage() {
+  return (await codexUsageLive().catch(() => null)) || (await codexUsageFromLogs().catch(() => null));
+}
+
 // Claude Code 官方限额窗口（和它 /usage 面板同源）：5h 滚动窗口 + 周配额的百分比和重置时间。
 // 本地 jsonl 只有 token 流水、推不出官方百分比，必须拿 Claude Code 自己的 OAuth token
 // （macOS 在 Keychain，其他平台落在 ~/.claude/.credentials.json）查官方 usage 接口。
-// 这是本服务唯一的出网请求，只发往 api.anthropic.com——Claude Code 平时也在发同一个请求。
+// 本服务的出网请求只有两路：这里发往 api.anthropic.com（Claude Code 平时也在发），
+// 以及 codexUsageLive 发往 chatgpt.com（Codex/CodexBar 平时也在发）——都是查用户自己的用量。
 async function claudeOAuthToken() {
   const pick = (raw) => {
     const o = JSON.parse(raw).claudeAiOauth;
@@ -1548,26 +1595,44 @@ async function curlSysProxyLine() {
 
 // 返回值约定：成功 = { fiveHour, sevenDay }；取不到时不再返回 null，而是带原因
 // { unavailable: 'no-oauth' | 'request-failed' | 'no-windows' }，让前端能恒显「官方限额」区并解释原因。
+let claudeOfficialCache = { at: 0, data: null };
 async function claudeOfficialLimits() {
+  // 这个 usage 接口有严格速率限制（频繁查会 rate_limit_error）。成功结果缓存 10 分钟、
+  // 限流/失败时沿用上次缓存（标 stale）——既降低查询频率不再撞限流，又不会清成「没数据」。
+  const TTL = 10 * 60 * 1000;
+  const cached = claudeOfficialCache.data;
+  if (cached && !cached.unavailable && Date.now() - claudeOfficialCache.at < TTL) return cached;
   const token = await claudeOAuthToken();
-  if (!token) return { unavailable: 'no-oauth' };
+  if (!token) return (cached && !cached.unavailable) ? { ...cached, stale: true } : { unavailable: 'no-oauth' };
   // 不用 Node https：该接口的防护按 TLS 指纹拦——同样的请求头 curl 能 200、Node 直接 403。
   // 走系统 curl（macOS/Win10+ 自带），顺带继承用户的代理环境变量；
   // token 经 stdin 的 curl 配置传入，不暴露在进程列表里
-  try {
-    const proxyLine = await curlSysProxyLine();
-    const body = await new Promise((resolve, reject) => {
-      const cp = execFile('curl', ['-sS', '--max-time', '8', '-K', '-', 'https://api.anthropic.com/api/oauth/usage'],
-        { timeout: 10000 }, (err, stdout) => (err ? reject(err) : resolve(stdout)));
-      cp.stdin.end(`${proxyLine}header = "Authorization: Bearer ${token}"\nheader = "anthropic-beta: oauth-2025-04-20"\n`);
-    });
-    const d = JSON.parse(body);
-    const win = (w) => (w && w.utilization != null)
-      ? { usedPercent: w.utilization, resetsAt: w.resets_at ? Math.floor(Date.parse(w.resets_at) / 1000) : 0 }
-      : null;
-    const fiveHour = win(d.five_hour), sevenDay = win(d.seven_day);
-    return (fiveHour || sevenDay) ? { fiveHour, sevenDay } : { unavailable: 'no-windows' };
-  } catch { return { unavailable: 'request-failed' }; }
+  const proxyLine = await curlSysProxyLine();
+  const win = (w) => (w && w.utilization != null)
+    ? { usedPercent: w.utilization, resetsAt: w.resets_at ? Math.floor(Date.parse(w.resets_at) / 1000) : 0 }
+    : null;
+  // 瞬时失败（超时 / 偶发 403 / 解析失败）重试一次——这是「一次能刷一次刷不出」的根治；
+  // 但拿到了正常响应只是没窗口数据（no-windows），不重试，直接如实返回。
+  let lastErr = 'request-failed';
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const body = await new Promise((resolve, reject) => {
+        const cp = execFile('curl', ['-sS', '--max-time', '8', '-K', '-', 'https://api.anthropic.com/api/oauth/usage'],
+          { timeout: 10000 }, (err, stdout) => (err ? reject(err) : resolve(stdout)));
+        cp.stdin.end(`${proxyLine}header = "Authorization: Bearer ${token}"\nheader = "anthropic-beta: oauth-2025-04-20"\n`);
+      });
+      const d = JSON.parse(body);
+      // 限流（rate_limit_error）就立刻收手别再撞——再查只会延长限流；交给下面用缓存兜底。
+      // 这是「Claude 用量一直没数据」的真根因：接口被频繁查打到限流，老逻辑当成账号无窗口。
+      if (d && d.error) { lastErr = d.error.type === 'rate_limit_error' ? 'rate-limited' : 'request-failed'; break; }
+      const fiveHour = win(d.five_hour), sevenDay = win(d.seven_day);
+      if (fiveHour || sevenDay) { const res = { fiveHour, sevenDay }; claudeOfficialCache = { at: Date.now(), data: res }; return res; }
+      lastErr = 'no-windows'; break; // 正常响应但确实无窗口：不重试，避免对严格限流的接口多打一次
+    } catch { lastErr = 'request-failed'; /* 仅瞬时失败才再试一次 */ }
+  }
+  // 没拿到新数据：有过成功缓存就沿用（stale 总比「没数据」强），否则如实报原因
+  if (cached && !cached.unavailable) return { ...cached, stale: true };
+  return { unavailable: lastErr };
 }
 
 // ---------- Agent 项目（最近被 coding agent 处理过的项目文件夹）----------
@@ -1952,17 +2017,35 @@ async function skillTrash(dir) {
   return r;
 }
 
+// Claude 订阅档位：从 ~/.claude.json 的 rateLimitTier 读（本地文件、零网络、不吃限流）。
+// 形如 default_claude_max_5x / default_claude_max_20x / default_claude_pro → 去前缀得 max_5x / max_20x / pro。
+let claudePlanCache = { at: 0, v: undefined };
+async function claudePlanTier() {
+  if (claudePlanCache.v !== undefined && Date.now() - claudePlanCache.at < 60000) return claudePlanCache.v;
+  let v = '';
+  try {
+    const raw = await fsp.readFile(path.join(HOME, '.claude.json'), 'utf8');
+    // 键名是 organizationRateLimitTier / userRateLimitTier（驼峰、大写 R），值形如 default_claude_max_5x
+    const m = raw.match(/"organizationRateLimitTier"\s*:\s*"(default_[^"]+)"/)
+           || raw.match(/"userRateLimitTier"\s*:\s*"(default_[^"]+)"/);
+    if (m) v = m[1].replace(/^default_claude_/, '').replace(/^default_/, '');
+  } catch { /* 没有就空 */ }
+  claudePlanCache = { at: Date.now(), v };
+  return v;
+}
+
 async function agentUsage() {
   if (usageResultCache.data && Date.now() - usageResultCache.at < 30000) return usageResultCache.data;
-  const [claude, codex, claudeLimits] = await Promise.all([
+  const [claude, codex, claudeLimits, claudePlan] = await Promise.all([
     claudeUsage().catch(() => null),
     codexUsage().catch(() => null),
     claudeOfficialLimits().catch(() => ({ unavailable: 'request-failed' })),
+    claudePlanTier().catch(() => ''),
   ]);
   // 有本地会话日志、或官方拿到真数据 → 显示 Claude 区（官方子区恒显：有数据给进度条、没有给原因）。
   // 既无日志又无官方数据（根本没用过 Claude Code）→ 不显示，免噪音。
   const officialHasData = claudeLimits && (claudeLimits.fiveHour || claudeLimits.sevenDay);
-  const claudeOut = (claude || officialHasData) ? { ...(claude || {}), official: claudeLimits } : null;
+  const claudeOut = (claude || officialHasData) ? { ...(claude || {}), official: claudeLimits, plan: claudePlan } : null;
   const data = { ok: true, at: Date.now(), claude: claudeOut, codex };
   usageResultCache = { at: Date.now(), data };
   return data;

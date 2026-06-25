@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="/style.css" />
   <!-- 二次开发追加：UI 视觉补丁（拖拽区/按钮重绘/整体打磨），盖在 style.css 之后，零侵入 -->
   <link rel="stylesheet" href="/ui-patch.css" />
+  <!-- Rurutia「柔和座舱」视觉层：圆角/柔光/仪表用量/文件卡片/终端项目色脊，纯覆盖可整删回退 -->
+  <link rel="stylesheet" href="/soft-patch.css" />
   <!-- 内嵌终端（仅桌面 app 启用，浏览器版自动降级）：本地 vendor，离线可用 -->
   <link rel="stylesheet" href="/vendor/xterm/xterm.css" onerror="window.__noXterm=1" />
 </head>
@@ -44,10 +46,6 @@
         <ul id="agent-projects-list" class="nav-list"></ul>
       </nav>
 
-      <div id="skills-entry" class="nav-title side-link" title="本机 Claude Code / Codex 的全部 skills：谁在干活、谁在吃灰、谁在静默失效">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="17.5" y1="14" x2="17.5" y2="21"/><line x1="14" y1="17.5" x2="21" y2="17.5"/></svg>
-        Skills 透视
-      </div>
       <div id="usage-sec">
         <div class="nav-title" id="usage-toggle" title="Claude Code / Codex 用量——官方限额窗口 + 本机会话日志，不用开着它们">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -92,6 +90,7 @@
             <button data-size="md" class="active" title="中">▪</button>
             <button data-size="lg" title="大">◼</button>
           </div>
+          <button id="btn-skills" class="ghost-btn" title="Skills 透视：本机 Claude Code / Codex 的全部 skills——谁在干活、谁在吃灰、谁在静默失效（再点一下切回文件）"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.6 14.6l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></svg></button>
           <button id="btn-changes" class="ghost-btn" title="本会话 agent 改过的文件（点击回看 / diff）"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg><span id="changes-badge" class="changes-badge hidden"></span></button>
           <button id="btn-recent" class="ghost-btn" title="此处最近修改的文件"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
           <button id="btn-terminal" class="ghost-btn" title="在当前目录打开系统终端"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> 终端</button>
