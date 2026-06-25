@@ -11,6 +11,28 @@
 
 ## [Unreleased]
 
+### Rurutia 增强 v2（UI / 交互大改 · 已推 GitHub，待重新打包公证）
+
+#### Added
+- **深浅统一视觉规范**：底盘 `--bg` + 面板亮一档浮起，18 套皮肤深浅都成立；终端做成独立圆角卡 + 头部圆弧；主体拆成「文件卡 ┄ 状态行(空隙) ┄ 终端卡」。
+- **用量分级徽章**：Claude `Max 5×/20×/Pro/Plus/Free`（从 `~/.claude.json` 的 `organizationRateLimitTier` 本地读）；Codex `Pro 20×`（`pro_lite`→`Pro 5×`，对齐 CodexBar 约定）。金 / 强调 / 灰三档质感徽章。
+- **终端标签弹性拖拽换位**；**Agent 项目可拖入收藏 / 快速入口 + 列表内拖动排序**（localStorage 持久化）。
+- **Skills 透视移到顶栏图标按钮**（再点切回文件、高亮态）；**Agent 用量做成侧栏底部醒目大卡**（默认展开）。
+- **窗口顶部整条留白可拖拽** + 交通灯避让；**全局强制 Maple Mono**（中 / 英 / 日）；滚动条重做、变更收件箱卡片化、侧栏标题放大。
+- **三语言 README**（中 / 英 / 日）+ 深浅主题截图（项目名已脱敏）；新增 `update-from-upstream.sh` 一键跟上游 rebase。
+
+#### Fixed
+- **Claude 用量「无数据」根因**：官方限额接口严格限流，改为 10 分钟缓存 + 限流时沿用上次缓存；`no-windows` 不重试，避免对限流接口多打一次。
+- 终端拖拽时 `renderTabs` 重建竞态、拖拽尾随 click 监听泄漏、滚动条顶到圆角凸出、浅色主题四角脏黑块、`body *` 字体 force 对 Monaco codicon 的兜底。
+
+## [2.3.1] - 2026-06-24
+
+### Rurutia 首个签名 + 公证发布（fork 自 FanBox v2.3.1）
+- 改名 **Rurutia** + 自定义图标；18 套「色所」配色皮肤 + 色卡选择器；全局 Maple Mono CN 字体。
+- 快速入口 / Agent 项目可增删；用量面板增强（官方限额恒显 + ≥85% 警告条 + 桌面通知）；终端 10 个动作图标重绘为单色矢量；整体 UI 现代化。
+- 自动端口顺延（4567 被占自动换下一对）；独立 bundle ID `com.rurutia.app`。
+- **Developer ID 签名 + Apple 公证通过**：`Rurutia-2.3.1-arm64.dmg`，2026-06-24 三次提交均 `Accepted`（cert: RURU HOSHIZAWA · Z4AC57Z592）。
+
 ## [2.3.0] - 2026-06-18
 
 ### Added
