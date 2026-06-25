@@ -148,16 +148,7 @@ On top of that, Rurutia reworks the visuals, fonts, and color schemes, and makes
 2. Open the dmg and drag **Rurutia** into "Applications."
 3. Double-click to open and you're ready to go.
 
-> ✅ This build is **signed with an Apple Developer ID certificate + Apple notarization + hardened runtime**—double-click to open directly, and it **won't** pop the "developer cannot be verified" warning.
-
-<details>
-<summary>If what you got is an unsigned self-built version</summary>
-
-When you first open it and see "developer cannot be verified," right-click → **Open**, or run in the terminal:
-```bash
-xattr -dr com.apple.quarantine /Applications/Rurutia.app
-```
-</details>
+> ✅ This build is **signed with an Apple Developer ID certificate + Apple notarization + hardened runtime**—just download it from Releases, **double-click to install and use**, with no "developer cannot be verified" warning and no extra steps required.
 
 ---
 

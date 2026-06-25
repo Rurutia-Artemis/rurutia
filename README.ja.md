@@ -148,16 +148,7 @@ Claude Code / Codex にローカルで作業させながら、エージェント
 2. dmg を開き、**Rurutia** を「アプリケーション」にドラッグします。
 3. ダブルクリックで開けば使用できます。
 
-> ✅ 本バージョンは **Apple Developer ID 証明書による署名 + Apple 公証（notarization）+ hardened runtime** 済みです——ダブルクリックで直接開け、「開発元を確認できません」という警告は**出ません**。
-
-<details>
-<summary>未署名の自己ビルド版を入手した場合</summary>
-
-初回起動時に「開発元を確認できません」と表示されたら、右クリック → **開く**、またはターミナルで以下を実行します：
-```bash
-xattr -dr com.apple.quarantine /Applications/Rurutia.app
-```
-</details>
+> ✅ 本バージョンは **Apple Developer ID 証明書による署名 + Apple 公証（notarization）+ hardened runtime** 済みです——Releases からダウンロードして**ダブルクリックでそのままインストール・使用**でき、「開発元を確認できません」の警告は出ず、追加の操作は一切不要です。
 
 ---
 

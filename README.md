@@ -148,16 +148,7 @@
 2. 打开 dmg，把 **Rurutia** 拖进「应用程序」。
 3. 双击打开即可使用。
 
-> ✅ 本版已用 **Apple Developer ID 证书签名 + Apple 公证（notarization）+ hardened runtime**——双击直接打开，**不会**弹「无法验证开发者」。
-
-<details>
-<summary>如果你拿到的是未签名的自构建版本</summary>
-
-首次打开提示「无法验证开发者」时，右键 → **打开**，或终端执行：
-```bash
-xattr -dr com.apple.quarantine /Applications/Rurutia.app
-```
-</details>
+> ✅ 本版已用 **Apple Developer ID 证书签名 + Apple 公证（notarization）+ hardened runtime**——从 Releases 下载后**双击直接安装使用**，不会弹「无法验证开发者」，无需任何额外操作。
 
 ---
 
