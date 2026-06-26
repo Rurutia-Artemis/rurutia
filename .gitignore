@@ -7,6 +7,7 @@ build/*
 !build/icon.png
 !build/icon-1024.png
 !build/entitlements.mac.plist
+!build/notarize-dmg.js
 
 # 系统与编辑器
 .DS_Store
