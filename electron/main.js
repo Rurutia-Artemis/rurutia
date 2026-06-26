@@ -24,6 +24,32 @@ const terminals = new Map();
 const termTails = new Map(); // id -> 最近输出尾巴（去 ANSI），给微信 agent 感知别的终端在跑啥/卡哪
 let win = null;
 
+// Rurutia 自带终端提示符（starship）资源目录：打包后在 Resources/starship，开发态在仓库 vendor/starship
+const STARSHIP_DIR = app.isPackaged
+  ? path.join(process.resourcesPath, 'starship')
+  : path.join(__dirname, '..', 'vendor', 'starship');
+// ZDOTDIR 注入目录运行时生成到 userData（不依赖打包是否带上点文件，且保证可读可写）。
+// 这些点文件先 source 用户真实 ~/.zprofile/.zshrc（PATH/别名分毫不差），再在最后叠加 starship。
+const STARSHIP_ZDOTDIR = path.join(app.getPath('userData'), 'starship-zdotdir');
+let _zdotReady = false;
+function ensureStarshipZdotdir() {
+  if (_zdotReady) return STARSHIP_ZDOTDIR;
+  try {
+    fs.mkdirSync(STARSHIP_ZDOTDIR, { recursive: true });
+    fs.writeFileSync(path.join(STARSHIP_ZDOTDIR, '.zshenv'), '[ -f "$HOME/.zshenv" ] && source "$HOME/.zshenv"\n');
+    fs.writeFileSync(path.join(STARSHIP_ZDOTDIR, '.zprofile'), '[ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile"\n');
+    fs.writeFileSync(path.join(STARSHIP_ZDOTDIR, '.zlogin'), '[ -f "$HOME/.zlogin" ] && source "$HOME/.zlogin"\n');
+    fs.writeFileSync(path.join(STARSHIP_ZDOTDIR, '.zshrc'),
+      '[ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc"\n' +
+      'if [ -n "$RURUTIA_STARSHIP_BIN" ] && [ -x "$RURUTIA_STARSHIP_BIN/starship" ]; then\n' +
+      '  export PATH="$RURUTIA_STARSHIP_BIN:$PATH"\n' +
+      '  eval "$("$RURUTIA_STARSHIP_BIN/starship" init zsh)" 2>/dev/null\n' +
+      'fi\n');
+    _zdotReady = true;
+    return STARSHIP_ZDOTDIR;
+  } catch { return null; }
+}
+
 // ---------- 窗口尺寸/位置记忆 ----------
 const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
 function loadBounds() {
@@ -503,6 +529,20 @@ ipcMain.handle('pty:spawn', (e, { id, cwd, cols, rows, theme }) => {
   // GUI 启动的 app 不继承 shell 的 locale，zsh 会把中文路径按字节转义成 \M-^@ 乱码 → 兜底 UTF-8
   const env = { ...process.env, TERM: 'xterm-256color', FANBOX: '1' };
   if (!/UTF-8/i.test(env.LC_ALL || env.LC_CTYPE || env.LANG || '')) env.LANG = 'zh_CN.UTF-8';
+  // Rurutia 自带 starship 提示符：用 ZDOTDIR 注入（自带的 zdotdir 先 source 用户真实 ~/.zprofile/.zshrc
+  // 保证 PATH/别名分毫不差，再叠加 starship）—— 只在本 App 终端生效、不碰用户任何 dotfile、卸载零残留。
+  // 仅 macOS + zsh + 二进制就位时启用；其它情况自动跳过，终端照常。
+  try {
+    const ssBin = path.join(STARSHIP_DIR, 'starship');
+    if (process.platform === 'darwin' && /zsh$/.test(shellPath) && fs.existsSync(ssBin)) {
+      const zdot = ensureStarshipZdotdir();
+      if (zdot) {
+        env.ZDOTDIR = zdot;
+        env.RURUTIA_STARSHIP_BIN = STARSHIP_DIR;
+        env.STARSHIP_CONFIG = path.join(STARSHIP_DIR, 'starship.toml');
+      }
+    }
+  } catch { /* 注入失败绝不挡终端起来 */ }
   let p;
   try {
     p = pty.spawn(shellPath, shellArgs, {

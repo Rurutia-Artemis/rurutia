@@ -159,8 +159,19 @@
     try {
       if (typeof term !== 'undefined' && term.themes) {
         PALETTES.forEach(function (p) {
-          // 深色霓虹复用 terminal 的终端配色，浅色复用 warm —— 同明暗，不突兀
-          term.themes[p.id] = p.dark ? term.themes.terminal : term.themes.warm;
+          // 每套皮肤一套终端配色：背景/前景/光标/选区取该皮肤推导色（与面板同底、无缝衔接），
+          // ANSI 16 色按明暗复用 terminal/warm 基底（保证彩色输出可读）。这样终端背景真正跟着皮肤走。
+          var v = buildVars(p);
+          if (OVERRIDES[p.id]) { var o = OVERRIDES[p.id]; for (var ok in o) v[ok] = o[ok]; }
+          var base = p.dark ? term.themes.terminal : term.themes.warm;
+          var t = {};
+          for (var k in base) t[k] = base[k];
+          t.background = v['--bg'];
+          t.foreground = v['--text'];
+          t.cursor = v['--accent'];
+          t.cursorAccent = v['--bg'];
+          t.selectionBackground = alpha(v['--accent'], 0.28);
+          term.themes[p.id] = t;
         });
       }
     } catch (e) { /* 终端在浏览器版可能不存在，忽略 */ }

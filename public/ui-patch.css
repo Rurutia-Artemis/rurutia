@@ -17,6 +17,9 @@
 @font-face { font-family: 'Maple Mono'; font-weight: 700; font-style: normal; font-display: swap; src: url('/vendor/fonts/maple/MapleMono-Bold.woff2') format('woff2'); }
 @font-face { font-family: 'Maple Mono'; font-weight: 400; font-style: italic; font-display: swap; src: url('/vendor/fonts/maple/MapleMono-Italic.woff2') format('woff2'); }
 @font-face { font-family: 'Maple Mono'; font-weight: 700; font-style: italic; font-display: swap; src: url('/vendor/fonts/maple/MapleMono-BoldItalic.woff2') format('woff2'); }
+/* Rurutia 自带 Nerd Font 图标字（仅符号字形）：让 starship 提示符的图标（git/语言/♥/powerline 等）
+   在终端里渲染出来，不依赖用户系统是否装过 Nerd Font。已在 --font-term 末尾列为兜底回退。 */
+@font-face { font-family: 'Symbols Nerd Font Mono'; font-weight: normal; font-style: normal; font-display: swap; src: url('/vendor/fonts/nerd/SymbolsNerdFontMono-Regular.ttf') format('truetype'); }
 /* 全局都用 Maple Mono（CN 版，含中文+日文假名）。!important 压过各主题自带的字体变量。 */
 :root, [data-theme] {
   --font-ui: 'Maple Mono', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif !important;

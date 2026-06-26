@@ -11,6 +11,16 @@
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-06-27
+
+### Added
+- **终端自带 Starship 提示符（开箱即用 · 可爱 Catppuccin powerline + ♥）**：内置 starship 二进制（已签名公证）+ Nerd Font 图标字，用户下载装完打开终端就是 powerline 药丸提示符（目录 / git 分支状态 / 语言版本 / ♥ 时间），无需自己装 starship、不用配 `~/.zshrc`。注入走 **ZDOTDIR**：自带的点文件先 `source` 用户真实 `~/.zprofile`/`~/.zshrc`（PATH、别名分毫不差，`claude`/`codex` 照样找得到），再在最后叠加 starship —— **只在本 App 终端生效、不碰用户任何 dotfile、卸载零残留**。仅 macOS + zsh 启用，其它 shell 自动跳过、终端照常。
+- **Nerd Font 图标字内置**：`Symbols Nerd Font Mono` 随包，终端图标（powerline 箭头、git/语言图标、♥）不再依赖用户系统是否装过 Nerd Font。
+
+### Changed
+- **每套皮肤独立的终端配色**：终端背景 / 前景 / 光标 / 选区改为从当前皮肤推导（与面板同底、无缝衔接），ANSI 16 色按明暗复用基底保证可读 —— 终端背景真正跟着 18 套皮肤走，不再只有「暗 / 亮」两套。
+- **项目类型徽章（面包屑「XXX 项目」）重设计**：原版 `var(--green)` 实心亮绿 + 硬黑字在柔和座舱里太「酸」、整体违和；改成跟随皮肤强调色的柔和药丸（`--accent-soft` 填充 + 细描边），与面包屑当前项同一套观感。
+
 ## [2.4.1] - 2026-06-26
 
 ### Added

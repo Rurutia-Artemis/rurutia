@@ -225,6 +225,18 @@
 /* 旧的红绿灯毛玻璃暗化带：浅色皮肤下是一块突兀的深色，直接取消（红绿灯本身自带色，无需垫底）*/
 .desktop #sidebar::before { display: none !important; }
 
+/* ---------- 8b. 项目类型徽章（面包屑「XXX 项目」）：去酸性亮绿，跟随皮肤 ---------- */
+/* 原版 .breadcrumb .proj-badge = var(--green) 实心 + 硬黑字，在柔和座舱里太刺眼、整体违和。
+ * 改成强调色柔和填充 + 细描边，与面包屑当前项 .crumb.last 同一套观感；自动跟随 18 套皮肤的强调色。 */
+.breadcrumb .proj-badge {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  font-weight: 600;
+  letter-spacing: .03em;
+  padding: 2px 9px;
+}
+
 /* ---------- 9. 截图直通卡重设计：柔和卡 + 头部标签 + 主操作强调色 ---------- */
 .shot-card {
   width: 256px;
