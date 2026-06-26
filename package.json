@@ -21,6 +21,7 @@
   "build": {
     "appId": "com.rurutia.app",
     "productName": "Rurutia",
+    "afterAllArtifactBuild": "build/notarize-dmg.js",
     "directories": {
       "buildResources": "build",
       "output": "dist"
