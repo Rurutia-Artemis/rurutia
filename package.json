@@ -14,7 +14,9 @@
     "build:hljs": "esbuild src-vendor/hljs-entry.js --bundle --format=iife --minify --outfile=public/vendor/hljs/highlight.js && cp node_modules/marked/marked.min.js public/vendor/marked/marked.min.js && cp node_modules/highlight.js/styles/github-dark.min.css node_modules/highlight.js/styles/github.min.css public/vendor/hljs/styles/",
     "check:vendor-patch": "grep -q '20===e.keyCode||229===e.keyCode' public/vendor/xterm/xterm.js",
     "predist": "npm run check:vendor-patch",
-    "dist": "electron-builder --mac"
+    "dist": "electron-builder --mac",
+    "predist:release": "npm run check:vendor-patch",
+    "dist:release": "APPLE_KEYCHAIN_PROFILE=rurutia-notary electron-builder --mac"
   },
   "build": {
     "appId": "com.rurutia.app",
