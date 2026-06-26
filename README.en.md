@@ -163,28 +163,6 @@ CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac --dir -c.mac.identi
 # Output: dist/mac-arm64/Rurutia.app
 ```
 
-**Signed + notarized build** (requires an Apple Developer ID certificate):
-
-```bash
-# 1. Build with your own Developer ID certificate (electron-builder auto-discovers the
-#    certificate in your keychain).
-#    ⚠️ If the project is under an iCloud directory, output the build to a local disk first,
-#       to avoid iCloud extended attributes causing codesign to report
-#       "resource fork ... not allowed":
-npx electron-builder --mac -c.directories.output=/tmp/rurutia-dist
-
-# 2. Store the notarization credentials in your keychain once (generate an app-specific
-#    password at appleid.apple.com)
-xcrun notarytool store-credentials "rurutia-notary" \
-  --apple-id "<your Apple ID>" --team-id "<your Team ID>" --password "<app-specific password>"
-
-# 3. Submit for notarization and wait for the result
-xcrun notarytool submit /tmp/rurutia-dist/Rurutia-*.dmg --keychain-profile "rurutia-notary" --wait
-
-# 4. Staple the notarization ticket into the dmg
-xcrun stapler staple /tmp/rurutia-dist/Rurutia-*.dmg
-```
-
 ---
 
 ## How the changes are organized (patch-style)
