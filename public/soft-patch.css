@@ -214,6 +214,11 @@
  * 于是面板之外的留白（顶部 26px + 侧栏/主区之间的缝）都成了拖拽手柄，面板内的点击/滚动/选择不受影响。 */
 .desktop #app { padding-top: 40px; -webkit-app-region: drag; }
 .desktop #sidebar, .desktop #main-body { -webkit-app-region: no-drag; }
+/* 预览/图片编辑全屏（#preview.is-max：position:fixed; inset:0）会盖住 #app 顶部那条 40px 拖窗带，
+ * 但 #app 的 -webkit-app-region:drag 是 OS 级遮罩、不认 z-index，会吞掉压在它上面的预览工具栏
+ * （打开/关闭/复制…）按钮的点击 —— 全屏后这些按钮全点不动，只能按 Esc 退出。全屏期间把 #app 整个
+ * 设为 no-drag（顶栏此刻被盖住、本就不需要拖窗），与 style.css 对 #topbar/.brand 的同款修复对齐。 */
+.desktop.preview-maxed #app { -webkit-app-region: no-drag; }
 /* 顶部留白加大 + 侧栏/品牌为交通灯留足空间，确保红绿灯和 logo/Rurutia 拉开、不重叠 */
 .desktop #sidebar { padding-top: 28px; }
 .desktop .brand { padding-top: 18px; }

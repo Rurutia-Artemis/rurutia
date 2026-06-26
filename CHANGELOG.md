@@ -11,6 +11,11 @@
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-06-26
+
+### Fixed
+- **桌面 App 预览全屏后顶栏按钮全部点不动**：v2 改造把拖窗区从 `#topbar` 换成整个 `#app`（顶部 40px 留白带整条拖窗），但全屏预览（`#preview.is-max` = `position:fixed; inset:0` 铺满窗口）会盖住这条带，而 `-webkit-app-region:drag` 是 OS 级遮罩、不认 z-index，把压在它上面的预览工具栏（打开 / 关闭 / 复制 / 在编辑器打开…）按钮点击全吞掉了 —— 全屏后这些按钮全点不动，只能按 `Esc` 退出。补上 `.desktop.preview-maxed #app { -webkit-app-region:no-drag }`：全屏期间把 `#app` 整条拖窗区关掉（顶栏此刻被盖住、本就不需要拖窗），与原版对 `#topbar`/`.brand` 的同款修复对齐。**仅桌面 App 受影响，网页版无 app-region、不受影响。**
+
 ## [2.4.0] - 2026-06-26
 
 ### Rurutia 增强 v2（UI / 交互大改 · Developer ID 签名 + Apple 公证）
