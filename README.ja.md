@@ -163,25 +163,6 @@ CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac --dir -c.mac.identi
 # 成果物：dist/mac-arm64/Rurutia.app
 ```
 
-**署名 + 公証版**（Apple Developer ID 証明書が必要）：
-
-```bash
-# 1. 自分の Developer ID 証明書でビルド（electron-builder がキーチェーン内の証明書を自動検出）
-#    ⚠️ プロジェクトが iCloud ディレクトリ配下にある場合、まず成果物をローカルディスクに出力し、
-#       iCloud の拡張属性が原因で codesign が "resource fork ... not allowed" を報告するのを避けます：
-npx electron-builder --mac -c.directories.output=/tmp/rurutia-dist
-
-# 2. 公証の資格情報を一度だけキーチェーンに保存（App 専用パスワードは appleid.apple.com で生成）
-xcrun notarytool store-credentials "rurutia-notary" \
-  --apple-id "<あなたの Apple ID>" --team-id "<あなたの Team ID>" --password "<App 専用パスワード>"
-
-# 3. 公証を提出して結果を待つ
-xcrun notarytool submit /tmp/rurutia-dist/Rurutia-*.dmg --keychain-profile "rurutia-notary" --wait
-
-# 4. 公証チケットを dmg に添付（staple）
-xcrun stapler staple /tmp/rurutia-dist/Rurutia-*.dmg
-```
-
 ---
 
 ## 変更の構成（パッチ方式）
