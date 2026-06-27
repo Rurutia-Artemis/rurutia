@@ -1,0 +1,62 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# 极简单行：无药丸分隔、无背景块，单行紧凑。目录 + 分支 + 状态 + 字符，带柔和配色。
+add_newline = false
+format = "$directory$git_branch$git_status$nodejs$python$rust$golang$cmd_duration$character"
+
+palette = 'catppuccin_mocha'
+
+[directory]
+style = "bold sapphire"
+truncation_length = 3
+truncation_symbol = "…/"
+format = "[$path]($style) "
+
+[git_branch]
+symbol = " "
+style = "mauve"
+format = "[$symbol$branch]($style) "
+
+[git_status]
+style = "peach"
+format = "([$all_status$ahead_behind]($style)) "
+
+[nodejs]
+symbol = " "
+style = "green"
+format = "[$symbol($version )]($style)"
+
+[python]
+symbol = " "
+style = "yellow"
+format = "[$symbol($version )]($style)"
+
+[rust]
+symbol = " "
+style = "peach"
+format = "[$symbol($version )]($style)"
+
+[golang]
+symbol = " "
+style = "sapphire"
+format = "[$symbol($version )]($style)"
+
+[cmd_duration]
+min_time = 2000
+style = "overlay1"
+format = "[$duration]($style) "
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[❮](bold green)"
+
+[palettes.catppuccin_mocha]
+red = "#f38ba8"
+peach = "#fab387"
+yellow = "#f9e2af"
+green = "#a6e3a1"
+sapphire = "#74c7ec"
+mauve = "#cba6f7"
+lavender = "#b4befe"
+overlay1 = "#7f849c"

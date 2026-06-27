@@ -1,0 +1,137 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# Catppuccin 拿铁（清新浅色）：powerline 药丸整套主题。
+format = """
+[](#8839ef)\
+$os\
+$username\
+[](bg:#df8e1d fg:#8839ef)\
+$directory\
+[](fg:#df8e1d bg:#40a02b)\
+$git_branch\
+$git_status\
+[](fg:#40a02b bg:#1e66f5)\
+$c\
+$rust\
+$golang\
+$nodejs\
+$bun\
+$php\
+$java\
+$kotlin\
+$haskell\
+$python\
+[](fg:#1e66f5 bg:#7287fd)\
+$conda\
+[](fg:#7287fd bg:#ccd0da)\
+$time\
+[ ](fg:#ccd0da)\
+$cmd_duration\
+$line_break\
+$character"""
+
+[os]
+disabled = false
+style = "bg:#8839ef fg:#eff1f5"
+
+[os.symbols]
+Macos = "󰀵"
+Linux = "󰌽"
+Windows = "󰍲"
+
+[username]
+show_always = true
+style_user = "bg:#8839ef fg:#eff1f5"
+style_root = "bg:#8839ef fg:#eff1f5"
+format = '[ $user]($style)'
+
+[directory]
+style = "bg:#df8e1d fg:#4c4f69"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[git_branch]
+symbol = ""
+style = "bg:#40a02b"
+format = '[[ $symbol $branch ](fg:#eff1f5 bg:#40a02b)]($style)'
+
+[git_status]
+style = "bg:#40a02b"
+format = '[[($all_status$ahead_behind )](fg:#eff1f5 bg:#40a02b)]($style)'
+
+[c]
+symbol = " "
+style = "bg:#1e66f5"
+format = '[[ $symbol( $version) ](fg:#eff1f5 bg:#1e66f5)]($style)'
+
+[rust]
+symbol = ""
+style = "bg:#1e66f5"
+format = '[[ $symbol( $version) ](fg:#eff1f5 bg:#1e66f5)]($style)'
+
+[golang]
+symbol = ""
+style = "bg:#1e66f5"
+format = '[[ $symbol( $version) ](fg:#eff1f5 bg:#1e66f5)]($style)'
+
+[nodejs]
+symbol = ""
+style = "bg:#1e66f5"
+format = '[[ $symbol( $version) ](fg:#eff1f5 bg:#1e66f5)]($style)'
+
+[bun]
+symbol = ""
+style = "bg:#1e66f5"
+format = '[[ $symbol( $version) ](fg:#eff1f5 bg:#1e66f5)]($style)'
+
+[php]
+symbol = ""
+style = "bg:#1e66f5"
+format = '[[ $symbol( $version) ](fg:#eff1f5 bg:#1e66f5)]($style)'
+
+[java]
+symbol = " "
+style = "bg:#1e66f5"
+format = '[[ $symbol( $version) ](fg:#eff1f5 bg:#1e66f5)]($style)'
+
+[kotlin]
+symbol = ""
+style = "bg:#1e66f5"
+format = '[[ $symbol( $version) ](fg:#eff1f5 bg:#1e66f5)]($style)'
+
+[haskell]
+symbol = ""
+style = "bg:#1e66f5"
+format = '[[ $symbol( $version) ](fg:#eff1f5 bg:#1e66f5)]($style)'
+
+[python]
+symbol = ""
+style = "bg:#1e66f5"
+format = '[[ $symbol( $version) ](fg:#eff1f5 bg:#1e66f5)]($style)'
+
+[conda]
+symbol = " "
+style = "bg:#7287fd"
+format = '[[ $symbol$environment ](fg:#4c4f69 bg:#7287fd)]($style)'
+ignore_base = false
+
+[time]
+disabled = false
+time_format = "%R"
+style = "bg:#ccd0da"
+format = '[[ ♥ $time ](fg:#4c4f69 bg:#ccd0da)]($style)'
+
+[cmd_duration]
+min_time = 500
+style = "fg:#7287fd"
+format = "[  $duration ]($style)"
+
+[line_break]
+disabled = true
+
+[character]
+disabled = false
+success_symbol = '[❯](bold #40a02b)'
+error_symbol = '[❯](bold #d20f39)'
+vimcmd_symbol = '[❮](bold #40a02b)'

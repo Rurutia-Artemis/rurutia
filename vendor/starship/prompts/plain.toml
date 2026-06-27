@@ -1,0 +1,25 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# 纯文本：不依赖 Nerd Font 字形、不上色，跟随终端默认前景色。目录 (分支) 状态 ❯，最朴素。
+add_newline = false
+format = "$directory$git_branch$git_status$character"
+
+[directory]
+style = ""
+truncation_length = 3
+truncation_symbol = ".../"
+format = "$path "
+
+[git_branch]
+symbol = ""
+style = ""
+format = "([$branch]($style)) "
+
+[git_status]
+style = ""
+format = "([$all_status$ahead_behind]($style)) "
+
+[character]
+success_symbol = "❯"
+error_symbol = "❯"
+vimcmd_symbol = "❮"

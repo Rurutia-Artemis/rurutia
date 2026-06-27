@@ -1,0 +1,3 @@
+# 叠加修饰 · 关掉命令耗时：不显示上一条命令跑了多久。
+[cmd_duration]
+disabled = true

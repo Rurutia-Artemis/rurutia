@@ -2577,6 +2577,7 @@ function bindEvents() {
   $('#btn-terminal').onclick = () => term.toggle();
   $('#term-claude').onclick = () => { wechatView.close(); term.launchAgent('claude --dangerously-skip-permissions'); };
   $('#term-codex').onclick = () => { wechatView.close(); term.launchAgent('codex'); };
+  $('#term-plain').onclick = () => { wechatView.close(); term.openInDir(state.cwd); }; // 普通终端：当前文件夹新开干净 shell
   usagePanel.bind();
   shotTray.init();
   $('#btn-skills').onclick = () => { if (state.skillsMode) navigate(state.cwd); else skillsView.show(); }; // 再点切回文件
@@ -3211,14 +3212,19 @@ const term = {
   // 则新开标签，不打断也不把命令打进别的程序里
   async launchAgent(cmd) {
     if (!this.available()) { openWith(state.cwd, 'terminal'); return; } // 网页版降级到系统终端
-    let sess = null;
+    let sess = null, reused = false;
     if (this.sessions.length) {
       if ($('#terminal-panel').classList.contains('hidden')) this.open();
       const cur = this.sessions.find((x) => x.id === this.active);
-      if (cur && !cur.dead && await this.isPlainShell(cur)) sess = cur;
+      if (cur && !cur.dead && await this.isPlainShell(cur)) { sess = cur; reused = true; }
     }
     if (!sess) sess = await this.openInDir(state.cwd); // 等 spawn 完，拿确切 session 写入
-    if (sess && !sess.dead) { this.input(sess.id, cmd + '\r'); sess.xterm.focus(); toast('已在终端启动 ' + cmd); }
+    if (sess && !sess.dead) {
+      // 复用的空闲 shell 可能停在别的目录：先 cd 到当前浏览目录，agent 才在「现在这个文件夹」里跑，
+      // 标签名也随真实 cwd 自动刷新（否则停在旧项目名，比如换了文件夹仍显示 Rurutia）。新开的标签已在 state.cwd，无需 cd。
+      const line = (reused && state.cwd) ? `cd ${shQuote(state.cwd)} && ${cmd}` : cmd;
+      this.input(sess.id, line + '\r'); sess.xterm.focus(); toast('已在终端启动 ' + cmd);
+    }
     else toast('终端启动失败', true);
   },
   // 在指定目录新开标签跑命令（续会话/发版等）：不复用别处的空闲 shell，目录必须对

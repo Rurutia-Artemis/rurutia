@@ -1,0 +1,108 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# 扁平彩字：单行、不带药丸底块，彩色文字 + 图标，段落齐全（目录/git/语言/耗时）。比药丸轻、比极简全。
+add_newline = false
+format = "$directory$git_branch$git_status$nodejs$bun$python$rust$golang$c$java$kotlin$haskell$php$conda$cmd_duration$character"
+
+palette = 'mocha'
+
+[directory]
+style = "bold blue"
+truncation_length = 3
+truncation_symbol = "…/"
+read_only = " 󰌾"
+format = "[$path]($style)[$read_only]($read_only_style) "
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music" = "󰝚 "
+"Pictures" = " "
+"Developer" = "󰲋 "
+
+[git_branch]
+symbol = ""
+style = "bold purple"
+format = "[$symbol $branch]($style) "
+
+[git_status]
+style = "red"
+format = "([$all_status$ahead_behind]($style)) "
+
+[nodejs]
+symbol = ""
+style = "green"
+format = "[$symbol $version]($style) "
+
+[bun]
+symbol = ""
+style = "green"
+format = "[$symbol $version]($style) "
+
+[python]
+symbol = ""
+style = "yellow"
+format = "[$symbol $version]($style) "
+
+[rust]
+symbol = ""
+style = "peach"
+format = "[$symbol $version]($style) "
+
+[golang]
+symbol = ""
+style = "sapphire"
+format = "[$symbol $version]($style) "
+
+[c]
+symbol = " "
+style = "sapphire"
+format = "[$symbol $version]($style) "
+
+[java]
+symbol = " "
+style = "peach"
+format = "[$symbol $version]($style) "
+
+[kotlin]
+symbol = ""
+style = "mauve"
+format = "[$symbol $version]($style) "
+
+[haskell]
+symbol = ""
+style = "mauve"
+format = "[$symbol $version]($style) "
+
+[php]
+symbol = ""
+style = "lavender"
+format = "[$symbol $version]($style) "
+
+[conda]
+symbol = " "
+style = "teal"
+format = "[$symbol$environment]($style) "
+
+[cmd_duration]
+min_time = 2000
+style = "overlay1"
+format = "[ $duration]($style) "
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[❮](bold green)"
+
+[palettes.mocha]
+red = "#f38ba8"
+peach = "#fab387"
+yellow = "#f9e2af"
+green = "#a6e3a1"
+teal = "#94e2d5"
+sapphire = "#74c7ec"
+blue = "#89b4fa"
+mauve = "#cba6f7"
+lavender = "#b4befe"
+purple = "#cba6f7"
+overlay1 = "#7f849c"

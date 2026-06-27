@@ -16,6 +16,12 @@ contextBridge.exposeInMainWorld('fanboxPty', {
   onExit: (cb) => { const h = (e, m) => cb(m); ipcRenderer.on('pty:exit', h); return () => ipcRenderer.removeListener('pty:exit', h); },
 });
 
+// 终端提示符（starship）：独立于皮肤。base=整套主题，mods=可多选的叠加修饰；
+// 合并写进 active.toml，正在跑的终端下个提示符即生效。
+contextBridge.exposeInMainWorld('fanboxPrompt', {
+  set: (base, mods) => ipcRenderer.invoke('starship:set', { base, mods }),
+});
+
 contextBridge.exposeInMainWorld('fanboxRec', {
   list: () => ipcRenderer.invoke('rec:list'),
   read: (path) => ipcRenderer.invoke('rec:read', { path }),

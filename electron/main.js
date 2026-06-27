@@ -50,6 +50,35 @@ function ensureStarshipZdotdir() {
   } catch { return null; }
 }
 
+// 终端提示符预设：与皮肤完全解耦，单独选。分两层——
+//   · 整套主题（base，选一个，打包在 starship/prompts/）
+//   · 叠加修饰（mods，可多选并行，starship/prompts/mods/）
+// 选定 = 把「主题 + 勾选的修饰」用自带的 TOML 合并器（starship-config.js，零依赖）深合并成一份
+// active.toml 写盘。STARSHIP_CONFIG 永远指 active.toml，starship 每渲染一次提示符都重读 →
+// 正在跑的终端下一个提示符即生效，无需重开。
+const { buildConfig } = require('./starship-config');
+const STARSHIP_PROMPTS_DIR = path.join(STARSHIP_DIR, 'prompts');
+const STARSHIP_MODS_DIR = path.join(STARSHIP_PROMPTS_DIR, 'mods');
+const STARSHIP_ACTIVE = path.join(app.getPath('userData'), 'starship-active.toml');
+const PROMPT_BASES = ['powerline', 'pastel', 'tokyo-night', 'gruvbox-rainbow', 'nord', 'dracula', 'rose-pine', 'everforest', 'kanagawa', 'latte', 'flat', 'jetpack', 'pure', 'minimal', 'two-line', 'plain'];
+const PROMPT_MODS = ['plain-symbols', 'no-langs', 'no-blank', 'no-duration', 'no-time'];
+const PROMPT_DEFAULT = 'powerline';
+// 合并主题 + 修饰写进 active.toml。base 非法回退默认，mods 过滤白名单（防注入任意路径）。
+function writeStarship(base, mods) {
+  if (!PROMPT_BASES.includes(base)) base = PROMPT_DEFAULT;
+  const list = Array.isArray(mods) ? mods.filter((m) => PROMPT_MODS.includes(m)) : [];
+  const baseText = fs.readFileSync(path.join(STARSHIP_PROMPTS_DIR, base + '.toml'), 'utf8');
+  const modTexts = list.map((m) => fs.readFileSync(path.join(STARSHIP_MODS_DIR, m + '.toml'), 'utf8'));
+  fs.writeFileSync(STARSHIP_ACTIVE, buildConfig(baseText, modTexts));
+  return { base, mods: list };
+}
+// 确保 active.toml 存在（缺省 powerline 无修饰），返回其路径；spawn 时调用，保证 shell 起来前已就位。
+function ensureActiveStarship() {
+  try { if (!fs.existsSync(STARSHIP_ACTIVE)) writeStarship(PROMPT_DEFAULT, []); }
+  catch { /* 失败就让 starship 走内置默认，不挡终端 */ }
+  return STARSHIP_ACTIVE;
+}
+
 // ---------- 窗口尺寸/位置记忆 ----------
 const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
 function loadBounds() {
@@ -539,7 +568,7 @@ ipcMain.handle('pty:spawn', (e, { id, cwd, cols, rows, theme }) => {
       if (zdot) {
         env.ZDOTDIR = zdot;
         env.RURUTIA_STARSHIP_BIN = STARSHIP_DIR;
-        env.STARSHIP_CONFIG = path.join(STARSHIP_DIR, 'starship.toml');
+        env.STARSHIP_CONFIG = ensureActiveStarship(); // 指向可热切换的 active.toml（提示符预设）
       }
     }
   } catch { /* 注入失败绝不挡终端起来 */ }
@@ -623,6 +652,11 @@ ipcMain.handle('drop:copy-into', (e, { srcPath, dir }) => {
   } catch (err) { return { ok: false, error: err.message }; }
 });
 
+// 切换终端提示符：合并「主题 + 叠加修饰」写进 active.toml；正在跑的终端下一个提示符即变样，无需重开。
+ipcMain.handle('starship:set', (e, { base, mods } = {}) => {
+  try { return { ok: true, ...writeStarship(base, mods) }; }
+  catch (err) { return { ok: false, error: err.message }; }
+});
 ipcMain.on('pty:input', (e, { id, data }) => { const p = terminals.get(id); if (p) { p.write(data); recEvent(id, 'i', data); } });
 ipcMain.on('pty:resize', (e, { id, cols, rows }) => { const p = terminals.get(id); if (p) { try { p.resize(cols, rows); } catch { /* */ } recEvent(id, 'r', `${cols}x${rows}`); } });
 ipcMain.on('pty:kill', (e, { id }) => { const p = terminals.get(id); if (p) { try { p.kill(); } catch { /* */ } terminals.delete(id); refreshLidGuard(); recStop(id); } });

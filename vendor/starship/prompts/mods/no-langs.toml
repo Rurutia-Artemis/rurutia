@@ -1,0 +1,37 @@
+# 叠加修饰 · 隐藏语言/运行时段：禁用所有语言与环境模块，提示符里不再显示
+# node/python/rust 等的图标和版本号，更干净。
+[nodejs]
+disabled = true
+
+[bun]
+disabled = true
+
+[python]
+disabled = true
+
+[rust]
+disabled = true
+
+[golang]
+disabled = true
+
+[c]
+disabled = true
+
+[java]
+disabled = true
+
+[kotlin]
+disabled = true
+
+[haskell]
+disabled = true
+
+[php]
+disabled = true
+
+[conda]
+disabled = true
+
+[docker_context]
+disabled = true

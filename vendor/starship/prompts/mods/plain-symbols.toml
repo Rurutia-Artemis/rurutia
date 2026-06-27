@@ -1,0 +1,60 @@
+# 叠加修饰 · 纯文本符号：把各模块的 Nerd Font 图标换成 ASCII 文本，去掉对图标字体的依赖。
+# 只覆盖各模块的 symbol，颜色/排版仍跟随所选主题。
+[os]
+disabled = true
+
+[character]
+success_symbol = "[>](bold green)"
+error_symbol = "[>](bold red)"
+vimcmd_symbol = "[<](bold green)"
+
+[git_branch]
+symbol = "git "
+
+[git_status]
+conflicted = "conflict "
+ahead = ">"
+behind = "<"
+diverged = "<>"
+untracked = "?"
+stashed = "$"
+modified = "!"
+staged = "+"
+renamed = "r"
+deleted = "x"
+
+[nodejs]
+symbol = "node "
+
+[bun]
+symbol = "bun "
+
+[python]
+symbol = "py "
+
+[rust]
+symbol = "rs "
+
+[golang]
+symbol = "go "
+
+[c]
+symbol = "c "
+
+[java]
+symbol = "java "
+
+[kotlin]
+symbol = "kt "
+
+[haskell]
+symbol = "hs "
+
+[php]
+symbol = "php "
+
+[conda]
+symbol = "conda "
+
+[docker_context]
+symbol = "docker "

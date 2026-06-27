@@ -1,0 +1,28 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# Pure 简约：仿 zsh「pure」主题——双行，第一行只有路径 + 分支(暗灰)，第二行一个洋红 ❯。
+# 不显示语言版本、不显示时间，极致克制。
+add_newline = true
+format = """
+$directory$git_branch$git_status
+$character"""
+
+[directory]
+style = "blue"
+truncation_length = 0
+truncation_symbol = ""
+format = "[$path]($style) "
+
+[git_branch]
+symbol = ""
+style = "242"
+format = "[$branch]($style) "
+
+[git_status]
+style = "242"
+format = "([$all_status$ahead_behind]($style)) "
+
+[character]
+success_symbol = "[❯](bold purple)"
+error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[❮](bold purple)"
