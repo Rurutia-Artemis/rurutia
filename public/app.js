@@ -1735,7 +1735,7 @@ async function memoryPanel(dirPath) {
   body.querySelectorAll('.mem-resume').forEach((b) => {
     b.onclick = () => {
       const s = d.sessions[Number(b.dataset.i)];
-      const cmd = s.agent === 'codex' ? `codex resume ${s.id}` : `claude --dangerously-skip-permissions --resume ${s.id}`;
+      const cmd = s.agent === 'codex' ? `codex resume ${s.id}` : `claude --settings '{"theme":"dark-ansi"}' --dangerously-skip-permissions --resume ${s.id}`;
       close();
       term.runInDir(dirPath, cmd, '已在终端续上会话');
     };
@@ -2179,7 +2179,7 @@ function maybeShowGuide() {
   ov.className = 'guide-overlay';
   ov.innerHTML = `<div class="guide-card">
     <div class="guide-logo">${svgWrap(SVG.box, 'currentColor', 46, true)}</div>
-    <h2>欢迎用 FanBox</h2>
+    <h2>欢迎用 Rurutia</h2>
     <p>vibe coding 的驾驶舱——找文件、跑 agent、看它改、随手改，都在一个窗口：</p>
     <ul>
       <li><b>⌘K</b> 全局搜文件和文件夹；<b>⌘↵</b> 把项目直接在编辑器整包打开；<code>内容:关键词</code> 搜文件里的字</li>
@@ -2282,7 +2282,7 @@ const wechatView = {
   shown() { const e = this.el(); return e && !e.classList.contains('hidden'); },
   toggle() { this.shown() ? this.close() : this.open(); },
   async open() {
-    if (!window.fanboxWechat) { toast('微信连接需在 FanBox 桌面版使用', true); return; }
+    if (!window.fanboxWechat) { toast('微信连接需在 Rurutia 桌面版使用', true); return; }
     if (!term.available()) { toast('需要桌面版的内嵌终端', true); return; }
     if ($('#terminal-panel').classList.contains('hidden')) term.open(); // 这界面活在终端里
     try { window.fanboxWechat.setCwd(state.cwd); } catch { /* */ }
@@ -2575,7 +2575,7 @@ function bindEvents() {
   // 启动时点一下连接状态，连着就给终端里的微信按钮点绿点（不挡初始化）
   if (window.fanboxWechat) window.fanboxWechat.env().then((e) => wechatView.syncDot(!!(e && e.connected))).catch(() => {});
   $('#btn-terminal').onclick = () => term.toggle();
-  $('#term-claude').onclick = () => { wechatView.close(); term.launchAgent('claude --dangerously-skip-permissions'); };
+  $('#term-claude').onclick = () => { wechatView.close(); term.launchAgent('claude --settings \'{"theme":"dark-ansi"}\' --dangerously-skip-permissions'); };
   $('#term-codex').onclick = () => { wechatView.close(); term.launchAgent('codex'); };
   $('#term-plain').onclick = () => { wechatView.close(); term.openInDir(state.cwd); }; // 普通终端：当前文件夹新开干净 shell
   usagePanel.bind();

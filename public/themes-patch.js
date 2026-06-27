@@ -12,30 +12,36 @@
 (function () {
   'use strict';
 
-  /* ---------- 18 套配色（每套 3 个海报原始色 + 是否深色 + 中文名）---------- */
-  // 浅色组：c1=底色(浅) c2=强调色(艳) c3=文字色(深)
-  // 深色组：c3=底色(近黑) c1=强调色(霓虹1) c2=次强调(霓虹2)
+  /* ---------- 18 套配色：多强调色系统 ----------
+   * 每套 = 中性 canvas(bg/text) + 一组并列 accent[a1,a2,a3] + 一组功能色(可选, 缺省走 *_FUNC)。
+   *   a1 主（按钮/活动态/光标/面包屑），a2 次（侧栏标题/链接，小字自动压成可读变体），a3 跳（徽章填充）。
+   * 设计取向：canvas 保持中性、让三个 accent 同台不打架；色值经 WCAG 对比度全量校验
+   *   （text/a1/a2/按钮ink/徽章ink + 终端 16 ANSI 都达标）。bg2/bg3/panel/border 由 buildVarsMulti 派生。
+   */
+  // 功能色（状态语义，红=红绿=绿，不跟皮肤跳色）：深/浅各一套，按 dark 自动选
+  var DARK_FUNC  = { ok: '#3DDC84', warn: '#FFC83D', err: '#FF5C6C', info: '#5B9BFF' };
+  var LIGHT_FUNC = { ok: '#1FA85A', warn: '#C98A1E', err: '#E0454F', info: '#2D6BD8' };
   var PALETTES = [
-    // —— 第一篇 · 浅底海报系 ——
-    { id: 'memphis',  name: '新孟菲斯',   dark: false, c1: '#FFD3B6', c2: '#FF6F91', c3: '#3A4D9F' },
-    { id: 'museum',   name: '现代博物',   dark: false, c1: '#F9F5EB', c2: '#C97B63', c3: '#22356F' },
-    { id: 'acid',     name: '酸性时尚',   dark: false, c1: '#FFF176', c2: '#E83E8C', c3: '#2D4CC8' },
-    { id: 'future',   name: '未来社区',   dark: false, c1: '#D8FFF1', c2: '#A855F7', c3: '#1F2A44' },
-    { id: 'tropical', name: '热带运动',   dark: false, c1: '#FFD6A5', c2: '#00B894', c3: '#355C7D' },
-    { id: 'disco',    name: '电子舞厅',   dark: false, c1: '#F4D9FF', c2: '#42C2FF', c3: '#6A4C93' },
-    { id: 'rowing',   name: '赛艇俱乐部', dark: false, c1: '#FFF3C4', c2: '#3D5AF1', c3: '#356859' },
-    { id: 'glass',    name: '玻璃城市',   dark: false, c1: '#DDF4FF', c2: '#7FD1B9', c3: '#334EAC' },
-    { id: 'jelly',    name: '数字果冻',   dark: false, c1: '#FFE5EC', c2: '#4D7CFE', c3: '#4B2E83' },
-    // —— 第二篇 · 暗底霓虹系 ——（Grid 海报上 #0057FF/翡翠绿 系印刷错，这里用真绿）
-    { id: 'grid',  name: '电路板', dark: true, c1: '#FFD23F', c2: '#00B86B', c3: '#151515' },
-    { id: 'pixel', name: '像素光', dark: true, c1: '#FF4081', c2: '#00E676', c3: '#141414' },
-    { id: 'axis',  name: '工业轴', dark: true, c1: '#FF8F00', c2: '#00ACC1', c3: '#171717' },
-    { id: 'void',  name: '虚空',   dark: true, c1: '#7C4DFF', c2: '#64DD17', c3: '#0F0F0F' },
-    { id: 'mode',  name: '霓虹夜', dark: true, c1: '#FF2D55', c2: '#4F46E5', c3: '#161616' },
-    { id: 'unit',  name: '电光紫', dark: true, c1: '#A100FF', c2: '#00D9FF', c3: '#101010' },
-    { id: 'flux',  name: '熔岩橙', dark: true, c1: '#FF6B35', c2: '#2F80ED', c3: '#111111' },
-    { id: 'core',  name: '深海核', dark: true, c1: '#009688', c2: '#FFB300', c3: '#181818' },
-    { id: 'form',  name: '翡翠林', dark: true, c1: '#00C853', c2: '#FF7043', c3: '#121212' },
+    // —— 暗底霓虹系 9 套 ——
+    { id: 'grid',  name: '电路板', dark: true, bg: '#0F1410', text: '#E4ECDD', acc: ['#3DDC84', '#FFC83D', '#2AD0E0'] },
+    { id: 'pixel', name: '像素光', dark: true, bg: '#15101A', text: '#ECE6F2', acc: ['#FF3D8B', '#21E6C1', '#FFE03D'] },
+    { id: 'axis',  name: '工业轴', dark: true, bg: '#16130E', text: '#E9E6DD', acc: ['#FF8F1F', '#00BCD4', '#FFC83D'] },
+    { id: 'void',  name: '虚空',   dark: true, bg: '#110F1A', text: '#E6E2F2', acc: ['#8B5CFF', '#64DD17', '#00D9FF'] },
+    { id: 'mode',  name: '霓虹夜', dark: true, bg: '#190F12', text: '#F0E6EA', acc: ['#FF2D55', '#5B8CFF', '#FF9F2D'] },
+    { id: 'unit',  name: '电光紫', dark: true, bg: '#150A1C', text: '#ECE2F5', acc: ['#BE52FF', '#00D9FF', '#FF4DD8'] },
+    { id: 'flux',  name: '熔岩橙', dark: true, bg: '#1A1210', text: '#F2E8E2', acc: ['#FF6B35', '#2F9BED', '#FFC23D'] },
+    { id: 'core',  name: '深海核', dark: true, bg: '#0D1718', text: '#DEEAEA', acc: ['#00B8A0', '#FFB300', '#4DA6FF'] },
+    { id: 'form',  name: '翡翠林', dark: true, bg: '#0D1A12', text: '#E2ECE4', acc: ['#00D165', '#FF7043', '#FFC93C'] },
+    // —— 浅底海报系 9 套 ——
+    { id: 'memphis',  name: '新孟菲斯',   dark: false, bg: '#FCE9DC', text: '#232A4D', acc: ['#2D4CC8', '#D6246E', '#F4B400'] },
+    { id: 'museum',   name: '现代博物',   dark: false, bg: '#F6F1E5', text: '#232838', acc: ['#2A4A8F', '#B5604A', '#C99A3C'] },
+    { id: 'acid',     name: '酸性时尚',   dark: false, bg: '#E9D24A', text: '#15173A', acc: ['#2433C8', '#C81E6E', '#00897B'] },
+    { id: 'future',   name: '未来社区',   dark: false, bg: '#DAF7EC', text: '#1B2540', acc: ['#7C3AED', '#0E8FB0', '#E0457E'] },
+    { id: 'tropical', name: '热带运动',   dark: false, bg: '#FFE0B8', text: '#2A4A66', acc: ['#00604A', '#C25A1A', '#234F96'] },
+    { id: 'disco',    name: '电子舞厅',   dark: false, bg: '#F0DBFF', text: '#352A55', acc: ['#6E27D6', '#C0249A', '#0E8FB0'] },
+    { id: 'rowing',   name: '赛艇俱乐部', dark: false, bg: '#FBF3D6', text: '#283A2C', acc: ['#2A4A8F', '#2E7D5B', '#D94A4A'] },
+    { id: 'glass',    name: '玻璃城市',   dark: false, bg: '#E3F3FF', text: '#283E78', acc: ['#1F54BC', '#1B8E76', '#6735BE'] },
+    { id: 'jelly',    name: '数字果冻',   dark: false, bg: '#FFE6EE', text: '#34285E', acc: ['#2A52CC', '#E0457E', '#8B5CF6'] },
   ];
 
   // 原生 3 套皮肤（app.js 自带）：按用户要求不在选择器里展示，仅保留 id 识别用于兜底，不重定义其样式
@@ -44,20 +50,8 @@
 
   var DEFAULT_SKIN = 'pixel'; // 默认主题：像素光
 
-  // 个别主题的精修覆盖（在通用推导之上微调）
-  var OVERRIDES = {
-    // 酸性时尚：原柠檬黄 #FFF176 太亮刺眼、正文可读性低 —— 压成更深更耐看的金黄，文字加到近黑
-    acid: {
-      '--bg': '#E9D24A',
-      '--bg-2': '#F4E89B',
-      '--bg-3': '#E7C06A',
-      '--panel': '#ECD968',
-      '--border': '#D9B84A',
-      '--text': '#15173A',
-      '--text-dim': '#4a4a4a',
-      '--text-faint': '#6f6a4a',
-    },
-  };
+  // 精修覆盖（在通用推导之上微调）——多强调色皮肤已带显式 canvas，暂无需覆盖
+  var OVERRIDES = {};
 
   /* ---------- 色彩工具 ---------- */
   function clamp(n) { return n < 0 ? 0 : n > 255 ? 255 : Math.round(n); }
@@ -79,9 +73,52 @@
   function lum(h) { var c = toRgb(h); return (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255; }
   // 强调色上文字的对比色：亮/中等亮度(含霓虹)一律黑字（更还原海报、对比也更高），仅很暗的色才白字
   function ink(h) { return lum(h) > 0.36 ? '#0b0c0a' : '#ffffff'; }
+  // WCAG 相对亮度 + 对比度（gamma 正确版，用于「保证可读」推导）
+  function relLum(h) { var c = toRgb(h); var f = function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); }
+  function contrastOf(a, b) { var L1 = relLum(a), L2 = relLum(b), hi = Math.max(L1, L2), lo = Math.min(L1, L2); return (hi + 0.05) / (lo + 0.05); }
+  // 把某色在指定底色上「调到够可读」：浅底压暗、暗底提亮，逐步逼近目标对比度（小字文本用）
+  function readableOn(color, bg, target) {
+    target = target || 4.5; var c = color, lightBg = relLum(bg) > 0.4;
+    for (var i = 0; i < 24 && contrastOf(c, bg) < target; i++) c = lightBg ? darken(c, 0.05) : lighten(c, 0.05);
+    return c;
+  }
+
+  /* ---------- 多强调色皮肤：不走单源推导，直接给 canvas + 一组并列 accent + 功能色 ----------
+   * 数据形态：{ id,name,dark, acc:[a1,a2,a3], bg,bg2,bg3,panel,border,text, func:{ok,warn,err,info} }
+   * a1 主（按钮/活动态/光标），a2 次（链接/分区标题/选区），a3 跳（徽章/角标）。canvas 保持中性，
+   * 让三个 accent 立得起来——这是「多色还协调」的关键：协调靠共享底 + 角色分工，不靠把一切染成一个色。
+   */
+  function buildVarsMulti(p) {
+    var a = p.acc, a1 = a[0], a2 = a[1], a3 = a[2], bg = p.bg, tx = p.text;
+    var f = p.func || (p.dark ? DARK_FUNC : LIGHT_FUNC);   // 功能色：缺省走该明暗的共享状态色
+    return {
+      '--bg': bg,
+      '--bg-2': p.bg2 || (p.dark ? lighten(bg, 0.05) : lighten(bg, 0.5)),
+      '--bg-3': p.bg3 || (p.dark ? lighten(bg, 0.10) : darken(bg, 0.04)),
+      '--panel': p.panel || (p.dark ? lighten(bg, 0.02) : lighten(bg, 0.3)),
+      '--border': p.border || (p.dark ? lighten(bg, 0.14) : darken(bg, 0.10)),
+      '--rule': p.dark ? lighten(bg, 0.09) : darken(bg, 0.06),
+      '--text': tx,
+      '--text-dim': mix(tx, bg, 0.40),
+      '--text-faint': mix(tx, bg, 0.62),
+      '--accent': a1, '--accent-2': a2, '--accent-3': a3,
+      '--accent-2-text': readableOn(a2, bg, 4.5),      // a2 当小字（标题/链接）的可读变体：浅底自动压深
+      '--accent-soft': alpha(a1, p.dark ? 0.16 : 0.14),
+      '--accent-ink': ink(a1),
+      '--accent-3-ink': ink(a3),                       // 徽章用 a3 填充时的文字色（黄底必黑字）
+      '--green': f.ok,                                 // 状态绿（ok 点/good 数字/proj 徽章），不跟皮肤跳色
+      '--yellow': f.warn,                              // 状态黄/收藏星/警告
+      '--ok': f.ok, '--warn': f.warn, '--err': f.err, '--info': f.info,
+      '--radius': p.dark ? '6px' : '10px',
+      '--shadow': p.dark ? ('0 16px 50px ' + alpha(a1, 0.12) + ', 0 8px 30px rgba(0,0,0,0.55)') : ('0 12px 40px ' + alpha(a1, 0.14)),
+      '--font-display': p.dark ? 'ui-monospace, "SF Mono", Menlo, monospace' : 'var(--font-ui)',
+      '--font-fname': p.dark ? 'ui-monospace, "SF Mono", Menlo, monospace' : 'var(--font-ui)',
+    };
+  }
 
   /* ---------- 由 3 个原始色推导整套界面变量（偏还原但可读）---------- */
   function buildVars(p) {
+    if (p.acc) return buildVarsMulti(p);              // 多强调色皮肤走独立分支
     if (p.dark) {
       // 关键：底色不再是纯黑，而是「掺了霓虹的黑」——每套各有色温、辨识度强
       var t = p.c1, t2 = p.c2, base = '#0c0c0e';
@@ -141,11 +178,36 @@
       var sel = '[data-theme="' + p.id + '"]';
       if (p.dark) {
         // 暗色组：顶部一层该主题霓虹色的光晕，从近黑里透出色温，每套各不相同
+        // （多强调色皮肤没有 c1/c2，用前两个 accent 取光晕色）
+        var g1 = p.acc ? p.acc[0] : p.c1, g2 = p.acc ? p.acc[1] : p.c2;
         css += sel + ' body{background-image:radial-gradient(120% 75% at 50% -8%,' +
-          alpha(p.c1, 0.16) + ' 0%,' + alpha(p.c2, 0.07) + ' 38%,transparent 66%);background-attachment:fixed;}\n';
+          alpha(g1, 0.16) + ' 0%,' + alpha(g2, 0.07) + ' 38%,transparent 66%);background-attachment:fixed;}\n';
       } else {
         // 浅色组：微弱纸纹，和原生 warm/editorial 观感一致
         css += sel + ' body{background-image:radial-gradient(rgba(120,100,70,0.05) 1px,transparent 1px);background-size:4px 4px;}\n';
+      }
+
+      // 代码/源码表面跟皮肤走：Monaco 编辑器原来写死 #0b0c0a，所有深色皮肤共用一块中性近黑，
+      // 跟皮肤一对比就突兀。这里按该皮肤基底推导一块「同色温」底（深色比页面再深一档当「凹槽」，
+      // 浅色用更亮的 bg-2），盖掉 fb-dark/fb-paper 的固定底——与终端(--bg)、面板同色系，无缝衔接。
+      // 用 !important + [data-theme] 作用域压过 Monaco 自带的主题样式；只动背景，语法配色不碰。
+      var codeBg = p.dark ? mix(v['--bg'], '#000000', 0.10) : v['--bg-2'];
+      var gutterBg = p.dark ? mix(v['--bg'], '#000000', 0.04) : lighten(v['--bg-2'], 0.4);
+      css += sel + ' .monaco-editor,' +
+             sel + ' .monaco-editor .monaco-editor-background,' +
+             sel + ' .monaco-editor .overflow-guard,' +
+             sel + ' .monaco-editor-background{background-color:' + codeBg + ' !important;}\n';
+      css += sel + ' .monaco-editor .margin,' +
+             sel + ' .monaco-editor .glyph-margin{background-color:' + gutterBg + ' !important;}\n';
+
+      // 多强调色皮肤：把 a2/a3 撒到高频小件上，让三色同台（a1 仍管按钮/活动态/选区）
+      if (p.acc) {
+        css += sel + ' .nav-title{color:var(--accent-2-text);}\n';            // 侧栏分区标题 → a2(可读变体)
+        css += sel + ' .theme-switch-label{color:var(--accent-2-text);}\n';   // 皮肤/提示符 标签 → a2
+        css += sel + ' .md-body a{color:var(--accent-2-text);}\n';            // 正文链接 → a2
+        css += sel + ' .proj-tag{background:var(--accent-3);color:var(--accent-3-ink);border-color:transparent;}\n'; // 项目徽章 → a3 填充
+        // 文件区角标原是 .grid .item .icon .proj-tag(特异性 0,4,0)磨砂半透盖过上面那条，这里用同结构压过它，让 a3 露出来
+        css += sel + ' .grid .item .icon .proj-tag{background:var(--accent-3);color:var(--accent-3-ink);border-color:transparent;backdrop-filter:none;}\n';
       }
     });
     var st = document.createElement('style');
@@ -154,20 +216,50 @@
     document.head.appendChild(st);
   }
 
+  /* ---------- 每套皮肤一整套 ANSI 16 色 ----------
+   * 锚色用 Catppuccin Mocha(暗)/Latte(亮)——成熟、对比均衡、长读可读；再把每个色「微偏」该皮肤
+   * 强调色（~10%），让每套皮肤的终端输出 + dark-ansi 下的 Claude Code 都带自己的色温，又不丢语义
+   * （红还是红、绿还是绿）。前景从原来刺眼的近纯白柔化成偏皮肤色的柔白。
+   */
+  function buildAnsi(p, acc) {
+    var t = function (h, amt) { return mix(h, acc, amt == null ? 0.10 : amt); };
+    if (p.dark) {
+      return {
+        foreground: mix('#cdd6f4', acc, 0.07),
+        black: '#45475a', red: t('#f38ba8'), green: t('#a6e3a1'), yellow: t('#f9e2af'),
+        blue: t('#89b4fa'), magenta: t('#cba6f7'), cyan: t('#94e2d5'), white: t('#bac2de', 0.05),
+        brightBlack: '#585b70', brightRed: t('#f5a0b8'), brightGreen: t('#b6f0b1'), brightYellow: t('#ffeec0'),
+        brightBlue: t('#a6c8ff'), brightMagenta: t('#dcc0ff'), brightCyan: t('#aef0e2'), brightWhite: mix('#ffffff', acc, 0.04),
+      };
+    }
+    // 浅底上的彩字：Latte 锚色在饱和浅底（尤其 acid 金黄）对比会塌——统一压暗、黄/绿/青压更狠，
+    // 再微偏皮肤强调色保留色温；实测每套浅皮肤的彩色对终端底对比度都 >= 3.5。brightWhite 原是近白、
+    // 在浅底上隐形，这里也压成深色。
+    var d = function (h, amt, tint) { return mix(darken(h, amt), acc, tint == null ? 0.08 : tint); };
+    return {
+      foreground: mix('#4c4f69', acc, 0.08),
+      black: '#5c5f77', red: d('#b3122e', 0.06), green: d('#2f7d1e', 0.20), yellow: d('#8f6206', 0.18),
+      blue: d('#1346c9', 0.06), magenta: d('#7421c4', 0.08), cyan: d('#0c666b', 0.16), white: mix('#6c6f85', acc, 0.05),
+      brightBlack: '#6c6f85', brightRed: d('#c5183a', 0.02), brightGreen: d('#36912b', 0.20), brightYellow: d('#9c6e0a', 0.10),
+      brightBlue: d('#2a5fe6', 0.02), brightMagenta: d('#8631e6', 0.04), brightCyan: d('#159195', 0.20), brightWhite: '#2a2c3e',
+    };
+  }
+
   /* ---------- 让终端 / 编辑器跟着换色（复用最接近的现有主题，低风险）---------- */
   function extendTermAndMonaco() {
     try {
       if (typeof term !== 'undefined' && term.themes) {
         PALETTES.forEach(function (p) {
-          // 每套皮肤一套终端配色：背景/前景/光标/选区取该皮肤推导色（与面板同底、无缝衔接），
-          // ANSI 16 色按明暗复用 terminal/warm 基底（保证彩色输出可读）。这样终端背景真正跟着皮肤走。
+          // 每套皮肤一套终端配色：背景/光标/选区取该皮肤推导色（与面板同底、无缝衔接），
+          // 前景 + ANSI 16 色由 buildAnsi 按皮肤推导（让 dark-ansi 下的 Claude Code 也跟皮肤）。
           var v = buildVars(p);
           if (OVERRIDES[p.id]) { var o = OVERRIDES[p.id]; for (var ok in o) v[ok] = o[ok]; }
           var base = p.dark ? term.themes.terminal : term.themes.warm;
           var t = {};
-          for (var k in base) t[k] = base[k];
+          for (var k in base) t[k] = base[k];          // 继承结构，补齐可能遗漏的键
+          var a = buildAnsi(p, v['--accent']);
+          for (var ak in a) t[ak] = a[ak];             // 覆盖前景 + 16 ANSI
           t.background = v['--bg'];
-          t.foreground = v['--text'];
           t.cursor = v['--accent'];
           t.cursorAccent = v['--bg'];
           t.selectionBackground = alpha(v['--accent'], 0.28);
@@ -199,6 +291,8 @@
     if (!BUILTIN_IDS[skin] && !byId(skin)) skin = DEFAULT_SKIN; // 未知值兜底
     try { state.theme = skin; } catch (e) { /* */ }
     document.documentElement.dataset.theme = skin;
+    document.documentElement.dataset.mode = isDark(skin) ? 'dark' : 'light'; // 供 CSS 用 [data-mode] 只改浅色，不波及深色
+
     try { localStorage.setItem('fb_skin', skin); } catch (e) { /* */ }
     var link = document.getElementById('hljs-theme');
     if (link) link.href = '/vendor/hljs/styles/' + (isDark(skin) ? 'github-dark' : 'github') + '.min.css';
@@ -221,6 +315,7 @@
   /* ---------- 重建皮肤选择器：点一下弹出色卡网格 ---------- */
   function swatchOf(item) {
     if (item.swatch) return item.swatch;
+    if (item.acc) return item.acc;                   // 多强调色皮肤：色卡直接显 3 个 accent
     return item.dark ? [item.c1, item.c3, item.c2] : [item.c2, item.c1, item.c3];
   }
   var allItems = BUILTINS.concat(PALETTES);

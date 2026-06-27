@@ -113,7 +113,12 @@ function createWindow() {
   const remember = () => { clearTimeout(bt); bt = setTimeout(saveBounds, 400); };
   win.on('resize', remember);
   win.on('move', remember);
-  win.on('close', saveBounds);
+  // macOS：点红色 ✕ 不销毁窗口，只隐藏（保住渲染进程状态 + 终端 PTY），点 Dock 原样唤回。
+  // 真退（⌘Q / before-quit 确认后）才放行关闭。非 macOS 维持「关窗即退」。
+  win.on('close', (e) => {
+    saveBounds();
+    if (process.platform === 'darwin' && !isQuitting) { e.preventDefault(); win.hide(); }
+  });
 
   // 等后端起来再加载（首次 listen 有几十毫秒延迟）。Rurutia：端口被占时 server.js 会顺延，
   // 实际端口写在 global.__rurutiaPort，这里每次重试都读最新值，确保加载到真正绑定的端口。
@@ -462,11 +467,13 @@ function buildMenu() {
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
-app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+// 点 Dock 图标：有窗口（含隐藏的）就唤回原窗口，没有才新建。隐藏的窗口必须 show，否则点 Dock 没反应。
+app.on('activate', () => { if (win && !win.isDestroyed()) win.show(); else createWindow(); });
 // ⌘Q 兜底：还有终端在跑时（agent 任务），退出前确认，避免手滑全灭
 let quitConfirmed = false;
+let isQuitting = false; // 真退标记：close 处理器据此决定「隐藏」还是「放行关闭」
 app.on('before-quit', (e) => {
-  if (quitConfirmed || terminals.size === 0) return;
+  if (quitConfirmed || terminals.size === 0) { isQuitting = true; return; } // 放行：让 close 真正关窗
   e.preventDefault();
   const choice = dialog.showMessageBoxSync(win && !win.isDestroyed() ? win : undefined, {
     type: 'warning',
@@ -476,7 +483,7 @@ app.on('before-quit', (e) => {
     message: M(`还有 ${terminals.size} 个终端会话在运行`, `${terminals.size} terminal session(s) still running`),
     detail: M('退出会终止正在运行的 agent 任务，确定退出？', 'Quitting will terminate running agent tasks. Quit anyway?'),
   });
-  if (choice === 1) { quitConfirmed = true; app.quit(); }
+  if (choice === 1) { quitConfirmed = true; isQuitting = true; app.quit(); }
 });
 app.on('window-all-closed', () => {
   terminals.forEach((p) => { try { p.kill(); } catch { /* */ } });

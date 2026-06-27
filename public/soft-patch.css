@@ -130,6 +130,17 @@
 #usage-body .ux-odo .n { font-family: var(--font-mono); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: var(--text); }
 #usage-body .ux-odo .n u { text-decoration: none; font-size: 9px; color: var(--text-dim); }
 #usage-body .ux-odo .k { font-size: 8.5px; color: var(--text-faint); margin-top: 3px; }
+/* 浅色皮肤可读性补丁：弱字两档(标签 / 重置倒计时 / 单位 / 小注)在浅紫底上对比塌到 ~2:1，数据基本读不出。
+ * 在本卡内局部把 dim/faint 重定义得更深(往 --text 靠)，下面所有 .ux-* 自动继承新值，深色皮肤不受影响。 */
+[data-mode="light"] #usage-sec {
+  --text-dim: color-mix(in srgb, var(--text) 84%, var(--bg));
+  --text-faint: color-mix(in srgb, var(--text) 68%, var(--bg));
+}
+/* 深色皮肤同一个病根但轻一档：弱字(重置/单位/小注)默认对比 ~2.8 偏弱，只把 faint 提到 ~4.2，
+ * dim(标签 ~5.3)本来就够、不动——深底上小字提太狠会顶成正文抢戏。 */
+[data-mode="dark"] #usage-sec {
+  --text-faint: color-mix(in srgb, var(--text) 52%, var(--bg));
+}
 
 /* 皮肤选择器 / 分区按钮：圆角统一 */
 .theme-seg { border-radius: 10px; }
@@ -190,15 +201,14 @@
 .term-tab:hover::before { opacity: 0.8; }
 .term-tab.active { background: hsl(var(--th, 280) 50% 50% / 0.32); }
 .term-tab.active::before { opacity: 1; box-shadow: 0 0 9px -1px hsl(var(--th, 280) 62% 60%); }
-/* 活动标签底部项目色下划线 */
-.term-tab.active::after {
-  content: "";
-  position: absolute;
-  left: 8px; right: 8px; bottom: -1px; height: 2px;
-  border-radius: 2px;
-  background: hsl(var(--th, 280) 60% 58%);
-  opacity: 0.85;
-}
+/* 活动标签底部那条项目色横线删了：左脊(::before) + 整块背景填充已经把「这是活动终端」说清楚，
+ * 再补一条下划线是第三个指示器，多余。摘掉它，标签更干净。 */
+/* 浅色皮肤：50% 亮度的项目色块压在浅底上发闷、像贴了块深色补丁——换成高亮度低透的淡染，
+ * 跟皮肤的浅色同呼吸（hover/active 逐档加深一点点做层级），脊条反向压深一档继续当「重点」。 */
+[data-mode="light"] .term-tab { background: hsl(var(--th, 280) 64% 82% / 0.5); }
+[data-mode="light"] .term-tab:hover { background: hsl(var(--th, 280) 66% 78% / 0.62); }
+[data-mode="light"] .term-tab.active { background: hsl(var(--th, 280) 66% 74% / 0.74); }
+[data-mode="light"] .term-tab::before { background: hsl(var(--th, 280) 58% 50%); }
 .term-actions button { border-radius: 8px; }
 .term-actions button:hover { background: hsl(var(--th, 280) 30% 30% / 0.4); }
 /* 终端标签拖拽排序：拖动半透明 + 落点插入指示线（拖到哪插到哪）*/

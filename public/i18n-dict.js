@@ -236,7 +236,7 @@ window.FANBOX_DICT = {
   '⚠ 结果可能不完整，换更具体的关键词或缩小到当前目录': '⚠ Results may be incomplete — try a more specific term or narrow to this folder',
 
   // ---------- 欢迎页（首次引导，按文本片段拆分）----------
-  '欢迎用 FanBox': 'Welcome to FanBox',
+  '欢迎用 Rurutia': 'Welcome to Rurutia',
   'vibe coding 的驾驶舱——找文件、跑 agent、看它改、随手改，都在一个窗口：': 'The vibe-coding cockpit — find files, run agents, watch them edit, edit on the fly, all in one window:',
   '全局搜文件和文件夹；': 'searches all files and folders;',
   '把项目直接在编辑器整包打开；': 'opens the whole project in your editor;',
@@ -369,6 +369,50 @@ window.FANBOX_DICT = {
 
   // ---------- 杂项 ----------
   '刚刚': 'just now',
+
+  // ---------- 皮肤名（themes-patch.js 的 18 套配色）----------
+  '新孟菲斯': 'Neo-Memphis',
+  '现代博物': 'Modern Museum',
+  '酸性时尚': 'Acid Pop',
+  '未来社区': 'Future Commune',
+  '热带运动': 'Tropical Sport',
+  '电子舞厅': 'Disco Hall',
+  '赛艇俱乐部': 'Rowing Club',
+  '玻璃城市': 'Glass City',
+  '数字果冻': 'Digital Jelly',
+  '电路板': 'Circuit Board',
+  '像素光': 'Pixel Glow',
+  '工业轴': 'Industrial Axis',
+  '虚空': 'Void',
+  '霓虹夜': 'Neon Night',
+  '电光紫': 'Electric Violet',
+  '熔岩橙': 'Lava Orange',
+  '深海核': 'Deep-Sea Core',
+  '翡翠林': 'Emerald Grove',
+
+  // ---------- 提示符切换器（prompt-patch.js，仅桌面）----------
+  '提示符': 'Prompt',
+  '终端命令行提示符样式，独立于皮肤。整套主题选一个，叠加修饰可多选。切换后正在运行的终端按回车即生效。': 'Terminal prompt style, independent of the app theme. Pick one full theme; stack any modifiers. After switching, press Enter in a running terminal to apply.',
+  '整套主题 · 选一个': 'Full theme · pick one',
+  '叠加修饰 · 可多选并行': 'Modifiers · stack freely',
+  '全套': 'Full',
+  '药丸 · 摩卡': 'Pills · Mocha',
+  '帕斯特尔': 'Pastel',
+  '东京夜': 'Tokyo Night',
+  'Gruvbox 彩虹': 'Gruvbox Rainbow',
+  'Nord 极地': 'Nord',
+  '拿铁浅色': 'Latte (light)',
+  '扁平彩字': 'Flat Color',
+  'Jetpack 座舱': 'Jetpack',
+  'Pure 简约': 'Pure',
+  '极简单行': 'Minimal',
+  '两行': 'Two-line',
+  '纯文本': 'Plain',
+  '隐藏语言版本': 'Hide language versions',
+  '纯文本符号（去图标）': 'Plain symbols (no icons)',
+  '关掉时间': 'Hide clock',
+  '关掉命令耗时': 'Hide command duration',
+  '去前导空行': 'No leading blank line',
 };
 // 含插值的动态文案：正则 → 替换式（$1 等捕获组），EN 模式下逐条尝试
 window.FANBOX_DICT_RULES = [
