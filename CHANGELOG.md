@@ -11,6 +11,11 @@
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-06-27
+
+### Fixed
+- **App 内「检查更新」指向错了仓库 → 桌面端永远收不到新版本**：更新检测的地址沿用了 fork 上游 `alchaincyf/fanbox` 的 releases，而 Rurutia 自己的版本发在 `Rurutia-Artemis/rurutia` —— 于是装着的 App 一直在上游查（那边最新还停在 FanBox 2.3.x），永远查不到 Rurutia 新版、不弹更新提示。改为指向 Rurutia 自己的发布仓库（`REL_PAGE` + GitHub API 两处）。**注意**：旧版里这个地址是写死错的，所以本次需手动下载安装一次；装上 v2.6.1 之后，往后的版本就能正常自动检测了。
+
 ## [2.6.0] - 2026-06-27
 
 ### Added
