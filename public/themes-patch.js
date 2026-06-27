@@ -287,6 +287,17 @@
     for (var i = 0; i < PALETTES.length; i++) if (PALETTES[i].id === id) return PALETTES[i];
     return null;
   }
+  // 终端标签 hover 光标:斜箭头实心填皮肤强调色 + 白描边,跟皮肤走。
+  // data URI 不能引用 CSS 变量,所以按当前 accent 现拼一份,塞给 --tab-cursor(soft-patch 里用它)。
+  function setTabCursor() {
+    try {
+      var acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e0567a';
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">'
+        + '<path d="M5 3l13 7.2-5.4 1.2 3 5.6-2.4 1.3-3-5.7L5 17z" fill="' + acc + '" stroke="#fff" stroke-width="1.1" stroke-linejoin="round"/></svg>';
+      document.documentElement.style.setProperty('--tab-cursor', 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '") 4 3, pointer');
+    } catch (e) { /* 取不到 accent 就退回 pointer(CSS var fallback) */ }
+  }
+
   function applySkin(skin) {
     if (!BUILTIN_IDS[skin] && !byId(skin)) skin = DEFAULT_SKIN; // 未知值兜底
     try { state.theme = skin; } catch (e) { /* */ }
@@ -297,6 +308,7 @@
     var link = document.getElementById('hljs-theme');
     if (link) link.href = '/vendor/hljs/styles/' + (isDark(skin) ? 'github-dark' : 'github') + '.min.css';
     updateActive(skin);
+    setTabCursor(); // 让标签光标跟着新皮肤的强调色重拼
     try { if (typeof term !== 'undefined' && term.sessions && term.sessions.length) term.retheme(); } catch (e) { /* */ }
     try { if (typeof mona !== 'undefined') mona.retheme(); } catch (e) { /* */ }
     // 补回原版 applyTheme 的 rerender：让文件列表 / 预览的代码高亮也随皮肤即时刷新

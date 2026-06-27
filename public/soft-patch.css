@@ -211,6 +211,17 @@
 [data-mode="light"] .term-tab::before { background: hsl(var(--th, 280) 58% 50%); }
 .term-actions button { border-radius: 8px; }
 .term-actions button:hover { background: hsl(var(--th, 280) 30% 30% / 0.4); }
+
+/* 工具栏层级:4 个启动器(品牌标/主操作)亮,后面的次级动作压淡;hover 各提一档。
+   启动器靠 .agent-launch(0,2,0)的高优先级恒亮,不被下面的 button 规则盖到。 */
+.term-actions button { color: var(--text-faint); }
+.term-actions button:hover { color: var(--text-dim); }
+.term-actions .agent-launch { color: var(--text); }
+.term-actions .agent-launch:hover { color: var(--accent); }
+
+/* 终端标签 hover:自定义强调色箭头(themes-patch 按当前皮肤 accent 现拼到 --tab-cursor),
+   不再是系统默认那只小手;取不到就退回 pointer。 */
+.term-tab { cursor: var(--tab-cursor, pointer); }
 /* 终端标签拖拽排序：拖动半透明 + 落点插入指示线（拖到哪插到哪）*/
 .term-tab.tab-dragging { opacity: 0.4; }
 .term-tab.tab-insert { box-shadow: inset 3px 0 0 var(--accent); }
