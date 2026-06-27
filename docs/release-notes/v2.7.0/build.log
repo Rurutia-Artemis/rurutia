@@ -1,0 +1,40 @@
+
+> fanbox@2.7.0 predist:release
+> npm run check:vendor-patch
+
+
+> fanbox@2.7.0 check:vendor-patch
+> grep -q '20===e.keyCode||229===e.keyCode' public/vendor/xterm/xterm.js
+
+
+> fanbox@2.7.0 dist:release
+> APPLE_KEYCHAIN_PROFILE=rurutia-notary electron-builder --mac
+
+  • electron-builder  version=25.1.8 os=25.5.0
+  • loaded configuration  file=package.json ("build" field)
+  • author is missed in the package.json  appPackageFile=/Users/rurutia/Documents/RuruCode/Rurubox/package.json
+  • @electron/rebuild already used by electron-builder, please consider to remove excess dependency from devDependencies
+
+To ensure your native dependencies are always matched electron version, simply add script `"postinstall": "electron-builder install-app-deps" to your `package.json`
+  • skipped dependencies rebuild  reason=npmRebuild is set to false
+  • packaging       platform=darwin arch=arm64 electron=33.4.11 appOutDir=dist/mac-arm64
+  • signing         file=dist/mac-arm64/Rurutia.app platform=darwin type=distribution identity=6C5D7690D065BB5CF456AB51C9061369AF24FA1E provisioningProfile=none
+  • notarization successful
+  • building        target=DMG arch=arm64 file=dist/Rurutia-2.7.0-arm64.dmg
+  • Detected arm64 process, HFS+ is unavailable. Creating dmg with APFS - supports Mac OSX 10.12+
+  • 公证 DMG：/Users/rurutia/Documents/RuruCode/Rurubox/dist/Rurutia-2.7.0-arm64.dmg
+Conducting pre-submission checks for Rurutia-2.7.0-arm64.dmg and initiating connection to the Apple notary service...
+Submission ID received
+  id: 27d6ca5d-8442-47ea-aa6e-14f9659d46a9
+Successfully uploaded file
+  id: 27d6ca5d-8442-47ea-aa6e-14f9659d46a9
+  path: /Users/rurutia/Documents/RuruCode/Rurubox/dist/Rurutia-2.7.0-arm64.dmg
+Waiting for processing to complete.
+Current status: In Progress...Current status: In Progress....Current status: In Progress.....Current status: In Progress......Current status: In Progress.......Current status: In Progress........Current status: In Progress.........Current status: Accepted..........Processing complete
+  id: 27d6ca5d-8442-47ea-aa6e-14f9659d46a9
+  status: Accepted
+
+Processing: /Users/rurutia/Documents/RuruCode/Rurubox/dist/Rurutia-2.7.0-arm64.dmg
+Processing: /Users/rurutia/Documents/RuruCode/Rurubox/dist/Rurutia-2.7.0-arm64.dmg
+The staple and validate action worked!
+  • DMG 公证 + staple 完成：/Users/rurutia/Documents/RuruCode/Rurubox/dist/Rurutia-2.7.0-arm64.dmg
