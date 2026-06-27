@@ -1,6 +1,6 @@
 # v2.7.2 设计 / 构建归档（2026-06-28）
 
-发布：`Rurutia-Artemis/rurutia` · tag `v2.7.2` · commit `__COMMIT__`（构建所用代码）。
+发布：`Rurutia-Artemis/rurutia` · tag `v2.7.2` · commit `f682a4c`（构建所用代码）。
 DMG：`Rurutia-2.7.2-arm64.dmg`，Developer ID 签名 + Apple 公证 + staple（见 `build.log`）。
 
 ## 终端工具栏图标 → 官方品牌标
