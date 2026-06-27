@@ -1,6 +1,6 @@
 # v2.7.1 设计 / 构建归档（2026-06-28）
 
-发布：`Rurutia-Artemis/rurutia` · tag `v2.7.1` · commit `__COMMIT__`（构建所用代码）。
+发布：`Rurutia-Artemis/rurutia` · tag `v2.7.1` · commit `8082ec7`（构建所用代码）。
 DMG：`Rurutia-2.7.1-arm64.dmg`，已 Developer ID 签名 + Apple 公证 + staple（见 `build.log`）。
 
 两处 app 内改动，都小。
