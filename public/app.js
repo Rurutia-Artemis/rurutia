@@ -3340,7 +3340,14 @@ const term = {
     else toast('取终端目录失败', true);
   },
   // 项目身份色：路径稳定哈希到色相——同一项目的标签色点永远一个色，扫一眼即配对
-  hueOf(p) { let h = 0; for (let i = 0; i < (p || '').length; i++) h = (h * 31 + p.charCodeAt(i)) >>> 0; return h % 360; },
+  hueOf(p) {
+    // 黄金角铺色环：每个新项目分一个离已有的尽量远的色相，避开「同前缀长路径哈希到一坨绿」。
+    // 同一项目永远同色（标签↔面包屑色点配对不变）；按本次会话里出现的先后顺序分配。
+    p = p || '';
+    if (!this._hueMap) { this._hueMap = Object.create(null); this._hueSeq = 0; }
+    if (this._hueMap[p] == null) { this._hueMap[p] = Math.round((this._hueSeq * 137.508 + 25) % 360); this._hueSeq++; }
+    return this._hueMap[p];
+  },
   // 标签标题跟着终端「现在」的目录走（lsof 查真实 cwd），不再停留在创建时的快照；
   // 多标签跑不同项目的 agent 时，标题才认得出谁是谁
   async refreshCwd(s, force) {

@@ -245,6 +245,10 @@
   font-weight: 600;
   letter-spacing: .03em;
   padding: 2px 9px;
+  /* 徽章是不可压的硬原子：永不换行、永不被 flex 挤扁——挤压继续交给面包屑横滚，
+     不再出现「GIT 项目」拖拽时压成两行上下跳的丑态。 */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ---------- 9. 截图直通卡重设计：柔和卡 + 头部标签 + 主操作强调色 ---------- */
