@@ -26,6 +26,8 @@ Par-dessus, Rurutia a refait le visuel et les polices, ajouté **18 skins de cou
 </p>
 <p align="center"><sub>▲ Vue d'ensemble de l'interface principale — la même interface, « Lumière Pixel » sombre à gauche, « Gelée Numérique » clair à droite. La grille de fichiers porte des badges de projet aux couleurs vives, la barre latérale rassemble les projets Agent et l'usage officiel.</sub></p>
 
+> **✨ Nouveautés v2.8.0** : 18 skins de couleur retravaillés (clairs moins blancs, sombres moins uniformes) · **7 langues dans l'app** + un sélecteur de langue · copier-coller / zoom de police dans le terminal · fusion des correctifs clés de FanBox v2.3.3.
+
 ---
 
 ## Sommaire

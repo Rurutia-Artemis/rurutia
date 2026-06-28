@@ -24,6 +24,7 @@
     '展开子文件夹': 'Déplier les sous-dossiers',
     '没有子文件夹': 'Aucun sous-dossier',
     '悬停文件点 ☆ 即可收藏': 'Survolez un fichier et cliquez sur ☆ pour l’ajouter aux favoris',
+    '也可把 Agent 项目拖进来': 'ou glissez un projet Agent ici',
     '移除': 'Retirer',
     '用 Claude Code / Codex 跑过的项目会出现在这里': 'Les projets lancés avec Claude Code / Codex apparaîtront ici',
 

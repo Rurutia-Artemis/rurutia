@@ -26,6 +26,8 @@ Sobre esa base, Rurutia rehízo lo visual y la tipografía, agregó **18 skins d
 </p>
 <p align="center"><sub>▲ Vista general de la interfaz principal —— la misma interfaz, a la izquierda la oscura «Luz de Píxel» y a la derecha la clara «Gelatina Digital». La cuadrícula de archivos lleva insignias de proyecto en colores vivos y la barra lateral resume los proyectos de Agent y el uso oficial.</sub></p>
 
+> **✨ Novedades en v2.8.0**: 18 skins de color reajustados (claros menos blancos, oscuros menos homogéneos) · **7 idiomas en la app** + un selector de idioma · copiar/pegar y zoom de fuente en la terminal · fusión de correcciones clave de FanBox v2.3.3.
+
 ---
 
 ## Tabla de contenidos

@@ -23,6 +23,7 @@ window.FANBOX_DICT = {
   '展开子文件夹': 'Expand subfolders',
   '没有子文件夹': 'No subfolders',
   '悬停文件点 ☆ 即可收藏': 'Hover a file and click ☆ to favorite',
+  '也可把 Agent 项目拖进来': 'or drag in an Agent project',
   '移除': 'Remove',
   '用 Claude Code / Codex 跑过的项目会出现在这里': 'Projects run with Claude Code / Codex will show up here',
 

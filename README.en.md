@@ -26,6 +26,8 @@ On top of that, Rurutia reworks the visuals and typography, and adds **18 color 
 </p>
 <p align="center"><sub>▲ Main interface at a glance — the same screen, dark "Pixel Light" on the left, light "Digital Jelly" on the right. The file grid carries bold-color project badges; the sidebar gathers your agent projects and official usage.</sub></p>
 
+> **✨ New in v2.8.0**: 18 color skins retuned (lights de-whitened, darks de-homogenized) · **7 in-app languages** + a language picker · terminal copy-paste / font zoom · merged FanBox v2.3.3 core fixes.
+
 ---
 
 ## Table of contents

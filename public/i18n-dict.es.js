@@ -24,6 +24,7 @@
     '展开子文件夹': 'Expandir subcarpetas',
     '没有子文件夹': 'Sin subcarpetas',
     '悬停文件点 ☆ 即可收藏': 'Pasa el cursor sobre un archivo y haz clic en ☆ para añadir a favoritos',
+    '也可把 Agent 项目拖进来': 'o arrastra aquí un proyecto de Agent',
     '移除': 'Quitar',
     '用 Claude Code / Codex 跑过的项目会出现在这里': 'Los proyectos ejecutados con Claude Code / Codex aparecerán aquí',
 
