@@ -4,139 +4,172 @@
 
 # Rurutia
 
-**A cockpit for coding agents — a personal enhanced edition built on [FanBox](https://github.com/alchaincyf/fanbox)**
+**A cockpit for your coding agents — a personal enhanced edition built on [FanBox](https://github.com/alchaincyf/fanbox)**
 
-Command Claude Code / Codex to work locally, see every file it touches and every line it changes, and take over at any moment.<br>
-On top of that, Rurutia reworks the visuals, fonts, and color schemes, and makes the sidebar entries, usage panel, and terminal icons all feel more polished.
+Direct Claude Code / Codex to work locally, see every file it touches and every line it changes, and take over whenever you want.<br>
+On top of that, Rurutia reworks the visuals and typography, and adds **18 color skins**, a **built-in Starship terminal prompt**, and a **brand-icon terminal toolbar** — polishing the sidebar entries, the usage panel, and dozens of interaction details until everything feels smoother.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#installation)
 [![Signed](https://img.shields.io/badge/Signed-Developer%20ID%20%2B%20Notarized-success?logo=apple)](#installation)
+[![Version](https://img.shields.io/badge/Version-v2.7.2-ff3d8b)](../../releases)
 [![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.1-blueviolet)](https://github.com/alchaincyf/fanbox)
 
-[简体中文](README.md) · **English** · [日本語](README.ja.md)
+[简体中文](README.md) · [繁體中文](README.zh-TW.md) · **English** · [日本語](README.ja.md) · [한국어](README.ko.md) · [Français](README.fr.md) · [Español](README.es.md)
 
 </div>
 
 ---
 
 <p align="center">
-  <img src="docs/screenshots/overview.png" alt="Rurutia main interface: files on the left · preview below · embedded terminal on the right" width="100%">
+  <img src="docs/screenshots/overview.png" alt="Rurutia main interface: sidebar on the left · file grid in the middle · embedded terminal on the right, with a light and a dark skin side by side" width="100%">
 </p>
-<p align="center"><sub>▲ Main interface overview (default "Pixel Light" skin).</sub></p>
+<p align="center"><sub>▲ Main interface at a glance — the same screen, dark "Pixel Light" on the left, light "Digital Jelly" on the right. The file grid carries bold-color project badges; the sidebar gathers your agent projects and official usage.</sub></p>
 
 ---
 
-## Table of Contents
+## Table of contents
 
 - [What is this](#what-is-this)
+- [30-second overview](#30-second-overview)
 - [What the original FanBox can do (full feature set)](#what-the-original-fanbox-can-do-full-feature-set)
-- [What Rurutia changed](#what-rurutia-changed)
+- [What Rurutia changes](#what-rurutia-changes): 18 skins · terminal prompt · brand icons + rainbow tabs · sidebar
 - [Installation](#installation)
 - [Building from source](#building-from-source)
 - [How the changes are organized (patch-style)](#how-the-changes-are-organized-patch-style)
 - [Privacy & security](#privacy--security)
-- [Technical architecture](#technical-architecture)
-- [Acknowledgments & license](#acknowledgments--license)
+- [Tech architecture](#tech-architecture)
+- [Credits & license](#credits--license)
 
 ---
 
 ## What is this
 
-[**FanBox**](https://github.com/alchaincyf/fanbox) (by [Huashu (花叔)](https://github.com/alchaincyf)) is a locally-run "**cockpit for coding agents**": browse / preview / edit your local files on one side, while running Claude Code, Codex, or any coding agent in a real embedded terminal on the other—whenever the agent changes a file, it lights up in real time. **Find the files → run the agent → see the changes**, all in a single window. Zero-dependency backend, and your data never leaves your machine.
+[**FanBox**](https://github.com/alchaincyf/fanbox) (by [Huashu](https://github.com/alchaincyf)) is a locally running "**cockpit for coding agents**": browse / preview / edit local files on one side while you run Claude Code, Codex, or any coding agent in a real embedded terminal on the other — and whichever file the agent edits lights up in real time. **Find your files → run the agent → see the changes**, all in a single window. Zero-dependency backend, and your data never leaves your machine.
 
-> *"AI helps you spin up ten projects in one afternoon, and then you can never find them again. FanBox helps you find them back."*
+> *"AI helps you spin up ten projects in an afternoon, and then you can never find them again. FanBox helps you find them."*
 
-**Rurutia** is my **personalized rework** built on FanBox v2.3.1 (`c93a486`): the core capabilities are 100% from FanBox, while I redid the visuals/fonts/color schemes and polished a few everyday quality-of-life touches. Below, I first lay out the **full feature set of the original project**, then describe **what exactly I changed**.
+**Rurutia** is my **personal reworking** built on FanBox v2.3.1 (`c93a486`): 100% of the core capabilities come from FanBox, and I redid the visuals / fonts / color schemes, added a full skin-and-prompt system, and polished dozens of everyday touchpoints. Below, I'll first lay out **the original project's complete feature set**, then walk through **exactly what I changed**.
+
+---
+
+## 30-second overview
+
+| What you want to do | In Rurutia |
+|---|---|
+| Find the ten projects you spun up all over the place this afternoon | `⌘K` global fuzzy search · folders tagged with node/web/py/rs/go badges so you recognize the type at a glance |
+| Let the agent work — and still see what it changed | Run Claude Code / Codex in a real embedded terminal; whichever file it writes, that card lights up on the spot and the preview follows live |
+| Pick up yesterday's session | Open a project to view its session history; "▶ Resume" runs `claude --resume` / `codex resume` in one click to reconnect the context |
+| Keep an eye on official usage so you don't go over | The sidebar always shows Claude / Codex 5h windows + weekly quotas; a red bar + desktop notification when you near the limit |
+| Dress up the whole interface to match your mood | 18 color skins + 16 terminal prompt themes — UI / terminal / code highlighting all change together |
 
 ---
 
 ## What the original FanBox can do (full feature set)
 
-> This section covers FanBox's own capabilities, which Rurutia preserves in full. The original English documentation is in [`README.fanbox.md`](README.fanbox.md).
+> This part is FanBox's own capability set, which Rurutia keeps in full. For the original English-language description, see [`README.fanbox.md`](README.fanbox.md).
 
-### 🗂 Files · Find back & preview
-- **⌘K global fuzzy search**: remembering a fragment of the name is enough; `⌘↵` opens the whole project in your editor; `content:keyword` switches to full-text search.
-- **Bold solid icons**: every file type "looks like itself"—PDFs red, JS yellow, Markdown blue; photos and videos rendered at their true aspect ratios.
-- **In-place preview**: Markdown rendering, live HTML output, syntax-highlighted code, inline images/videos/PDFs (including HEIC), archive content listings, and a checkerboard backing for transparent images.
-- **Thumbnail acceleration**: scrolling and clicking through large folders both happen within 0.1 seconds.
-- **Project badges**: folder cards are tagged node / web / py / rs / go, so the ten projects you started in one afternoon are recognizable by type at a glance.
+### 🗂 Files · find and preview
+- **⌘K global fuzzy search**: a fragment of the name is enough; `⌘↵` opens the whole project in your editor; the `内容:` prefix (e.g. `内容:keyword`) switches to full-text search.
+- **Bold-color solid icons**: every file type "looks like itself" — PDF red, JS yellow, Markdown blue; photos and videos render at their true aspect ratio.
+- **In-place preview**: Markdown rendering, live HTML output, syntax-highlighted code, inline images / video / PDF (including HEIC), archive content listings, and a checkerboard backdrop under transparent images.
+- **Thumbnail acceleration**: scrolling and clicking through large folders stays under 0.1 seconds.
+- **Project badges**: folder cards are tagged node / web / py / rs / go, so the ten projects you started in one afternoon are instantly recognizable by type.
 
 ### 👀 See what the agent changed
-- **Live dashboard**: every time the agent writes a file, that card ripples on the spot and glows/breathes by change frequency—the light follows the agent as it writes.
-- **Follow mode**: one click makes the file view + preview track the file the agent is currently editing—code flashes its newly written lines, HTML renders live as it's written (double-buffered, zero white flash), and Markdown renders in real time. Any manual browsing immediately hands control back to you.
-- **Session replay**: drag the timeline like scrubbing a video to replay, step by step, which files the agent changed over that span.
-- **Change inbox**: aggregates every file changed in this session across multiple projects.
-- **Git diff of changes**: a Monaco read-only DiffEditor shows HEAD vs the current working tree side by side.
+- **A living dashboard**: every time the agent writes a file, that card ripples outward and glows and breathes by how often it's edited — wherever the agent writes, the light follows.
+- **Follow mode**: one click makes the file view + preview track the file the agent is currently editing — code flashes a highlight as new lines come in, HTML renders live as it's written (double-buffered, zero white flash), and Markdown renders in real time. Any manual browsing immediately hands control back to you.
+- **Session replay**: drag the timeline like scrubbing a video to relive, step by step, which files the agent changed over that span.
+- **Change inbox**: gathers every file modified in this session across multiple projects.
+- **Git change diff**: a Monaco read-only DiffEditor shows HEAD vs the current working tree side by side.
 
 ### 🤖 Agent cockpit
-- **Project memory**: open any project folder to see what the AI has done there—past sessions (your first sentence becomes the title), the files changed in each session, the skills triggered; "▶ Resume" picks up the context in the embedded terminal with one click via `claude --resume` / `codex resume`.
-- **Screenshot express**: the moment a system screenshot hits disk, an express card floats up—feed it to the agent in the terminal, file it into the project's `assets/`, or annotate it first and then send.
-- **AI tidy-up**: the AI looks only at metadata to produce an organization proposal (it doesn't read content or touch the filesystem); you review it item by item, then execute it with a rollback log written + one-click full undo.
-- **Release wizard**: for node projects, one click chains together the version bump, CHANGELOG, packaging, push, and GitHub Release.
-- **Skills overview**: all agent skills on your machine in a single view—trigger stats, health checks, context budget, and on/off toggles that don't delete files.
-- **Agent usage**: Claude Code's official 5h window / weekly quota (same source as `/usage`) + local token stats; a Codex limit snapshot.
-- **Disk usage overview**: a real-usage bar ranking (`du`-equivalent) that you can drill into.
+- **Project memory**: open any project folder to see what the AI did there — session history (your first sentence becomes the title), the files changed in each session, the skills it triggered; "▶ Resume" runs `claude --resume` / `codex resume` in the embedded terminal to reconnect the context.
+- **Screenshot fast lane**: a system screenshot pops up as a fast-lane card the moment it lands — feed it to the agent in the terminal, file it into the project's `assets/`, or annotate it first and then send.
+- **AI tidy-up**: the AI looks only at metadata to produce a tidy-up proposal (it doesn't read content or touch the filesystem); you review each item, then it executes and writes a rollback log so you can undo the whole thing in one click.
+- **Release wizard**: for node projects, one click strings together the version number, CHANGELOG, packaging, push, and GitHub Release.
+- **Skills overview**: all your local agent skills in one view — trigger stats, health checks, context budget, and on/off toggles that don't delete any files.
+- **Agent usage**: Claude Code's official 5h window / weekly quota (same source as `/usage`) + local token counts; a Codex quota snapshot.
+- **Disk usage overview**: a bar ranking of real usage by `du`'s reckoning, with drill-down.
 
-### 🖥 Terminal · Command the agent
-- **Real embedded terminal**: node-pty + xterm.js (WebGL rendering), running Claude Code / vim / htop without glitches, with correct CJK wide-character handling.
-- **Drag files into the terminal**: drag a file/folder from the file list into the terminal to automatically insert its path and feed it to the agent as context.
-- **Clickable paths**: file paths that appear in the terminal can be opened directly (screenshot names with spaces, Chinese names, and wrapped long paths are all recognized).
-- **Select and toss to the terminal**: select a snippet of text in the preview and send it to the terminal with one click, formatted as "source file + fence".
-- **Situational awareness**: the tab dot shows agent running/idle/exited; when it's your turn the terminal edge breathes a prompt, and a system notification fires when a long task completes.
+### 🖥 Terminal · command the agent
+- **A real embedded terminal**: node-pty + xterm.js (WebGL rendering) — run Claude Code / vim / htop without tearing, and CJK wide characters render correctly.
+- **Drag files into the terminal**: drag a file or folder from the file list into the terminal to auto-insert its path as context for the agent.
+- **Clickable paths**: file paths that appear in the terminal open directly (it recognizes screenshot names with spaces, Chinese names, and wrapped long paths).
+- **Select and fling it to the terminal**: select a snippet in the preview and send it into the terminal in one click, formatted with "source file + fenced block."
+- **Situational awareness**: a tab dot shows the agent running / idle / exited; when it's your turn the terminal edge breathes a hint, and long tasks fire a system notification on completion.
 
-### ✍️ Edit · WYSIWYG
-- **Markdown**: Milkdown Crepe provides Notion-style WYSIWYG, with auto-save 0.8 seconds after you stop typing.
-- **Code/JSON**: the Monaco editor (same core as VS Code).
-- **Image annotation**: brush/arrow/text/redaction, format conversion, compression, and resolution adjustment.
-- **Unsaved guard**: all three editors uniformly intercept exit with unsaved changes.
+### ✍️ Editing · what you see is what you get
+- **Markdown**: Milkdown Crepe delivers Notion-style WYSIWYG, auto-saving 0.8 seconds after you stop typing.
+- **Code / JSON**: the Monaco editor (the same engine as VS Code).
+- **Image annotation**: pen / arrow / text / pixelate, format conversion, compression, resolution adjustment.
+- **Unsaved guard**: all three editors uniformly intercept an unsaved exit.
 
 ---
 
-## What Rurutia changed
+## What Rurutia changes
 
-> The core capabilities come entirely from FanBox; below is what I added/reworked.
+> The core capabilities all come from FanBox; below is what I added or redid. It all revolves around four things: **looking good**, **easy to recognize**, **a usable terminal**, and **fewer interruptions**.
 
-#### 🎨 Visuals & color schemes
-- **18 premium "Sèsuǒ" color skins**: Neo-Memphis / Acid Fashion / Digital Jelly / Circuit Board / Void / Lava Orange / Deep-Sea Core… click "Skins" in the sidebar to pop up a swatch grid and switch; the default is "Pixel Light." Each one automatically adapts the main interface, sidebar, terminal, and code highlighting.
-- **Overall UI modernization**: hairline borders, a unified corner-radius rhythm, floating capsule-style segmented controls, accent-color glow, sidebar selected states, and restrained transition animations—all following the current skin's accent color.
+### 🎨 18 color skins (multi-accent system)
 
-<p align="center">
-  <img src="docs/screenshots/skins.png" alt="18 skin swatch switching" width="80%">
-</p>
-<p align="center"><sub>▲ Overview of all 18 skins (9 light, 9 dark, all auto-adapting the UI / terminal / code highlighting).</sub></p>
+Click "Skins" in the sidebar to pop open a swatch grid and switch; the default is "Pixel Light." Each skin is a "**neutral base + 3 parallel accent colors** (primary: buttons / active state · secondary: section titles and links · pop: badges) + a set of semantic status colors" — the colors are more vivid, yet stay harmonious thanks to each accent's clear role. Body text / accent colors / badge text / the terminal's 16 ANSI colors **all pass WCAG contrast checks**; each skin automatically adapts the main interface, sidebar, terminal palette, and code highlighting, and even the Monaco editor's base color follows the same color temperature.
 
-#### 🔤 Fonts
-- **Global Maple Mono CN**: the interface, file names, code, and terminal share one monospaced style, with full **Chinese + Japanese kana** character coverage (embedded woff2, works offline).
-
-#### 🗂 A smoother sidebar
-- **Quick entries can be added/removed**: ➕ to add the current folder, hover ✕ to remove (even default items can be removed), persisted server-side.
-- **Agent projects can be added/removed**: manually add a pin to the top, hide the ones you don't want to see (once hidden, scanning won't surface them again).
+Inspired by the upscale color collections from the "Sèsuǒ" account: New Memphis / Acid Fashion / Digital Jelly / Circuit Board / Void / Lava Orange / Deep-Sea Core… 9 light and 9 dark, 18 skins in all.
 
 <p align="center">
-  <img src="docs/screenshots/sidebar.png" alt="Sidebar quick entries / Agent projects can be added or removed" width="40%">
+  <img src="docs/screenshots/skins.png" alt="Overview of 18 color skins: 9 light and 9 dark, each auto-adapting the UI / terminal / code highlighting" width="100%">
 </p>
-<p align="center"><sub>▲ Sidebar: quick entries / favorites / Agent projects, with drag-to-add/remove and reordering.</sub></p>
+<p align="center"><sub>▲ Overview of all 18 skins (9 light, 9 dark). Switch once and the main interface / sidebar / terminal palette / code highlighting all change together.</sub></p>
 
-#### 📊 Usage panel enhancements
-- Claude Code's official limits (5h window / weekly quota) are **always shown**: when fetched, you get a progress bar; when not, the reason is spelled out (not subscribed/logged in / network restricted / no window data) + a retry.
-- **Near-limit (≥85%) red warning bar + desktop notification** (throttled so it won't nag), and the panel auto-refreshes when expanded.
+The UI as a whole was modernized too: hairline borders, a consistent corner-radius rhythm, floating capsule-style segmented controls, accent-color glow, sidebar selected states, and restrained transition animations — all following the current skin's accent colors. The interface, file names, code, and terminal all use **Maple Mono CN** (covering the full Chinese + Japanese kana character set, embedded as woff2, usable offline).
 
-#### 🖥 Terminal & icons
-- The 10 action buttons in the terminal top bar are **all redrawn as monochrome vector icons** (following the theme color); tabs are taller and their width adapts to the file name.
-- Custom app icon + sidebar logo, with the app renamed to Rurutia.
+### 🚀 Terminal prompt (built-in Starship · 16 themes)
 
-#### ⚙️ Other
-- **Automatic port fallback**: when the default 4567 is taken, it automatically moves to the next free port pair, so multiple instances no longer collide.
+**An out-of-the-box powerline prompt**: it ships with a signed and notarized starship + a Nerd Font icon font, so the moment you finish installing and open a terminal you get powerline pills (directory / git status / language version / ♥ time) — **no need to install starship yourself, no need to configure `~/.zshrc`**.
 
-#### 🪄 Interaction-detail polish
-- **The entire top strip of the window is draggable**: no longer can you only grab a corner of the brand area; the top-left traffic lights get enough clearance and no longer overlap the logo.
-- **The terminal is made into a standalone rounded card**: the header nav bar gets a rounded top edge, and the background follows the current skin's base color to blend into the whole (no more jarring pure-black block under dark skins).
-- **Elastic drag-to-reorder terminal tabs**: hold and drag horizontally, and once you pass an adjacent tab it yields in real time—no need to align precisely with the target slot.
-- **Sidebar dragging**: Agent projects can be dragged directly into "favorites / quick entries," and can also be dragged up and down within a list for custom ordering (order is persisted); the update time is uniformly right-aligned.
-- **Reworked scrollbar**: thin and rounded, following the accent color, with the track indented at both ends to clear the rounded card's corners so it no longer protrudes.
-- **Global forced Maple Mono**: covers the few corners with hardcoded fonts, so Chinese / English / Japanese characters are truly all unified.
-- **Steadier Claude usage**: the official limits endpoint has strict rate limits, so this switches to a 10-minute cache + reusing the last data when rate-limited, so an occasional throttle no longer shows "no data."
+It works via ZDOTDIR injection: first it sources your real dotfile (PATH / aliases exactly as they are, so `claude` / `codex` are still found), then layers starship on top — **it only takes effect in this app's terminal, never touches any of your dotfiles, and leaves zero residue on uninstall**. macOS + zsh only.
+
+<p align="center">
+  <img src="docs/screenshots/prompt.png" alt="Terminal prompt picker: 16 full themes (with mini powerline previews) + 5 stackable modifiers" width="100%">
+</p>
+<p align="center"><sub>▲ The "Prompt" picker in the sidebar: pick one full theme, and the stackable modifiers allow multiple selections; switches take effect instantly, and a running terminal updates the moment you press Enter.</sub></p>
+
+- **16 prompt themes (independent of skins)**: Pill·Mocha / Pastel / Tokyo Night / Gruvbox Rainbow / Nord Polar / Dracula / Rosé Pine / Everforest / Kanagawa / Latte Light / Flat Color / Jetpack Cockpit / Pure Minimal / Bare One-Line / Two-Line / Plain Text.
+- **5 stackable modifiers (multi-select, run in parallel)**: hide language version / plain-text symbols·no icons / time off / command-duration off / drop the leading blank line.
+- **A dedicated terminal palette per skin**: terminal background / cursor / selection + all 16 ANSI colors are derived from the skin; the vivid text on light skins is pushed to contrast ≥ 3.5 so it no longer smudges into the light background.
+
+### 🖥 Terminal · brand icons + rainbow tabs
+
+<p align="center">
+  <img src="docs/screenshots/terminal.png" alt="Terminal: rainbow project tabs + a Claude/OpenAI/Codex/WeChat brand-icon toolbar + a powerline prompt" width="100%">
+</p>
+<p align="center"><sub>▲ Embedded terminal: tabs are colored by the project's golden-angle hue (rainbow), the top bar's row of official brand icons launches Claude / Codex / WeChat directly, and the prompt is the built-in starship powerline.</sub></p>
+
+- **Brand-icon toolbar**: the launch entries for Claude Code / Codex / WeChat and friends are swapped for **official brand vector icons**, lined up across the top bar at a glance; the remaining action buttons (preview follow / new tab / fullscreen / toggle dock / mute…) are all redrawn as single-color vector icons that follow the theme color.
+- **Rainbow tabs**: each terminal tab takes its color from the project by golden angle, so when several projects sit side by side they automatically stagger into a rainbow — one glance tells you which terminal is in which project; tabs are taller, their width adapts to the file name, and they can be dragged elastically to reorder (crossing an adjacent tab makes it give way in real time).
+- **"Plain terminal" button**: next to Claude Code / Codex, one click opens a clean shell (no agent) in the current folder.
+- **Standalone rounded terminal card**: the header nav has an arced top edge, and the background follows the current skin's base color to blend into the whole (no longer a jarring solid-black block under dark skins); under light skins the active tab becomes a soft tint and the redundant bottom color bar is removed.
+
+### 🗂 Sidebar · entries and add/remove for agent projects
+
+<p align="center">
+  <img src="docs/screenshots/sidebar.png" alt="Sidebar: quick entries / favorites / agent projects, with add/remove and drag-to-reorder + an official usage panel" width="34%">
+</p>
+<p align="center"><sub>▲ Sidebar: quick entries / favorites / agent projects, with drag-to-add/remove and reorder; the agent usage panel at the bottom always shows official limits.</sub></p>
+
+- **Quick entries you can add/remove**: ➕ to add the current folder, hover ✕ to remove (even the default items can go), persisted on the server.
+- **Agent projects you can add/remove**: manually add and pin, hide the ones you don't want to see (once hidden, a scan won't surface them again); you can also drag from the list into "Favorites / Quick entries," or drag up and down within the list to set a custom order (the order persists).
+- **Enhanced usage panel**: Claude Code's official limits (5h window / weekly quota) are **always shown** — a progress bar when it's fetched, and a clear reason when it isn't (not subscribed / not signed in / network restricted / no window data) + a retry; near the limit (≥85%) a **red warning bar + desktop notification** (throttled so it doesn't pester you), with an auto-refresh when the panel is expanded. The official limit endpoint is strictly rate-limited, so it now uses a 10-minute cache and reuses the last data when throttled, rather than showing "no data" on an occasional rate-limit.
+
+### Other polish
+
+- **Click the red ✕ = hide the window (macOS)**: it no longer destroys the window and kills the terminal; click the Dock icon to bring it back exactly as it was (terminal / state intact), and ⌘Q is the real quit.
+- **The whole top strip of the window is draggable**: no longer just a corner of the brand area; the traffic lights in the top-left get plenty of clearance and never overlap the logo.
+- **Redone scrollbar**: thin and rounded, following the accent color, with the track inset at both ends to clear the rounded-card corners so it no longer juts out.
+- **Custom tab cursor**: the terminal tab area uses a little arrow cursor that follows the skin's accent color.
+- **Automatic port fallback**: when the default 4567 is taken, it automatically moves to the next free pair of ports, so multiple instances no longer collide.
+- **A custom app icon + sidebar logo**, and the app is renamed Rurutia.
 
 ---
 
@@ -144,11 +177,11 @@ On top of that, Rurutia reworks the visuals, fonts, and color schemes, and makes
 
 **macOS (Apple Silicon / arm64)**
 
-1. Download the latest `Rurutia-*.dmg` from [**Releases**](../../releases).
+1. Go to [**Releases**](../../releases) and download the latest `Rurutia-*.dmg`.
 2. Open the dmg and drag **Rurutia** into "Applications."
-3. Double-click to open and you're ready to go.
+3. Double-click to open and start using it.
 
-> ✅ This build is **signed with an Apple Developer ID certificate + Apple notarization + hardened runtime**—just download it from Releases, **double-click to install and use**, with no "developer cannot be verified" warning and no extra steps required.
+> ✅ This build is **signed with an Apple Developer ID certificate + Apple notarization + hardened runtime** — once downloaded from Releases, just **double-click to install and use**; you won't get the "cannot verify the developer" dialog, and no extra steps are needed.
 
 ---
 
@@ -156,61 +189,64 @@ On top of that, Rurutia reworks the visuals, fonts, and color schemes, and makes
 
 ```bash
 npm install
-npm run rebuild        # rebuild node-pty against Electron's ABI
+npm run rebuild        # 把 node-pty 重编到 Electron 的 ABI
 
-# Unsigned local build (simplest, for your own use):
+# 未签名本地构建（最简单，自己用）：
 CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac --dir -c.mac.identity=null
-# Output: dist/mac-arm64/Rurutia.app
+# 产物：dist/mac-arm64/Rurutia.app
 ```
 
 ---
 
 ## How the changes are organized (patch-style)
 
-So as to keep following upstream FanBox updates, the changes are made **additive** as much as possible, making it easy to re-apply them via `git rebase` after each new release:
+To keep following upstream FanBox updates, the changes are kept **additive** as much as possible, so they can be re-applied with `git rebase` after each new release:
 
-- **New files** (no conflicts): `public/ui-patch.css` (all UI/fonts), `public/themes-patch.js` (the 18 skins), `public/vendor/fonts/maple/*`, `public/vendor/icons/`, `public/logo.png`, `public/favicon.png`.
-- **Edited upstream files** (few, worth watching): `public/index.html`, `public/app.js`, `server.js`, `electron/main.js`, `package.json` + `build/icon*`.
+- **New files** (no conflicts): `public/ui-patch.css` + `public/soft-patch.css` (all UI/fonts), `public/themes-patch.js` (the 18 skins), `public/prompt-patch.js` (the terminal prompt picker), `public/vendor/fonts/maple/*`, `public/vendor/icons/`, `vendor/starship/*`, `public/logo.png`, `public/favicon.png`.
+- **Edited upstream files** (a few, worth watching): `public/index.html`, `public/app.js`, `server.js`, `electron/main.js`, `package.json` + `build/icon*`.
 
-The full change list + the steps for "how to re-apply after upstream releases a new version" are in [`RURUTIA-PATCH.md`](RURUTIA-PATCH.md).
+For the full change list + the steps on "how to re-apply after a new upstream release," see [`RURUTIA-PATCH.md`](RURUTIA-PATCH.md).
 
 ---
 
 ## Privacy & security
 
-> Consistent with upstream FanBox, Rurutia does not change its security model.
+> In line with upstream FanBox, Rurutia doesn't change its security model.
 
-- The backend only listens on the local loopback address + validates the Host header (blocking DNS rebinding), and **data never leaves your machine**.
-- All frontend assets (including the renderer and fonts) are bundled locally, so it's **fully usable offline**. The only outbound requests: the Claude usage endpoint (optional) and the GitHub update check.
-- The HTML preview is rendered in a sandboxed iframe with an isolated origin, so it can't touch terminal capabilities.
-- Configuration uses atomic writes (temp + fsync + rename), so no data is lost; deletions go to the system Trash (recoverable).
+- The backend only listens on the local loopback address + validates the Host header (blocking DNS rebinding), so **your data never leaves your machine**.
+- All frontend assets (including the renderer, fonts, and the starship binary) are bundled locally, so it's **fully usable offline**. The only outbound requests: the Claude / Codex usage endpoints (optional) and the GitHub update check.
+- HTML previews render in a sandboxed iframe on an isolated origin, with no reach to terminal capabilities.
+- The terminal prompt works via ZDOTDIR injection, **never writing or changing any of your dotfiles**, and leaves zero residue on uninstall.
+- Config uses atomic writes (temp + fsync + rename) so nothing is lost; deletes go to the system Trash (recoverable).
 
 ---
 
-## Technical architecture
+## Tech architecture
 
 | Layer | What it uses |
 |---|---|
-| Backend | Zero-dependency Node.js `server.js` (file API + static serving + thumbnails) |
-| Desktop shell | Electron 33 + node-pty (asarUnpack native module) |
+| Backend | A zero-dependency Node.js `server.js` (file API + static serving + thumbnails) |
+| Desktop shell | Electron 33 + node-pty (native module via asarUnpack) |
 | Terminal | xterm.js + WebGL + unicode11 |
-| Editor | Monaco (code) + Milkdown Crepe (Markdown) |
-| Fonts | Maple Mono CN (embedded woff2) |
-| Packaging | electron-builder → signed + notarized arm64 `.dmg` |
+| Prompt | Built-in starship (signed and notarized) + Nerd Font, injected at runtime via ZDOTDIR |
+| Editors | Monaco (code) + Milkdown Crepe (Markdown) |
+| Font | Maple Mono CN (embedded woff2) |
+| Packaging | electron-builder → a signed and notarized arm64 `.dmg` |
 
 ---
 
-## Acknowledgments & license
+## Credits & license
 
-- The core application **FanBox** is developed by **[Huashu (花叔)](https://github.com/alchaincyf)** ([alchaincyf/fanbox](https://github.com/alchaincyf/fanbox)), under the MIT license. Rurutia is a personal enhanced fork of it, following the same [MIT license](LICENSE). FanBox's capabilities in turn build on a host of excellent open-source projects such as Electron / node-pty / xterm.js / Monaco / Milkdown (the full list is in [`README.fanbox.md`](README.fanbox.md)).
+- The core app **FanBox** is developed by **[Huashu](https://github.com/alchaincyf)** ([alchaincyf/fanbox](https://github.com/alchaincyf/fanbox)), under the MIT license. Rurutia is his personal enhanced fork, following the same [MIT license](LICENSE). FanBox's capabilities in turn build on a host of excellent open-source projects — Electron / node-pty / xterm.js / Monaco / Milkdown and more (see [`README.fanbox.md`](README.fanbox.md) for the full list).
 - The **Maple Mono** font comes from [subframe7536/maple-font](https://github.com/subframe7536/maple-font) (OFL).
-- The color schemes are inspired by the premium color-palette collection from the "**Sèsuǒ (色所)**" WeChat account.
+- The **Starship** terminal prompt comes from [starship/starship](https://github.com/starship/starship) (ISC).
+- The color inspiration comes from the upscale color collections of the "**Sèsuǒ**" account.
 
 <div align="center">
 <br>
 
-**Finder** helps you manage files. The **IDE** helps you write code. **Rurutia / FanBox** helps you see what the AI did on your machine.
+**Finder** helps you manage your files. **Your IDE** helps you write code. **Rurutia / FanBox** helps you see what the AI did on your machine.
 
-MIT License © Rurutia · Built on [Huashu (花叔)'s FanBox](https://github.com/alchaincyf/fanbox)
+MIT License © Rurutia · built on [Huashu's FanBox](https://github.com/alchaincyf/fanbox)
 
 </div>
