@@ -53,6 +53,7 @@
     const host = document.createElement('div');
     host.className = 'theme-switch';
     host.id = 'lang-switch';
+    host.style.position = 'relative';  // 弹窗 .fbx-skin-pop 是 absolute，host 必须 relative 才不会飞到 body 外（#theme-switch/#prompt-switch 各自有此规则，本选择器漏了）
 
     const label = document.createElement('div');
     label.className = 'theme-switch-label';

@@ -11,6 +11,11 @@
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-06-29
+
+### Fixed
+- **应用内语言选择器点开「没反应」**：v2.8.0 新增的侧栏「语言」选择器，容器 `#lang-switch` 漏加了 `position:relative`，而下拉面板 `.fbx-skin-pop` 是 `position:absolute`——于是下拉以 `<body>` 为定位基准、按 `bottom:calc(100% + 6px)` 被顶到视口上方（实测 `top:-255`）整条飞出屏幕，点开后看不见，表现为「点了没反应」。皮肤 / 提示符两个同款选择器各自都有这条规则，唯独新加的语言选择器漏了。给 `#lang-switch` 补上 `position:relative` 后，下拉正常浮在选择器正上方。
+
 ## [2.8.0] - 2026-06-29
 
 ### Added
