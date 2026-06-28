@@ -17,7 +17,8 @@ const crypto = require('crypto');
 
 const ROOT = path.resolve(__dirname, '../..');
 const OUT = path.join(ROOT, 'docs/screenshots');
-const HOME = path.join(os.tmpdir(), 'rurutia-shot-home');
+// 用 /tmp 而不是 os.tmpdir()：后者在 macOS 是 /var/folders/.../T，面包屑会显示一长串乱码路径。
+const HOME = '/tmp/rurutia-shot-home';
 const TILES = path.join(os.tmpdir(), 'rurutia-shot-tiles');
 const DOCS = path.join(HOME, 'Documents');
 const W = 1560, H = 950;

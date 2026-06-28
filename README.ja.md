@@ -13,7 +13,7 @@ Claude Code / Codex にローカルで作業を指示し、触れたすべての
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#インストール)
 [![Signed](https://img.shields.io/badge/署名済み-Developer%20ID%20%2B%20公証-success?logo=apple)](#インストール)
 [![Version](https://img.shields.io/badge/バージョン-v2.7.2-ff3d8b)](../../releases)
-[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.1-blueviolet)](https://github.com/alchaincyf/fanbox)
+[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · **日本語** · [한국어](README.ko.md) · [Français](README.fr.md) · [Español](README.es.md)
 
@@ -170,6 +170,10 @@ ZDOTDIR 注入で動作します：まずあなたの本物の dotfile を sourc
 - **タブのカスタムカーソル**：ターミナルのタブ領域では、スキンのアクセント色に追従する小さな矢印カーソルを使います。
 - **ポートの自動繰り下げ**：デフォルトの 4567 が使用中のとき、自動で次の空きポート対に切り替え、複数インスタンスでも衝突しなくなりました。
 - **カスタムアプリアイコン + サイドバー logo**、アプリ名を Rurutia に変更。
+
+### 🌐 インターフェース言語（7 言語）
+
+- アプリ UI が **7 言語**に対応：简体中文 / 繁體中文 / English / 日本語 / 한국어 / Français / Español。サイドバーに「言語」セレクターを追加し、母語名のリストから選ぶだけで切り替えできます。ユーザーコンテンツ（プレビュー / エディター / ターミナル）は翻訳しません。
 
 ---
 

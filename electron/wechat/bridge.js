@@ -20,23 +20,34 @@ const f = (name) => path.join(dataDir(), name);
 const now = () => { const d = new Date(); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
 // 微信场景默认人格：claude/codex 桌面端很啰嗦，手机上刷屏难受——注入这条让回复适配手机。可自定义。
-const WX_PERSONA_DEFAULT = '你正通过微信被花叔遥控，回复会显示在手机微信里。请：用中文、简洁直接、适合手机阅读；先给结论，细节按需再展开；除非花叔明确要求，别贴大段代码或长列表；做了改动用一两句话说清改了什么。';
+const WX_PERSONA_DEFAULT = '你正通过微信被远程遥控，回复会显示在手机微信里。请：用中文、简洁直接、适合手机阅读；先给结论，细节按需再展开；除非用户明确要求，别贴大段代码或长列表；做了改动用一两句话说清改了什么。';
 
 // 上下文预算：单轮被重放的输入 token 超过这条线，回合结束后自动压缩（flush 记忆 + 摘要续场 + 换新 session）。
-// claude 默认 200k 窗口，留 40% 垫给当轮输出与压缩自身；常用 1M 版本可调高。
-const CTX_BUDGET = 120000;
-// 压缩归档时让 agent 先 flush 记忆、再吐一段进度摘要的指令（不发给用户、只系统用）。
+// claude 默认 200k 窗口，抬到 160k 让 claude 自己多跑、少被我们抢着重置；留 ~20% 垫给当轮输出与压缩自身。
+// 常用 1M 版本可调高。配 TAIL_REPLAY_TURNS 的尾部回放，重置时近期对话不再断。
+const CTX_BUDGET = 160000;
+// 重置后回放给新 session 的「近期原话」轮数：保护在途任务的尾部上下文（借 Hermes「保护尾部」的思路，
+// 在 --resume 没法做中段裁剪的约束下，用尾部回放近似）。
+const TAIL_REPLAY_TURNS = 5;
+// 压缩归档时让 agent 先 flush 记忆、再吐一段结构化进度摘要的指令（不发给用户、只系统用）。
+// 摘要覆盖「最容易在压缩里丢」的几类：任务目标 / 关键决策与约束的原话数字 / 已完成 / 下一步 / 涉及文件。
 const WX_COMPACT_PROMPT = [
-  '（系统指令，不是花叔发的，别当成对话）这段对话即将被压缩归档，请只做两件事：',
+  '（系统指令，不是用户发的，别当成对话）这段对话即将被压缩归档，请只做两件事：',
   '1. 用 <memory> ops 把这段对话里值得长期记住的事实 / 偏好 / 项目进展写进记忆（没有就不写）。',
-  '2. 正文只输出一段 ≤150 字的「当前进度摘要」——在聊什么、已做到哪、下一步是什么，让接手的新会话能无缝接着干。除此之外什么都别说，别寒暄。',
+  '2. 正文只输出一段「当前进度摘要」（≤350 字），让接手的新会话能无缝接着干，按这几点写、缺的跳过：',
+  '   · 任务：正在做什么、目标是什么',
+  '   · 关键约束与决策：端口/路径/版本/数字等照原话写下来，别改写（这些一压缩最容易丢）',
+  '   · 已完成：做到哪了',
+  '   · 下一步：紧接着要做什么',
+  '   · 涉及文件：关键文件的绝对路径',
+  '除此之外什么都别说，别寒暄。',
 ].join('\n');
 
 // 发文件协议：让 agent 能把本机文件/图片发到微信。在回复末尾追加标记，系统解析后发送、并从展示里剥掉。
 const WX_FILE_PROTOCOL = [
-  '如果花叔要你把某个文件或图片发到微信，在回复的最末尾追加发送标记（每个文件一行，可多个）：',
+  '如果用户要你把某个文件或图片发到微信，在回复的最末尾追加发送标记（每个文件一行，可多个）：',
   '<wxfile>文件的绝对路径</wxfile>',
-  '路径用绝对路径（相对路径会按当前工作目录解析）。系统会把这些文件发到微信，所以正文里不要重复贴路径、也不要说“无法发送文件”。只有花叔明确要发文件时才加这个标记。',
+  '路径用绝对路径（相对路径会按当前工作目录解析）。系统会把这些文件发到微信，所以正文里不要重复贴路径、也不要说“无法发送文件”。只有用户明确要发文件时才加这个标记。',
 ].join('\n');
 
 // 从回复里抽出 <wxfile> 路径，返回 { clean(剥掉标记的正文), files:[原始路径] }
@@ -48,10 +59,10 @@ function extractFiles(reply) {
 
 // 控制别的终端协议：让 agent 能往本机其他正在运行的终端发指令/按键（fire-and-forget，结果下一轮在状态里体现）。
 const WX_TERM_PROTOCOL = [
-  '上下文里会给你一份「本机其他终端实时状态」（带 #编号、目录、前台进程、最近输出）。花叔可能让你看它们在跑啥、或去操控它们。',
+  '上下文里会给你一份「本机其他终端实时状态」（带 #编号、目录、前台进程、最近输出）。用户可能让你看它们在跑啥、或去操控它们。',
   '要往某个终端输入内容（命令或回答它的提问），在回复末尾追加标记（每个一行，可多个）：',
   '<term n="编号">要输入的文本</term>',
-  '注意：要执行命令必须让文本以换行结尾（相当于按回车），例如 <term n="2">npm test\\n</term>；只回车确认就写一个 \\n。只有花叔明确要你操控某终端时才用，别擅自发指令。',
+  '注意：要执行命令必须让文本以换行结尾（相当于按回车），例如 <term n="2">npm test\\n</term>；只回车确认就写一个 \\n。只有用户明确要你操控某终端时才用，别擅自发指令。',
 ].join('\n');
 
 // 终端输入规范化：① 把 agent 按协议写的字面转义（\n \r \t）还原成控制符；
@@ -180,7 +191,7 @@ const bridge = {
     if (!list.length) return '【本机其他终端】当前没有正在运行的终端。';
     const oneLine = (s) => String(s || '').replace(/\s+/g, ' ').trim().slice(-360);
     const lines = list.map((t, i) => `#${i + 1} ${t.name || '终端'}｜目录:${t.cwd || '?'}｜前台:${t.proc || 'shell'}${t.busy ? '(运行中)' : '(空闲)'}\n  最近输出: ${oneLine(t.tail) || '（无）'}`);
-    return '【本机其他终端实时状态】（花叔可能让你查看或操控它们）\n' + lines.join('\n');
+    return '【本机其他终端实时状态】（用户可能让你查看或操控它们）\n' + lines.join('\n');
   },
   // 抽出 <term n=编号>文本</term>，返回 { clean, ops:[{n,text}] }
   extractTermOps(reply) {
@@ -208,7 +219,7 @@ const bridge = {
     const c = this.conv(cid);
     // 压缩后留的「上次进度摘要」：换了新 session，把它播种进去让 agent 无缝接着干，用一次就清
     let recap = '';
-    if (c.pendingRecap) { recap = `【上次对话进度摘要（上下文已压缩归档，接着干）】\n${c.pendingRecap}`; c.pendingRecap = ''; }
+    if (c.pendingRecap) { recap = `【上下文已压缩归档，下面是进度摘要 + 最近几轮原话，接着干、别从头开始】\n${c.pendingRecap}`; c.pendingRecap = ''; }
     // 系统提示 = 人格 + 注入记忆 + 记忆协议 + 发文件协议 + 控制终端协议 + 别的终端实时状态 + 续场摘要
     const termCtx = await this.buildTermContext();
     const sys = [this.persona, memory.inject(), memory.PROTOCOL, WX_FILE_PROTOCOL, WX_TERM_PROTOCOL, termCtx, recap].filter(Boolean).join('\n\n');
@@ -243,15 +254,27 @@ const bridge = {
     try { return (await this.runAgent(cid, WX_COMPACT_PROMPT) || '').trim(); }
     catch (e) { console.error('[wechat] memoryFlush', e); return ''; }
   },
-  // 整理对话（compact）：flush → 换新 session → 用进度摘要播种下一轮。auto=true 是闸门自动触发。
+  // 尾部回放：从展示用的 messages 里取最近几轮用户+助手原话，重置后连同摘要一起播种进新 session，
+  // 让在途任务的近期上下文不断（claude/codex 的真上下文在它们进程里、--resume 重置后清空，只能靠回放补）。
+  buildTailReplay(c) {
+    const turns = (c.messages || []).filter((m) => m.role === 'user' || m.role === 'assistant');
+    const tail = turns.slice(-TAIL_REPLAY_TURNS * 2); // 一轮 ≈ 一问一答
+    if (!tail.length) return '';
+    const cap = (s) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > 500 ? t.slice(0, 500) + '…' : t; };
+    const lines = tail.map((m) => `${m.role === 'user' ? '用户' : '你'}：${cap(m.text)}`).filter((l) => l.length > 3);
+    if (!lines.length) return '';
+    return '【最近几轮原话（接着这个上下文聊，别重复回答上面的内容）】\n' + lines.join('\n');
+  },
+  // 整理对话（compact）：flush → 换新 session → 用「进度摘要 + 尾部回放」播种下一轮。auto=true 是闸门自动触发。
   async compact(cid, auto) {
     const c = this.conv(cid);
     if (!c.claudeSession && !c.codexSession) return { ok: true, skipped: true }; // 没会话可压
-    const recap = await this.memoryFlush(cid);
+    const tail = this.buildTailReplay(c); // 在 flush 换 session 前就抓好尾部原话（messages 不受 session 影响，但先抓更稳）
+    const summary = await this.memoryFlush(cid);
     c.claudeSession = ''; c.codexSession = '';
-    c.pendingRecap = recap || '';
+    c.pendingRecap = [summary, tail].filter(Boolean).join('\n\n'); // 摘要在前给全局、尾部回放在后给细节
     c.lastTokens = 0; c.ctxPeak = 0; // 整理后水位回落
-    this.push(cid, 'system', auto ? '🧹 已自动整理上下文（旧对话归档进记忆，继续聊不受影响）' : '🧹 已整理上下文，旧对话归档进记忆，可继续聊');
+    this.push(cid, 'system', auto ? '🧹 已自动整理上下文（旧对话归档进记忆，近期对话保留，继续聊不受影响）' : '🧹 已整理上下文，旧对话归档进记忆，近期对话保留，可继续聊');
     return { ok: true };
   },
   // 新对话（硬重置）：flush 一次保住记忆 → 清 session 与续场摘要 → 之后纯靠长期记忆续。
@@ -425,8 +448,8 @@ const bridge = {
           this.logInbound(msg);
         }
       }
-      const okLine = ok.length ? `花叔通过微信发来${ok.length}个文件，已存到本机，请用 Read 工具直接读取来理解内容、再回应他：\n${ok.map((p) => `- ${p}`).join('\n')}` : '';
-      const badLine = bad.length ? `另有没下下来的：${bad.join('、')}。如实告诉花叔这几个没收到。` : '';
+      const okLine = ok.length ? `用户通过微信发来${ok.length}个文件，已存到本机，请用 Read 工具直接读取来理解内容、再回应他：\n${ok.map((p) => `- ${p}`).join('\n')}` : '';
+      const badLine = bad.length ? `另有没下下来的：${bad.join('、')}。如实告诉用户这几个没收到。` : '';
       mediaNote = `\n\n[${[okLine, badLine].filter(Boolean).join('\n')}]`;
     }
     // 气泡文字：有用户文字就用文字；没文字时退回占位（仅文件/失败图）；纯图无文字则留空，图自己就是内容

@@ -13,7 +13,7 @@
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#安裝)
 [![Signed](https://img.shields.io/badge/已簽名-Developer%20ID%20%2B%20公證-success?logo=apple)](#安裝)
 [![Version](https://img.shields.io/badge/版本-v2.7.2-ff3d8b)](../../releases)
-[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.1-blueviolet)](https://github.com/alchaincyf/fanbox)
+[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 [简体中文](README.md) · **繁體中文** · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Français](README.fr.md) · [Español](README.es.md)
 
@@ -170,6 +170,10 @@
 - **標籤自訂游標**：終端機標籤區用跟隨皮膚強調色的小箭頭游標。
 - **自動連接埠順延**：預設 4567 被佔用時自動換到下一對空連接埠，多實例不再衝突。
 - **自訂應用程式圖示 + 側邊欄 logo**，應用程式更名 Rurutia。
+
+### 🌐 介面語言（7 種）
+
+- 應用程式介面語言從「中 / 英」擴充到 **7 種**：简体中文 / 繁體中文 / English / 日本語 / 한국어 / Français / Español。側邊欄新增「語言」選擇器，在清單裡點母語名即可切換；使用者內容區（預覽 / 編輯器 / 終端機）不翻譯。
 
 ---
 

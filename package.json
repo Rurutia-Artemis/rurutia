@@ -1,6 +1,6 @@
 {
   "name": "fanbox",
-  "version": "2.7.2",
+  "version": "2.8.0",
   "description": "Rurutia — the cockpit for coding agents. Command Claude Code or Codex, watch every file and line they change, and take over anytime.",
   "bin": {
     "fanbox": "server.js"
@@ -61,6 +61,7 @@
     "node": ">=18"
   },
   "dependencies": {
+    "@xterm/addon-clipboard": "^0.2.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-unicode11": "^0.9.0",
     "@xterm/addon-webgl": "^0.18.0",

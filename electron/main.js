@@ -319,9 +319,11 @@ ipcMain.handle('win:traffic', (e, { show }) => {
 
 // 界面语言：用户手动选过的存在 ~/.fanbox/config.json（渲染层切换时写入），没选过跟随系统
 function uiLang() {
+  // 原生菜单只有中/英两套文案：中文系语言（zh / zh-TW）走中文，其余语言走英文。
+  // 应用内界面（渲染层）才是完整多语言；这里只决定 macOS 菜单栏少量自定义项的语种。
   try {
     const c = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.fanbox', 'config.json'), 'utf8'));
-    if (c.lang === 'zh' || c.lang === 'en') return c.lang;
+    if (typeof c.lang === 'string' && c.lang) return c.lang.startsWith('zh') ? 'zh' : 'en';
   } catch { /* 没配置过 */ }
   return String(app.getLocale() || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
 }

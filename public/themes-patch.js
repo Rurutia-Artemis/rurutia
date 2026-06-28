@@ -22,26 +22,26 @@
   var DARK_FUNC  = { ok: '#3DDC84', warn: '#FFC83D', err: '#FF5C6C', info: '#5B9BFF' };
   var LIGHT_FUNC = { ok: '#1FA85A', warn: '#C98A1E', err: '#E0454F', info: '#2D6BD8' };
   var PALETTES = [
-    // —— 暗底霓虹系 9 套 ——
-    { id: 'grid',  name: '电路板', dark: true, bg: '#0F1410', text: '#E4ECDD', acc: ['#3DDC84', '#FFC83D', '#2AD0E0'] },
-    { id: 'pixel', name: '像素光', dark: true, bg: '#15101A', text: '#ECE6F2', acc: ['#FF3D8B', '#21E6C1', '#FFE03D'] },
-    { id: 'axis',  name: '工业轴', dark: true, bg: '#16130E', text: '#E9E6DD', acc: ['#FF8F1F', '#00BCD4', '#FFC83D'] },
-    { id: 'void',  name: '虚空',   dark: true, bg: '#110F1A', text: '#E6E2F2', acc: ['#8B5CFF', '#64DD17', '#00D9FF'] },
-    { id: 'mode',  name: '霓虹夜', dark: true, bg: '#190F12', text: '#F0E6EA', acc: ['#FF2D55', '#5B8CFF', '#FF9F2D'] },
-    { id: 'unit',  name: '电光紫', dark: true, bg: '#150A1C', text: '#ECE2F5', acc: ['#BE52FF', '#00D9FF', '#FF4DD8'] },
-    { id: 'flux',  name: '熔岩橙', dark: true, bg: '#1A1210', text: '#F2E8E2', acc: ['#FF6B35', '#2F9BED', '#FFC23D'] },
-    { id: 'core',  name: '深海核', dark: true, bg: '#0D1718', text: '#DEEAEA', acc: ['#00B8A0', '#FFB300', '#4DA6FF'] },
-    { id: 'form',  name: '翡翠林', dark: true, bg: '#0D1A12', text: '#E2ECE4', acc: ['#00D165', '#FF7043', '#FFC93C'] },
-    // —— 浅底海报系 9 套 ——
-    { id: 'memphis',  name: '新孟菲斯',   dark: false, bg: '#FCE9DC', text: '#232A4D', acc: ['#2D4CC8', '#D6246E', '#F4B400'] },
-    { id: 'museum',   name: '现代博物',   dark: false, bg: '#F6F1E5', text: '#232838', acc: ['#2A4A8F', '#B5604A', '#C99A3C'] },
-    { id: 'acid',     name: '酸性时尚',   dark: false, bg: '#E9D24A', text: '#15173A', acc: ['#2433C8', '#C81E6E', '#00897B'] },
-    { id: 'future',   name: '未来社区',   dark: false, bg: '#DAF7EC', text: '#1B2540', acc: ['#7C3AED', '#0E8FB0', '#E0457E'] },
-    { id: 'tropical', name: '热带运动',   dark: false, bg: '#FFE0B8', text: '#2A4A66', acc: ['#00604A', '#C25A1A', '#234F96'] },
-    { id: 'disco',    name: '电子舞厅',   dark: false, bg: '#F0DBFF', text: '#352A55', acc: ['#6E27D6', '#C0249A', '#0E8FB0'] },
-    { id: 'rowing',   name: '赛艇俱乐部', dark: false, bg: '#FBF3D6', text: '#283A2C', acc: ['#2A4A8F', '#2E7D5B', '#D94A4A'] },
-    { id: 'glass',    name: '玻璃城市',   dark: false, bg: '#E3F3FF', text: '#283E78', acc: ['#1F54BC', '#1B8E76', '#6735BE'] },
-    { id: 'jelly',    name: '数字果冻',   dark: false, bg: '#FFE6EE', text: '#34285E', acc: ['#2A52CC', '#E0457E', '#8B5CF6'] },
+    // —— 暗底霓虹系 9 套（v2：底色分 3 档深浅 + 拉开色相，去同质化）——
+    { id: 'grid',  name: '电路板', dark: true, bg: '#0C140D', text: '#E4ECDD', acc: ['#3DDC84', '#FFC83D', '#2AD0E0'] },
+    { id: 'pixel', name: '像素光', dark: true, bg: '#1B0F1A', text: '#ECE6F2', acc: ['#FF3D8B', '#21E6C1', '#FFE03D'] },
+    { id: 'axis',  name: '工业轴', dark: true, bg: '#1E1B10', text: '#E9E6DD', acc: ['#FF8F1F', '#00BCD4', '#FFC83D'] },
+    { id: 'void',  name: '虚空',   dark: true, bg: '#141A33', text: '#E6E2F2', acc: ['#8B5CFF', '#64DD17', '#00D9FF'] },
+    { id: 'mode',  name: '霓虹夜', dark: true, bg: '#1C0E14', text: '#F0E6EA', acc: ['#FF2D55', '#5B8CFF', '#FF9F2D'] },
+    { id: 'unit',  name: '电光紫', dark: true, bg: '#1E0E2A', text: '#ECE2F5', acc: ['#BE52FF', '#00D9FF', '#FF4DD8'] },
+    { id: 'flux',  name: '熔岩橙', dark: true, bg: '#241509', text: '#F2E8E2', acc: ['#FF6B35', '#2F9BED', '#FFC23D'] },
+    { id: 'core',  name: '深海核', dark: true, bg: '#0C1E22', text: '#DEEAEA', acc: ['#00B8A0', '#FFB300', '#4DA6FF'] },
+    { id: 'form',  name: '翡翠林', dark: true, bg: '#102A19', text: '#E2ECE4', acc: ['#00D165', '#FF7043', '#FFC93C'] },
+    // —— 浅底海报系 9 套（v2：底色加深一档、surface 不再洗白）——
+    { id: 'memphis',  name: '新孟菲斯',   dark: false, bg: '#F7DEC9', text: '#232A4D', acc: ['#2D4CC8', '#D6246E', '#F4B400'] },
+    { id: 'museum',   name: '现代博物',   dark: false, bg: '#EFE6D2', text: '#232838', acc: ['#2A4A8F', '#B5604A', '#C99A3C'] },
+    { id: 'acid',     name: '酸性时尚',   dark: false, bg: '#DEC95C', text: '#15173A', acc: ['#2433C8', '#C81E6E', '#00897B'] },
+    { id: 'future',   name: '未来社区',   dark: false, bg: '#C9EFDD', text: '#1B2540', acc: ['#7C3AED', '#0E8FB0', '#E0457E'] },
+    { id: 'tropical', name: '热带运动',   dark: false, bg: '#FAD6A6', text: '#2A4A66', acc: ['#00604A', '#C25A1A', '#234F96'] },
+    { id: 'disco',    name: '电子舞厅',   dark: false, bg: '#E6CCFB', text: '#352A55', acc: ['#6E27D6', '#C0249A', '#0E8FB0'] },
+    { id: 'rowing',   name: '赛艇俱乐部', dark: false, bg: '#F2E7C3', text: '#283A2C', acc: ['#2A4A8F', '#2E7D5B', '#D94A4A'] },
+    { id: 'glass',    name: '玻璃城市',   dark: false, bg: '#D2EAFB', text: '#283E78', acc: ['#1F54BC', '#1B8E76', '#6735BE'] },
+    { id: 'jelly',    name: '数字果冻',   dark: false, bg: '#FBD9E4', text: '#34285E', acc: ['#2A52CC', '#E0457E', '#8B5CF6'] },
   ];
 
   // 原生 3 套皮肤（app.js 自带）：按用户要求不在选择器里展示，仅保留 id 识别用于兜底，不重定义其样式
@@ -93,11 +93,11 @@
     var f = p.func || (p.dark ? DARK_FUNC : LIGHT_FUNC);   // 功能色：缺省走该明暗的共享状态色
     return {
       '--bg': bg,
-      '--bg-2': p.bg2 || (p.dark ? lighten(bg, 0.05) : lighten(bg, 0.5)),
+      '--bg-2': p.bg2 || (p.dark ? lighten(bg, 0.05) : lighten(bg, 0.26)),
       '--bg-3': p.bg3 || (p.dark ? lighten(bg, 0.10) : darken(bg, 0.04)),
-      '--panel': p.panel || (p.dark ? lighten(bg, 0.02) : lighten(bg, 0.3)),
-      '--border': p.border || (p.dark ? lighten(bg, 0.14) : darken(bg, 0.10)),
-      '--rule': p.dark ? lighten(bg, 0.09) : darken(bg, 0.06),
+      '--panel': p.panel || (p.dark ? lighten(bg, 0.02) : lighten(bg, 0.14)),
+      '--border': p.border || (p.dark ? lighten(bg, 0.14) : darken(bg, 0.12)),
+      '--rule': p.dark ? lighten(bg, 0.09) : darken(bg, 0.07),
       '--text': tx,
       '--text-dim': mix(tx, bg, 0.40),
       '--text-faint': mix(tx, bg, 0.62),

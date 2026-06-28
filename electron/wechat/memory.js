@@ -32,8 +32,8 @@ function inject() {
   const refProj = read(path.join(CLAUDE_DIR, 'PROJECTS.md')).trim();
   let block = '';
   if (own) block += `【FanBox 长期记忆】\n${own}\n`;
-  if (refMem) block += `\n【花叔全局记忆 · 参考】\n${refMem}\n`;
-  if (refProj) block += `\n【花叔当前项目 · 参考】\n${refProj}\n`;
+  if (refMem) block += `\n【全局记忆 · 参考】\n${refMem}\n`;
+  if (refProj) block += `\n【当前项目 · 参考】\n${refProj}\n`;
   block = block.trim();
   if (block.length > INJECT_BUDGET) block = block.slice(0, INJECT_BUDGET) + '\n…（记忆较长，已截断；完整见磁盘文件）';
   return block;

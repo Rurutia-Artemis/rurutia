@@ -13,7 +13,7 @@ Sobre esa base, Rurutia rehízo lo visual y la tipografía, agregó **18 skins d
 [![Plataforma](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#instalación)
 [![Firmado](https://img.shields.io/badge/Firmado-Developer%20ID%20%2B%20Notarizado-success?logo=apple)](#instalación)
 [![Versión](https://img.shields.io/badge/Versión-v2.7.2-ff3d8b)](../../releases)
-[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.1-blueviolet)](https://github.com/alchaincyf/fanbox)
+[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Français](README.fr.md) · **Español**
 
@@ -170,6 +170,10 @@ Se inyecta vía ZDOTDIR: primero hace source de tu dotfile real (PATH / alias id
 - **Cursor personalizado en las pestañas**: la zona de pestañas de la terminal usa un cursor de flecha pequeña que sigue el color de acento del skin.
 - **Avance automático de puertos**: si el puerto predeterminado 4567 está ocupado, salta automáticamente al siguiente par de puertos libres, sin conflictos entre varias instancias.
 - **Icono de aplicación personalizado + logo en la barra lateral**, con la app renombrada a Rurutia.
+
+### 🌐 Idiomas de la interfaz (7)
+
+- La interfaz de la app ahora está disponible en **7 idiomas**: 简体中文 / 繁體中文 / English / 日本語 / 한국어 / Français / Español. Un nuevo selector «Idioma» en la barra lateral lista cada idioma por su nombre nativo: elige uno para cambiar. El contenido del usuario (vista previa / editor / terminal) nunca se traduce.
 
 ---
 

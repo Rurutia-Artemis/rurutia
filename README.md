@@ -13,7 +13,7 @@
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#安装)
 [![Signed](https://img.shields.io/badge/已签名-Developer%20ID%20%2B%20公证-success?logo=apple)](#安装)
 [![Version](https://img.shields.io/badge/版本-v2.7.2-ff3d8b)](../../releases)
-[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.1-blueviolet)](https://github.com/alchaincyf/fanbox)
+[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 **简体中文** · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Français](README.fr.md) · [Español](README.es.md)
 
@@ -170,6 +170,10 @@
 - **标签自定义光标**：终端标签区用跟随皮肤强调色的小箭头光标。
 - **自动端口顺延**：默认 4567 被占用时自动换到下一对空端口，多实例不再冲突。
 - **自定义应用图标 + 侧栏 logo**，应用更名 Rurutia。
+
+### 🌐 界面语言（7 国）
+
+- 应用内界面语言从「中 / 英」扩到 **7 种**：简体中文 / 繁體中文 / English / 日本語 / 한국어 / Français / Español。侧栏新增「语言」选择器，列表里点母语名即切换；用户内容区（预览 / 编辑器 / 终端）不翻译。
 
 ---
 
