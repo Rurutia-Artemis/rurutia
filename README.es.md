@@ -12,7 +12,7 @@ Sobre esa base, Rurutia rehízo lo visual y la tipografía, agregó **18 skins d
 [![Licencia: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Plataforma](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#instalación)
 [![Firmado](https://img.shields.io/badge/Firmado-Developer%20ID%20%2B%20Notarizado-success?logo=apple)](#instalación)
-[![Versión](https://img.shields.io/badge/Versión-v2.7.2-ff3d8b)](../../releases)
+[![Versión](https://img.shields.io/badge/Versión-v2.8.1-ff3d8b)](../../releases)
 [![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Français](README.fr.md) · **Español**

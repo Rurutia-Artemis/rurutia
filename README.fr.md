@@ -12,7 +12,7 @@ Par-dessus, Rurutia a refait le visuel et les polices, ajouté **18 skins de cou
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#installation)
 [![Signed](https://img.shields.io/badge/Signé-Developer%20ID%20%2B%20Notarisé-success?logo=apple)](#installation)
-[![Version](https://img.shields.io/badge/Version-v2.7.2-ff3d8b)](../../releases)
+[![Version](https://img.shields.io/badge/Version-v2.8.1-ff3d8b)](../../releases)
 [![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · **Français** · [Español](README.es.md)

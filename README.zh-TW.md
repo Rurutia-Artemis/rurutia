@@ -12,7 +12,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#安裝)
 [![Signed](https://img.shields.io/badge/已簽名-Developer%20ID%20%2B%20公證-success?logo=apple)](#安裝)
-[![Version](https://img.shields.io/badge/版本-v2.7.2-ff3d8b)](../../releases)
+[![Version](https://img.shields.io/badge/版本-v2.8.1-ff3d8b)](../../releases)
 [![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 [简体中文](README.md) · **繁體中文** · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Français](README.fr.md) · [Español](README.es.md)

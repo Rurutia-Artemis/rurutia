@@ -12,7 +12,7 @@ Claude Code / Codex にローカルで作業を指示し、触れたすべての
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#インストール)
 [![Signed](https://img.shields.io/badge/署名済み-Developer%20ID%20%2B%20公証-success?logo=apple)](#インストール)
-[![Version](https://img.shields.io/badge/バージョン-v2.7.2-ff3d8b)](../../releases)
+[![Version](https://img.shields.io/badge/バージョン-v2.8.1-ff3d8b)](../../releases)
 [![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · **日本語** · [한국어](README.ko.md) · [Français](README.fr.md) · [Español](README.es.md)
