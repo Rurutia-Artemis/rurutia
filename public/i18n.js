@@ -133,8 +133,8 @@
   };
   window.t = tr;
 
-  // 用户内容区不翻译：文件预览正文、三种编辑器、终端、灯箱、语言选择器（保留各语言本名）
-  const SKIP = '#preview-body, #ed-host, .xterm, .milkdown, .lightbox, .cp-name, .cp-dir, #lang-switch';
+  // 用户内容区不翻译：文件预览正文、三种编辑器、终端、灯箱、语言选择器（保留各语言本名）、回合存档标签（含终端标题）
+  const SKIP = '#preview-body, #ed-host, .xterm, .milkdown, .lightbox, .cp-name, .cp-dir, #lang-switch, .snap-lb';
   const ATTRS = ['title', 'placeholder'];
   const visit = (node) => {
     if (node.nodeType === Node.TEXT_NODE) {

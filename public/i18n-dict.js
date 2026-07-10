@@ -2,6 +2,7 @@
 // FanBox 界面词典：中文原文 → 英文。由 i18n.js 消费；缺词条时英文界面回退显示中文。
 window.FANBOX_DICT = {
   // ---------- 侧栏 ----------
+  'Coding Agent的驾驶舱': 'The cockpit for coding agents',
   '搜索全部文件': 'Search all files',
   '快速入口': 'Quick access',
   '收藏': 'Favorites',
@@ -56,6 +57,19 @@ window.FANBOX_DICT = {
   '这个文件夹里 AI 干过什么：历史会话、改过的文件、一键续上': 'What AI has done in this folder: past sessions, changed files, one-click resume',
   '占用透视': 'Disk usage',
   '算上子目录的真实磁盘占用': 'True disk usage including subfolders',
+  '回合存档': 'Round snapshots',
+  'agent 每轮开工前的自动存档，可一键回到任意一轮之前': 'Automatic snapshot before each agent round — one click back to any point',
+  '这个文件夹还没有存档': 'No snapshots for this folder yet',
+  '在内嵌终端里跑 agent 时，每轮开工前会自动存一份，坏了随时能回来': 'When an agent runs in the embedded terminal, a snapshot is taken before each round — you can always come back',
+  '每一条都是当时整个项目的完整状态。恢复前会自动把当前状态也存一份，随时能再滚回来。': 'Each entry is the full project state at that moment. Before restoring, the current state is snapshotted too, so you can always roll back again.',
+  '回到这时': 'Restore',
+  '恢复中…': 'Restoring…',
+  '最新': 'latest',
+  '读存档中…': 'Loading snapshots…',
+  '这个项目的 agent 正在干活，先等它停下（或按 Esc 打断）再恢复': 'An agent is working in this project — wait for it to stop (or press Esc to interrupt) before restoring',
+  '该文件不在 git 仓库里，也还没有回合存档（跑过 agent 就有了）': 'Not in a git repo and no round snapshot yet (run an agent once to get one)',
+  '与上一回合存档无差异': 'No changes since the last round snapshot',
+  '恢复失败': 'Restore failed',
   '⚠ 文件太多，结果可能不完整。进入更具体的子目录可看到全部。': '⚠ Too many files — results may be incomplete. Open a more specific subfolder to see everything.',
   '扫描最近修改的文件…': 'Scanning recently modified files…',
   '改': 'edited',
@@ -260,6 +274,12 @@ window.FANBOX_DICT = {
   // ---------- 终端 ----------
   '启动 Claude Code（跳过权限确认）：空闲终端就地启动，正跑着任务则新开标签': 'Launch Claude Code (skipping permission prompts): starts in the idle terminal, or opens a new tab if one is busy',
   '启动 Codex：空闲终端就地启动，正跑着任务则新开标签': 'Launch Codex: starts in the idle terminal, or opens a new tab if one is busy',
+  '选择一键启动的 coding agent': 'Choose quick-launch coding agents',
+  '一键启动的 coding agent': 'Quick-launch coding agents',
+  '勾选即生效 · 点「未装」复制安装命令': 'Changes apply instantly · click “not installed” to copy the install command',
+  '高级：~/.fanbox/config.json 的 agents 数组可自定义命令 / 加新 agent': 'Advanced: override commands or add agents via the agents array in ~/.fanbox/config.json',
+  '未装': 'not installed',
+  '已复制安装命令': 'Install command copied',
   '文件跟随：跟着当前终端 tab 的 agent，它改哪个文件，文件区和预览就跟到哪；html/md 边写边出实时预览（手动浏览即自动停）': "Follow files: tracks the current terminal tab's agent — the file view and preview follow whatever it edits; html/md render live as they are written (any manual browsing stops it)",
   '文件跟随': 'Follow files',
   '绑定的终端已关闭，文件跟随已停': 'The bound terminal was closed — follow stopped',
@@ -360,6 +380,11 @@ window.FANBOX_DICT = {
 
   // ---------- 更新提示 ----------
   '去下载': 'Download',
+  '下载更新': 'Download update',
+  '发布页': 'Release page',
+  '下载中…': 'Downloading…',
+  '已下载并打开 dmg，拖进 Applications 完成更新': 'Downloaded — the dmg is open, drag it into Applications to finish',
+  '下载失败，去发布页手动下吧': 'Download failed — grab it from the release page',
   '这个版本不再提醒': "Don't remind me for this version",
 
   // ---------- 快速入口目录名 ----------
@@ -417,6 +442,10 @@ window.FANBOX_DICT = {
 };
 // 含插值的动态文案：正则 → 替换式（$1 等捕获组），EN 模式下逐条尝试
 window.FANBOX_DICT_RULES = [
+  // agent 启动按钮（动态生成的 title/toast）
+  [/^启动 (.+)：空闲终端就地启动，正跑着任务则新开标签$/, (m) => `Launch ${m[1]}: starts in the idle terminal, or opens a new tab if one is busy`],
+  [/^打开 (.+) 桌面应用（该产品无终端 CLI 形态）$/, (m) => `Open the ${m[1]} desktop app (no terminal CLI available)`],
+  [/^点击复制安装命令：(.+)$/, (m) => `Click to copy the install command: ${m[1]}`],
   // 状态栏：N 项 · N 文件夹 · N 文件 大小
   [/^(\d+) 项( · (\d+) 文件夹)?( · (\d+) 文件 (.+))?$/, (m) => `${m[1]} items${m[3] ? ` · ${m[3]} folders` : ''}${m[5] ? ` · ${m[5]} files ${m[6]}` : ''}`],
   // 压缩包条目数：123 项 / 500+ 项
@@ -460,6 +489,12 @@ window.FANBOX_DICT_RULES = [
   [/^编辑 · (.+)$/, (m) => `Edit · ${m[1]}`],
   [/^项目记忆 · (.+)$/, (m) => `Project memory · ${m[1]}`],
   [/^磁盘占用 · (.+)$/, (m) => `Disk usage · ${m[1]}`],
+  // 回合存档
+  [/^回合存档 · (.+)$/, (m) => `Round snapshots · ${m[1]}`],
+  [/^把「(.+)」整个恢复到 (.+) 存档时的样子？之后的改动会被移除（当前状态已自动存档，可再滚回来）$/, (m) => `Restore "${m[1]}" to its state at ${m[2]}? Later changes will be removed (the current state was just snapshotted, so you can roll back again)`],
+  [/^已恢复到 (.+) · 恢复前的状态也存了一份$/, (m) => `Restored to ${m[1]} · the previous state was snapshotted too`],
+  [/^左：回合存档（(.+)）　·　右：当前 · 只读$/, (m) => `Left: round snapshot (${m[1]}) · Right: current · read-only`],
+  ['新文件（上一回合存档时还没有） · 只读', 'New file (did not exist in the last round snapshot) · read-only'],
   // 预览底部：创建/修改时间
   [/^创建 (.+)$/, (m) => `Created ${m[1]}`],
   [/^改 (.+)$/, (m) => `Modified ${m[1]}`],
@@ -516,4 +551,5 @@ window.FANBOX_DICT_RULES = [
   }],
   // 更新提示
   [/^新版本 v(.+) 已发布$/, (m) => `v${m[1]} is out`],
+  [/^下载中 (\d+)%$/, (m) => `Downloading ${m[1]}%`],
 ];

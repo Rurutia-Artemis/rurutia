@@ -113,8 +113,7 @@ function createWindow() {
   const remember = () => { clearTimeout(bt); bt = setTimeout(saveBounds, 400); };
   win.on('resize', remember);
   win.on('move', remember);
-  // macOS：点红色 ✕ 不销毁窗口，只隐藏（保住渲染进程状态 + 终端 PTY），点 Dock 原样唤回。
-  // 真退（⌘Q / before-quit 确认后）才放行关闭。非 macOS 维持「关窗即退」。
+  // macOS：点左上角红叉只隐藏到 Dock（保活渲染进程，所有界面/终端状态原样保留），真正退出走 ⌘Q。
   win.on('close', (e) => {
     saveBounds();
     if (process.platform === 'darwin' && !isQuitting) { e.preventDefault(); win.hide(); }
@@ -303,6 +302,44 @@ async function checkUpdate(opts) {
 ipcMain.handle('update:open', (e, { url }) => { if (/^https:\/\/github\.com\//.test(String(url))) shell.openExternal(url); });
 ipcMain.handle('update:get', () => pendingUpdate);
 
+// #26 应用内下载更新：按当前架构拼 dmg 资产地址（发布产物统一 FanBox-<版本>-<arch>.dmg），
+// 下到 ~/Downloads 后直接打开挂载，拖进 Applications 即完成。全自动安装（Squirrel）仍要等 Developer ID 签名
+let updDownloading = false;
+ipcMain.handle('update:download', async (e, { version }) => {
+  if (updDownloading) return { ok: false, error: 'busy' };
+  const ver = String(version || '').replace(/^v/, '');
+  if (!/^\d+\.\d+\.\d+$/.test(ver)) return { ok: false, error: 'bad version' };
+  const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+  const url = `https://github.com/alchaincyf/fanbox/releases/download/v${ver}/FanBox-${ver}-${arch}.dmg`;
+  const dest = path.join(app.getPath('downloads'), `FanBox-${ver}-${arch}.dmg`);
+  const send = (m) => { if (win && !win.isDestroyed()) win.webContents.send('update:progress', m); };
+  updDownloading = true;
+  const tmp = dest + '.part';
+  try {
+    const res = await net.fetch(url, { headers: { 'User-Agent': 'fanbox-app' } });
+    if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+    const total = Number(res.headers.get('content-length')) || 0;
+    const out = fs.createWriteStream(tmp);
+    let got = 0, lastPct = -1;
+    for await (const chunk of res.body) {
+      const buf = Buffer.from(chunk);
+      if (!out.write(buf)) await new Promise((r) => out.once('drain', r));
+      got += buf.length;
+      const pct = total ? Math.floor((got / total) * 100) : -1;
+      if (pct !== lastPct) { lastPct = pct; send({ state: 'downloading', pct }); }
+    }
+    await new Promise((resolve, reject) => out.end((err) => (err ? reject(err) : resolve())));
+    await fs.promises.rename(tmp, dest);
+    send({ state: 'done', file: dest });
+    shell.openPath(dest);
+    return { ok: true, file: dest };
+  } catch (err) {
+    fs.promises.unlink(tmp).catch(() => {});
+    send({ state: 'error', error: String((err && err.message) || err) });
+    return { ok: false, error: String((err && err.message) || err) };
+  } finally { updDownloading = false; }
+});
+
 // 点完成通知把 app 拉到前台（渲染层 window.focus() 唤不醒最小化/被遮挡的窗口）
 ipcMain.handle('win:focus', () => {
   if (!win || win.isDestroyed()) return;
@@ -469,13 +506,15 @@ function buildMenu() {
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
-// 点 Dock 图标：有窗口（含隐藏的）就唤回原窗口，没有才新建。隐藏的窗口必须 show，否则点 Dock 没反应。
-app.on('activate', () => { if (win && !win.isDestroyed()) win.show(); else createWindow(); });
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  else if (win && !win.isDestroyed()) { win.show(); win.focus(); } // 从 Dock 点回来：显示隐藏的窗口，状态原样还在
+});
 // ⌘Q 兜底：还有终端在跑时（agent 任务），退出前确认，避免手滑全灭
 let quitConfirmed = false;
-let isQuitting = false; // 真退标记：close 处理器据此决定「隐藏」还是「放行关闭」
+let isQuitting = false; // 真正退出（⌘Q / 菜单退出）才置真；点红叉只隐藏不退出，见 win.on('close')
 app.on('before-quit', (e) => {
-  if (quitConfirmed || terminals.size === 0) { isQuitting = true; return; } // 放行：让 close 真正关窗
+  if (quitConfirmed || terminals.size === 0) { isQuitting = true; return; }
   e.preventDefault();
   const choice = dialog.showMessageBoxSync(win && !win.isDestroyed() ? win : undefined, {
     type: 'warning',

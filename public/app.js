@@ -429,9 +429,10 @@ function renderStatusbar() {
   const files = list.length - dirs;
   const bytes = list.reduce((a, e) => a + (e.isDir ? 0 : e.size || 0), 0);
   sb.classList.remove('hidden');
-  sb.innerHTML = `<span><b>${list.length}</b> 项${dirs ? ` · <b>${dirs}</b> 文件夹` : ''}${files ? ` · <b>${files}</b> 文件 <b>${fmtSize(bytes)}</b>` : ''}</span><span class="sb-links">${state.project ? '<a id="sb-rel" title="版本号→CHANGELOG→打包→push→Release 一条龙，在终端跑">发版</a>' : ''}<a id="sb-mem" title="这个文件夹里 AI 干过什么：历史会话、改过的文件、一键续上">项目记忆</a><a id="sb-du" title="算上子目录的真实磁盘占用">占用透视</a></span>`;
+  sb.innerHTML = `<span><b>${list.length}</b> 项${dirs ? ` · <b>${dirs}</b> 文件夹` : ''}${files ? ` · <b>${files}</b> 文件 <b>${fmtSize(bytes)}</b>` : ''}</span><span class="sb-links">${state.project ? '<a id="sb-rel" title="版本号→CHANGELOG→打包→push→Release 一条龙，在终端跑">发版</a>' : ''}<a id="sb-mem" title="这个文件夹里 AI 干过什么：历史会话、改过的文件、一键续上">项目记忆</a><a id="sb-snap" title="agent 每轮开工前的自动存档，可一键回到任意一轮之前">回合存档</a><a id="sb-du" title="算上子目录的真实磁盘占用">占用透视</a></span>`;
   $('#sb-du').onclick = () => diskPanel(state.cwd);
   $('#sb-mem').onclick = () => memoryPanel(state.cwd);
+  $('#sb-snap').onclick = () => snapshotPanel(state.cwd);
   const rel = $('#sb-rel'); if (rel) rel.onclick = () => releasePanel();
 }
 function renderFiles() {
@@ -833,9 +834,9 @@ function renderHtmlPreview(data, meta) {
 async function showDiff(e) {
   if (follow.on) setFileFollow(false, '手动接管，文件跟随已停');
   const data = await api('/api/git-file?path=' + encodeURIComponent(e.path));
-  if (!data.isRepo) { toast('该文件不在 git 仓库里', true); return; }
+  if (!data.isRepo && !data.shadow) { toast('该文件不在 git 仓库里，也还没有回合存档（跑过 agent 就有了）', true); return; }
   if (!data.diffable) { toast('该类型不支持 diff', true); return; }
-  if (!data.isNew && (data.original || '') === (data.modified || '')) { toast('与 HEAD 无差异'); return; }
+  if (!data.isNew && (data.original || '') === (data.modified || '')) { toast(data.shadow ? '与上一回合存档无差异' : '与 HEAD 无差异'); return; }
   if (!await mona.load()) { toast('编辑器未就绪', true); return; }
   if (!await guardDirty()) return;
   mona.disposeIfAny(); crepe.disposeIfAny(); imgEditState = null;
@@ -846,7 +847,7 @@ async function showDiff(e) {
   renderPreviewFoot(e);
   const body = $('#preview-body');
   body.innerHTML =
-    `<div class="editor-bar"><span class="editor-hint">${data.isNew ? '新文件（HEAD 中不存在）' : '左：HEAD　·　右：当前工作区'} · 只读</span><button id="diff-close" class="ghost-btn">返回预览</button></div>` +
+    `<div class="editor-bar"><span class="editor-hint">${data.isNew ? (data.shadow ? '新文件（上一回合存档时还没有）' : '新文件（HEAD 中不存在）') : (data.shadow ? `左：回合存档（${fmtTime(data.baseTs)}）　·　右：当前` : '左：HEAD　·　右：当前工作区')} · 只读</span><button id="diff-close" class="ghost-btn">返回预览</button></div>` +
     `<div id="ed-host" class="mona-host"></div>`;
   mona.openDiff($('#ed-host'), data.original, data.modified, (e.name.split('.').pop() || '').toLowerCase());
   $('#diff-close').onclick = () => openPreview(e);
@@ -1751,6 +1752,60 @@ async function memoryPanel(dirPath) {
   });
 }
 
+// 回合存档：agent 每轮开工前的自动快照列表 + 一键回滚。
+// 「AI 弄坏了东西怎么办」从一种恐惧变成一个按钮：回滚前会再自动存一份，回滚本身也能滚回来
+async function snapshotPanel(dirPath) {
+  const old = $('.snap-overlay'); if (old) old.remove();
+  const ov = document.createElement('div');
+  ov.className = 'input-overlay snap-overlay';
+  ov.innerHTML = `<div class="input-dialog snap-dialog">
+    <div class="input-title">回合存档 · ${escapeHtml(dirPath.replace(state.home, '~'))}</div>
+    <div class="snap-body"><div class="cmdk-loading">读存档中…</div></div></div>`;
+  document.body.appendChild(ov);
+  const onKey = (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); close(); } };
+  const close = () => { ov.remove(); document.removeEventListener('keydown', onKey, true); };
+  ov.onclick = (ev) => { if (ev.target === ov) close(); };
+  document.addEventListener('keydown', onKey, true);
+  const d = await api('/api/snapshots?path=' + encodeURIComponent(dirPath));
+  const body = ov.querySelector('.snap-body');
+  if (!d.project || !d.snaps.length) {
+    body.innerHTML = '<div class="empty-state">这个文件夹还没有存档<br><br><span class="usage-sub">在内嵌终端里跑 agent 时，每轮开工前会自动存一份，坏了随时能回来</span></div>';
+    return;
+  }
+  const clock = (ts) => {
+    const t = new Date(ts); const hm = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+    return t.toDateString() === new Date().toDateString() ? hm : `${t.getMonth() + 1}/${t.getDate()} ${hm}`;
+  };
+  const projName = baseOf(d.project);
+  body.innerHTML = `<div class="snap-hint">每一条都是当时整个项目的完整状态。恢复前会自动把当前状态也存一份，随时能再滚回来。</div>` +
+    d.snaps.map((s, i) => `
+    <div class="snap-row">
+      <span class="snap-time" title="${new Date(s.ts).toLocaleString()}">${clock(s.ts)}</span>
+      <span class="snap-lb">${escapeHtml(s.label)}${i === 0 ? '<i class="snap-latest">最新</i>' : ''}</span>
+      <span class="snap-ago">${fmtTime(s.ts)}</span>
+      <button class="ghost-btn snap-restore" data-i="${i}">回到这时</button>
+    </div>`).join('');
+  body.querySelectorAll('.snap-restore').forEach((b) => {
+    b.onclick = async () => {
+      const s = d.snaps[Number(b.dataset.i)];
+      // agent 正在这个项目里干活时不给回滚：一边写一边恢复只会两败俱伤
+      let busy = false;
+      term.sessions.forEach((t) => {
+        const c = t.cwd || t.startDir || '';
+        if (!t.dead && t.status === 'busy' && (c === d.project || c.startsWith(d.project + '/') || d.project.startsWith(c + '/'))) busy = true;
+      });
+      if (busy) { toast('这个项目的 agent 正在干活，先等它停下（或按 Esc 打断）再恢复', true); return; }
+      if (!await confirmDialog(`把「${projName}」整个恢复到 ${clock(s.ts)} 存档时的样子？之后的改动会被移除（当前状态已自动存档，可再滚回来）`)) return;
+      b.disabled = true; b.textContent = '恢复中…';
+      const r = await apiPost('/api/snapshot-restore', { path: d.project, hash: s.hash });
+      if (!r.ok) { toast(r.error || '恢复失败', true); b.disabled = false; b.textContent = '回到这时'; return; }
+      close();
+      toast(`已恢复到 ${clock(s.ts)} · 恢复前的状态也存了一份`);
+      navigate(state.cwd);
+    };
+  });
+}
+
 // AI 整理：一键在内嵌终端拉起交互式 agent（claude/codex）对话式整理。
 // 翻箱只备料——把整理偏好、过往整理历史、工作约定写成 brief 文件，agent 读完先摊方案，
 // 你在终端里对话确认/调整后它才动手；每批移动写回滚日志，想撤销在对话里说一声就行
@@ -2555,6 +2610,154 @@ const wechatView = {
   syncDot(on) { const d = $('#wechat-dot'); if (d) d.classList.toggle('hidden', !on); const btn = $('#term-wechat'); if (btn) btn.classList.toggle('on', on); },
 };
 
+// ---------- coding agent 启动按钮（#38：内置注册表 + 设置面板开关 + config 自定义） ----------
+// 三层：① AGENT_REGISTRY 内置 11 个主流 agent（图标在 /assets/agents/）
+//      ② 设置面板（⚙ 滑杆按钮）勾选启用哪些，存 config.json 的 enabledAgents，默认 claude + codex
+//      ③ config.json 的 agents 数组做高级自定义：同 id 覆盖内置命令，新 id 追加按钮
+// app: true 的是桌面应用（无终端 CLI 形态，官方确认），按钮改为 open -a 拉起，检测走 open -Ra
+const AGENT_REGISTRY = [
+  // claude 带 dark-ansi 主题：让 Claude Code 的界面色走终端 ANSI 调色板，跟着皮肤/自选终端色变
+  { id: 'claude', label: 'Claude Code', cmd: 'claude --settings \'{"theme":"dark-ansi"}\' --dangerously-skip-permissions', bin: 'claude', install: 'npm install -g @anthropic-ai/claude-code' },
+  { id: 'codex', label: 'Codex', cmd: 'codex', bin: 'codex', install: 'npm install -g @openai/codex' },
+  { id: 'hermes', label: 'Hermes Agent', cmd: 'hermes', bin: 'hermes', install: 'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash' },
+  { id: 'openclaw', label: 'OpenClaw', cmd: 'openclaw', bin: 'openclaw', install: 'npm install -g openclaw' },
+  { id: 'kimi', label: 'Kimi Code', cmd: 'kimi', bin: 'kimi', install: 'curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash' },
+  { id: 'zcode', label: 'ZCode', cmd: 'open -a ZCode', app: 'ZCode', install: 'https://zcode.z.ai （桌面应用，官网下载 dmg）' },
+  { id: 'opencode', label: 'opencode', cmd: 'opencode', bin: 'opencode', install: 'curl -fsSL https://opencode.ai/install | bash' },
+  { id: 'pi', label: 'pi', cmd: 'pi', bin: 'pi', install: 'curl -fsSL https://pi.dev/install.sh | sh' },
+  { id: 'codebuddy', label: 'CodeBuddy', cmd: 'codebuddy', bin: 'codebuddy', install: 'npm install -g @tencent-ai/codebuddy-code' },
+  { id: 'workbuddy', label: 'WorkBuddy', cmd: 'open -a WorkBuddy', app: 'WorkBuddy', install: 'https://codebuddy.cn/work （桌面应用，官网下载）' },
+  { id: 'qoder', label: 'Qoder CLI', cmd: 'qodercli', bin: 'qodercli', install: 'curl -fsSL https://qoder.com/install | bash' },
+];
+const AGENT_DEFAULTS = ['claude', 'codex'];
+const agentState = { enabled: null, custom: [] };
+const agentIconCache = new Map();
+
+async function agentIconHtml(id) {
+  const key = String(id).replace(/[^\w-]/g, '');
+  if (agentIconCache.has(key)) return agentIconCache.get(key);
+  let html = '';
+  try {
+    const r = await fetch(`/assets/agents/${key}.svg`);
+    if (r.ok) { const t = (await r.text()).trim(); if (t.startsWith('<svg') || t.startsWith('<?xml')) html = t; }
+  } catch { /* 没图标走缩写兜底 */ }
+  if (!html) {
+    try {
+      const r = await fetch(`/assets/agents/${key}.png`, { method: 'HEAD' });
+      if (r.ok) html = `<img src="/assets/agents/${key}.png" alt="">`;
+    } catch { /* 同上 */ }
+  }
+  agentIconCache.set(key, html);
+  return html;
+}
+
+async function loadAgents() {
+  try {
+    const r = await api('/api/agents');
+    agentState.enabled = Array.isArray(r.enabled) && r.enabled.length ? r.enabled : null;
+    agentState.custom = Array.isArray(r.custom) ? r.custom : [];
+  } catch { agentState.enabled = null; agentState.custom = []; }
+}
+
+// 生效的按钮清单：面板勾选管显隐；custom 同 id 只覆盖 label/cmd，不影响显隐；custom 新 id 恒显示追加在后
+function activeAgents() {
+  const on = new Set(agentState.enabled || AGENT_DEFAULTS);
+  const byId = new Map(agentState.custom.filter((a) => a && a.id && typeof a.cmd === 'string' && a.cmd).map((a) => [String(a.id), a]));
+  const list = [];
+  for (const a of AGENT_REGISTRY) {
+    const ov = byId.get(a.id); byId.delete(a.id);
+    if (!on.has(a.id)) continue;
+    list.push(ov ? { ...a, label: ov.label || a.label, cmd: ov.cmd } : a);
+  }
+  for (const [id, a] of byId) list.push({ id, label: a.label || id, cmd: a.cmd });
+  return list;
+}
+
+async function renderAgentButtons() {
+  const anchor = $('#agent-config');
+  anchor.parentElement.querySelectorAll('button[data-agent]').forEach((b) => b.remove());
+  for (const a of activeAgents()) {
+    const b = document.createElement('button');
+    b.className = 'agent-launch';
+    b.dataset.agent = a.id;
+    b.id = 'term-' + String(a.id).replace(/[^\w-]/g, '');
+    b.title = a.app ? `打开 ${a.label} 桌面应用（该产品无终端 CLI 形态）` : `启动 ${a.label}：空闲终端就地启动，正跑着任务则新开标签`;
+    b.innerHTML = (await agentIconHtml(a.id)) || `<span class="agent-abbr">${escapeHtml(String(a.label || a.id).slice(0, 2))}</span>`;
+    b.onclick = () => {
+      wechatView.close();
+      // Claude Code 的 *-ansi 主题按当前皮肤明暗现选：浅皮肤 light-ansi、深皮肤 dark-ansi（点击时求值，换肤后再启动就跟上）
+      const cmd = a.id === 'claude' ? a.cmd.replace('dark-ansi', document.documentElement.dataset.mode === 'light' ? 'light-ansi' : 'dark-ansi') : a.cmd;
+      term.launchAgent(cmd);
+    };
+    anchor.parentElement.insertBefore(b, anchor);
+  }
+}
+
+// 设置面板：勾选即生效；未安装的显示「未装」，点它复制安装命令
+const agentsPop = {
+  el: null, which: null,
+  toggle() { if (this.el) this.close(); else this.open(); },
+  close() { if (!this.el) return; this.el.remove(); this.el = null; document.removeEventListener('mousedown', this._out, true); },
+  open() {
+    const on = new Set(agentState.enabled || AGENT_DEFAULTS);
+    const pop = document.createElement('div');
+    pop.className = 'agents-pop';
+    pop.innerHTML = `<div class="ap-head">一键启动的 coding agent</div>
+      <div class="ap-list">${AGENT_REGISTRY.map((a) => `
+        <label class="ap-row" data-id="${a.id}">
+          <input type="checkbox" ${on.has(a.id) ? 'checked' : ''}>
+          <span class="ap-ic" data-ic="${a.id}"></span>
+          <span class="ap-name">${escapeHtml(a.label)}</span>
+          <span class="ap-flag" data-flag="${a.id}"></span>
+        </label>`).join('')}</div>
+      <div class="ap-head ap-sub">终端渲染</div>
+      <label class="ap-row" data-webgl title="长时间中文输出偶发乱码时可关掉：改用兼容渲染（DOM），立即生效，稍慢但稳">
+        <input type="checkbox" ${(() => { try { return localStorage.getItem('fanbox.noWebgl') === '1' ? '' : 'checked'; } catch { return 'checked'; } })()}>
+        <span class="ap-name">WebGL 加速渲染</span>
+      </label>
+      <div class="ap-foot">勾选即生效 · 点「未装」复制安装命令<br>高级：~/.fanbox/config.json 的 agents 数组可自定义命令 / 加新 agent</div>`;
+    document.body.appendChild(pop);
+    const r = $('#agent-config').getBoundingClientRect();
+    pop.style.top = Math.round(r.bottom + 6) + 'px';
+    pop.style.right = Math.max(8, Math.round(window.innerWidth - r.right - 8)) + 'px';
+    this.el = pop;
+    AGENT_REGISTRY.forEach(async (a) => { const el = pop.querySelector(`[data-ic="${a.id}"]`); const ic = await agentIconHtml(a.id); if (el) el.innerHTML = ic || `<span class="agent-abbr">${escapeHtml(a.label.slice(0, 2))}</span>`; });
+    this.markInstalled(pop);
+    const wgCb = pop.querySelector('[data-webgl] input');
+    if (wgCb) wgCb.onchange = () => { term.setWebgl(wgCb.checked); toast(wgCb.checked ? 'WebGL 渲染已开启' : '已切换兼容渲染（修中文乱码）'); };
+    pop.querySelectorAll('.ap-list .ap-row input').forEach((cb) => {
+      cb.onchange = async () => {
+        const ids = [...pop.querySelectorAll('.ap-list .ap-row input:checked')].map((x) => x.closest('.ap-row').dataset.id);
+        agentState.enabled = ids.length ? ids : null;
+        renderAgentButtons();
+        try { await apiPost('/api/agents', { enabled: ids }); } catch { toast('保存失败', true); }
+      };
+    });
+    this._out = (ev) => { if (!pop.contains(ev.target) && !$('#agent-config').contains(ev.target)) this.close(); };
+    document.addEventListener('mousedown', this._out, true);
+  },
+  async markInstalled(pop) {
+    if (!this.which) {
+      const bins = AGENT_REGISTRY.filter((a) => a.bin).map((a) => a.bin).join(',');
+      const apps = AGENT_REGISTRY.filter((a) => a.app).map((a) => a.app).join(',');
+      try { this.which = await api(`/api/agents/which?bins=${bins}&apps=${encodeURIComponent(apps)}`); } catch { this.which = {}; return; }
+    }
+    for (const a of AGENT_REGISTRY) {
+      const f = pop.querySelector(`[data-flag="${a.id}"]`);
+      if (!f || this.which[a.bin || a.app] !== false) continue;
+      f.textContent = '未装';
+      f.title = '点击复制安装命令：' + a.install;
+      f.onclick = (ev) => { ev.preventDefault(); navigator.clipboard.writeText(a.install).then(() => toast('已复制安装命令')); };
+    }
+  },
+};
+
+async function bindAgentButtons() {
+  $('#agent-config').onclick = () => agentsPop.toggle();
+  await loadAgents();
+  await renderAgentButtons();
+}
+
 // ---------- 事件绑定 ----------
 function bindEvents() {
   // 顶栏窄时分级藏低频控件（观测自身宽度而非视口——侧栏会吃掉一截且可折叠）
@@ -2566,6 +2769,13 @@ function bindEvents() {
     tb.classList.toggle('tb-xxs', w < 790);
     tb.classList.toggle('tb-min', w < 660);
   }).observe(tb);
+  // 文件区被终端/预览压窄时，列表列让位：名称优先，先藏「大小」再藏「修改时间」（#49）
+  const fa = $('#file-area');
+  new ResizeObserver((es) => {
+    const w = es[0].contentRect.width;
+    fa.classList.toggle('fa-narrow', w < 620);
+    fa.classList.toggle('fa-tight', w < 460);
+  }).observe(fa);
   // ←/↑ 顶栏按钮已删（与面包屑功能重复、且和 macOS 红绿灯冲突）；后退/上一级保留 ⌘[ 和 Backspace 快捷键
   $('#preview-close').onclick = closePreview;
   $('#cmdk-trigger').onclick = () => cmdk.open();
@@ -2575,8 +2785,7 @@ function bindEvents() {
   // 启动时点一下连接状态，连着就给终端里的微信按钮点绿点（不挡初始化）
   if (window.fanboxWechat) window.fanboxWechat.env().then((e) => wechatView.syncDot(!!(e && e.connected))).catch(() => {});
   $('#btn-terminal').onclick = () => term.toggle();
-  $('#term-claude').onclick = () => { wechatView.close(); term.launchAgent('claude --settings \'{"theme":"dark-ansi"}\' --dangerously-skip-permissions'); };
-  $('#term-codex').onclick = () => { wechatView.close(); term.launchAgent('codex'); };
+  bindAgentButtons();
   $('#term-plain').onclick = () => { wechatView.close(); term.openInDir(state.cwd); }; // 普通终端：当前文件夹新开干净 shell
   usagePanel.bind();
   shotTray.init();
@@ -3396,21 +3605,6 @@ const term = {
       try { const U = window.Unicode11Addon.Unicode11Addon || window.Unicode11Addon; xterm.loadAddon(new U()); xterm.unicode.activeVersion = '11'; } catch { /* */ }
     }
     xterm.open(host);
-    // 滚动失同步自愈：DOM 滚动条已到底但 buffer 没到底，是 5.5.0 旧 Viewport 的 bug 签名
-    //（正常跟随输出时两者同步在底、用户上翻时 DOM 不在底，都不会触发），重算滚动区并到底
-    const vpEl = host.querySelector('.xterm-viewport');
-    if (vpEl) host.addEventListener('wheel', (ev) => {
-      if (ev.deltaY <= 0) return; // 只管「向下滚卡住」
-      requestAnimationFrame(() => { try {
-        const b = xterm.buffer.active;
-        if (b.type !== 'normal') return; // vim/htop 的 alt-screen 没有滚动条语义
-        const atDomBottom = vpEl.scrollTop + vpEl.clientHeight >= vpEl.scrollHeight - 2;
-        if (atDomBottom && b.viewportY < b.baseY) {
-          xterm._core.viewport?.syncScrollArea?.(true);
-          xterm.scrollToBottom();
-        }
-      } catch { /* 滚动中关标签：xterm 已 dispose，忽略 */ } });
-    }, { passive: true });
     // WebGL 渲染加速（大输出/TUI 不掉帧），失败或上下文丢失回退 DOM
     // 诊断开关：控制台跑 fbWebgl(false) 关掉 WebGL（用 DOM renderer）排查 CJK 残影乱码，fbWebgl(true) 恢复，需新开标签生效
     const webglOff = (() => { try { return localStorage.getItem('fanbox.noWebgl') === '1'; } catch { return false; } })();
@@ -3421,6 +3615,7 @@ const term = {
         wg = new Wg();
         wg.onContextLoss(() => { try { wg.dispose(); } catch { /* */ } });
         xterm.loadAddon(wg);
+        this.watchAtlas(wg);
       } catch { wg = null; /* 回退默认 DOM renderer */ }
     }
     if (fit) try { fit.fit(); } catch { /* */ }
@@ -3459,14 +3654,14 @@ const term = {
       if (cmd && (e.key === 'v' || e.key === 'V')) {
         // ⌘V 粘贴
         e.preventDefault();
-        navigator.clipboard.readText().then((text) => {
+        navigator.clipboard.readText().then(text => {
           if (text) xterm.paste(text);
-        }).catch(() => { /* 无权限时走 Electron 菜单兜底 */ });
+        }).catch(() => { /* 无权限时走Electron菜单兜底 */ });
         return false;
       }
       if (cmd && (e.key === '=' || e.key === '+' || e.key === '0')) {
         e.preventDefault();
-        const delta = e.key === '0' ? 0 : 1;
+        const delta = e.key === '0' ? 0 : (e.key === '=' || e.key === '+' ? 1 : -1);
         term.adjustFont(sess, delta);
         return false;
       }
@@ -3484,11 +3679,11 @@ const term = {
       const hasSel = xterm.hasSelection();
       const items = [];
       if (hasSel) items.push({ label: '复制', fn: () => {
-        try { navigator.clipboard.writeText(xterm.getSelection()); xterm.clearSelection(); } catch { /* */ }
-      } });
+        try { navigator.clipboard.writeText(xterm.getSelection()); xterm.clearSelection(); } catch {}
+      }});
       items.push({ label: '粘贴', fn: async () => {
-        try { const text = await navigator.clipboard.readText(); if (text) xterm.paste(text); } catch { /* */ }
-      } });
+        try { const text = await navigator.clipboard.readText(); if (text) xterm.paste(text); } catch {}
+      }});
       popupMenu(e, items);
     });
 
@@ -3498,6 +3693,7 @@ const term = {
         try { navigator.clipboard.writeText(xterm.getSelection()); } catch { /* 静默失败，用户仍可右键/菜单复制 */ }
       }
     });
+
     // 识别终端输出里的文件路径 → hover 高亮 + 点击在翻箱打开
     // 三层匹配：引号串（边界最可靠，文件名可含空格）> 斜杠路径 > 带已知扩展名的裸文件名；
     // 长路径折行用逐 cell 拼回逻辑行（CJK 宽字符占两列，下标→坐标必须按 cell 算才不偏移）
@@ -3637,9 +3833,6 @@ const term = {
     const s = this.sessions.find((x) => x.id === id);
     if (s) {
       this.fitActive();
-      // xterm 5.5.0 旧 Viewport 在 display:none 期间会把滚动区高度算矮一屏（上游 #5339，6.0 重写才修）；
-      // 重新可见后强制同步一次，否则滚轮到不了底部。升级 xterm 6.0 后删掉这行
-      requestAnimationFrame(() => { try { s.xterm._core.viewport?.syncScrollArea?.(true); } catch { /* */ } });
       setTimeout(() => s.xterm.focus(), 0);
       // 延迟刷新标题（避开双击窗口：双击的第二下若撞上 renderTabs 重建会丢 dblclick 事件）
       setTimeout(() => this.refreshCwd(s), 600);
@@ -3663,6 +3856,71 @@ const term = {
     if (!s || !s.fit) return;
     requestAnimationFrame(() => { try { s.fit.fit(); } catch { /* */ } });
   },
+  // WebGL 字形图集保养：大量中文输出会撑满图集触发分页合并，上游 bug 让汉字画成别字碎片
+  //（拖拽窗口能复原＝resize 重建了图集）。忙时每 5 分钟、收工时距上次 >60s 主动重建，重画一帧无感。
+  // 图集按字体配置在标签间共享，单独清一个标签会让其他标签的字指向已清空的纹理（大面积丢字），
+  // 所以全局节流、到点后所有标签同一 tick 一起清：头一个清掉共享纹理，其余只重建自己的模型并重绘
+  atlasCare(now, eager) {
+    if (!this._atlasAt) { this._atlasAt = now; return; } // 刚启动图集是干净的，先记时间
+    if (now - this._atlasAt < (eager ? 60000 : 300000)) return;
+    this._atlasAt = now;
+    this.sessions.forEach((s) => { try { s.webgl?.clearTextureAtlas(); } catch { /* */ } });
+  },
+  // 图集压力监视（分页合并的机制级防线）：addon 每开一页新图集就发事件（同一页会被共享它的每个
+  // 标签各转发一次，WeakSet 去重后计数≈真实页数）。页数到 12（上限一般 16，顶格才触发出乱码的
+  // 分页合并）就整体重建，让合并从机制上没机会发生。定时的 atlasCare 只回收页内空间、减缓页数增长，
+  // 但 clearTextureAtlas 页数只增不减（合并出的大页清空后还永久占坑不可写），压不住时得靠这里真重建
+  watchAtlas(wg) {
+    if (!wg || !wg.onAddTextureAtlasCanvas) return;
+    if (!this._atlasSeen) this._atlasSeen = new WeakSet();
+    wg.onAddTextureAtlasCanvas((canvas) => {
+      if (this._atlasSeen.has(canvas)) return;
+      this._atlasSeen.add(canvas);
+      this._atlasPages = (this._atlasPages || 0) + 1;
+      if (this._atlasPages < 12 || this._atlasRecycling) return;
+      this._atlasRecycling = true;
+      requestAnimationFrame(() => this.recycleWebgl()); // 事件在绘制途中同步发出，等这帧画完再动手
+    });
+  },
+  // 真重建：所有标签的 WebGL 插件先全部销毁、再全部重装。图集按引用计数存活，
+  // 边销毁边重装会让新插件捡回那张退化的旧图集，必须两趟分开走
+  recycleWebgl() {
+    this._atlasRecycling = false;
+    this._atlasPages = 0;
+    this._atlasSeen = new WeakSet();
+    this._atlasAt = Date.now();
+    const Wg = (!window.__noWebgl && window.WebglAddon) ? (window.WebglAddon.WebglAddon || window.WebglAddon) : null;
+    const wants = this.sessions.filter((s) => s.webgl);
+    wants.forEach((s) => { try { s.webgl.dispose(); } catch { /* */ } s.webgl = null; });
+    if (!Wg) return; // 环境没了 WebGL 就顺势落回 DOM renderer
+    wants.forEach((s) => {
+      try {
+        const wg = new Wg();
+        wg.onContextLoss(() => { try { wg.dispose(); } catch { /* */ } if (s.webgl === wg) s.webgl = null; });
+        s.xterm.loadAddon(wg);
+        s.webgl = wg;
+        this.watchAtlas(wg);
+      } catch { /* 单个失败回退 DOM，不拦其他 */ }
+    });
+  },
+  // 兼容渲染模式：关 WebGL 改用 DOM renderer（无字形图集，从机制上杜绝中文乱码；大输出略慢）。
+  // 对所有已开标签立即生效；选择存 localStorage，新标签在创建处同样遵守
+  setWebgl(on) {
+    try { if (on) localStorage.removeItem('fanbox.noWebgl'); else localStorage.setItem('fanbox.noWebgl', '1'); } catch { /* */ }
+    this.sessions.forEach((s) => {
+      try {
+        if (!on && s.webgl) { s.webgl.dispose(); s.webgl = null; }
+        else if (on && !s.webgl && !window.__noWebgl && window.WebglAddon) {
+          const Wg = window.WebglAddon.WebglAddon || window.WebglAddon;
+          const wg = new Wg();
+          wg.onContextLoss(() => { try { wg.dispose(); } catch { /* */ } if (s.webgl === wg) s.webgl = null; });
+          s.xterm.loadAddon(wg);
+          s.webgl = wg;
+          this.watchAtlas(wg);
+        }
+      } catch { /* 单个会话失败不拦其他 */ }
+    });
+  },
   // 字体缩放：⌘+/⌘- 调整字号，⌘0 重置为默认 13px
   adjustFont(sess, delta) {
     if (!sess._fontSize) sess._fontSize = 13;
@@ -3671,8 +3929,13 @@ const term = {
     const xterm = sess.xterm;
     // xterm 没有直接改 fontSize 的 API，通过 options 更新
     xterm.options.fontSize = sess._fontSize;
-    // 字号变了要重新 fit，避免内容裁切（fit 会触发 onResize，已通知 PTY）
-    requestAnimationFrame(() => { try { sess.fit.fit(); sess.webgl?.clearTextureAtlas?.(); } catch { /* */ } }); // 顺带清图集，防字号变化后 CJK 残影
+    // 字号变了要重新 fit，避免内容裁切。顺带清图集防 CJK 残影——图集在同字号标签间共享，
+    // 只清自己会让其他标签的字悬空指向已清空的纹理（2.6.1 的教训），必须所有标签同一 tick 一起清
+    requestAnimationFrame(() => {
+      try { sess.fit.fit(); } catch { /* */ }
+      this.sessions.forEach((s) => { try { s.webgl?.clearTextureAtlas?.(); } catch { /* */ } });
+    });
+    // 通知 PTY 重新获取尺寸（fit 会触发 onResize，已经做了）
   },
   // agent 态势感知：终端有输出→busy；静默 >2.5s→idle；进程退出→dead。
   // 非活动标签产生输出标记未读小点；长任务（busy>4s）完成且窗口失焦/非当前标签时发系统通知。
@@ -3684,9 +3947,14 @@ const term = {
     // 续命只刷新 lastData（推迟评估时机），不刷新 lastReal（任务时长只数自发输出，打字不算工时）
     if (now - (s.lastInput || 0) < 400) { if (s.status === 'busy') s.lastData = now; return; }
     s.lastData = now; s.lastReal = now;
-    if (s.status !== 'busy') { s.status = 'busy'; s.busyStart = now; this.renderTabs(); }
+    if (s.status !== 'busy') { s.status = 'busy'; s.busyStart = now; this.renderTabs(); this.roundSnapshot(s); }
     if (s.id !== this.active) { if (!s.unread) { s.unread = true; this.renderTabs(); } }
     this.ensureStatusTick();
+  },
+  // 回合安全带：agent 开工瞬间给项目静默存档。资格/节流/判重全在服务端，这里只管扔，失败不打扰
+  roundSnapshot(s) {
+    const dir = s.cwd || s.startDir;
+    if (dir) apiPost('/api/snapshot', { path: dir, label: '回合 · ' + (s.title || 'shell') }).catch(() => {});
   },
   // 取缓冲区末尾 n 行纯文本：确认对话框和忙碌页脚都画在底部
   tailText(s, n = 25) {
@@ -3711,6 +3979,7 @@ const term = {
       const now = Date.now(); let anyBusy = false;
       this.sessions.forEach((s) => {
         if (s.status !== 'busy') return;
+        this.atlasCare(now); // 忙满 5 分钟清一次图集，长中文输出中途也能自愈
         const quiet = now - (s.lastData || 0);
         if (quiet <= 2500) { anyBusy = true; return; } // claude/codex 忙碌心跳约 1s 一帧，容差太紧会闪断误报
         const tail = this.tailText(s);
@@ -3718,6 +3987,7 @@ const term = {
         if (quiet < 30000 && /esc to interrupt/i.test(tail)) { anyBusy = true; return; }
         const dur = (s.lastReal || 0) - (s.busyStart || 0); // 工时只数自发输出：回显续命不算，免得打字把琐碎回显养肥成「真任务」
         s.status = 'idle';
+        this.atlasCare(now, true); // 收工间隙兜底再清一次（距上次 >60s 才动手）
         this.renderTabs();
         this.refreshCwd(s); // 干完一段活，标题对齐终端真实目录
         // 阶段性收工不报喜：底部状态行还挂着后台任务（「1 shell, 1 monitor still running」/「· 1 shell ·」），
@@ -4961,9 +5231,27 @@ function bindUpdateNotice() {
     if (localStorage.getItem('fb_skip_ver') === version || document.querySelector('.update-pill')) return;
     const bar = document.createElement('div');
     bar.className = 'update-pill';
-    bar.innerHTML = `<span>新版本 v${escapeHtml(version)} 已发布</span><button class="up-go">去下载</button><button class="up-x" title="这个版本不再提醒">✕</button>`;
+    const canDl = typeof window.fanboxUpdate.download === 'function'; // 老 preload 没这桥，降级只留发布页
+    bar.innerHTML = `<span class="up-msg">新版本 v${escapeHtml(version)} 已发布</span>`
+      + (canDl ? '<button class="up-go up-dl">下载更新</button><button class="up-page">发布页</button>' : '<button class="up-go">去下载</button>')
+      + '<button class="up-x" title="这个版本不再提醒">✕</button>';
     document.body.appendChild(bar);
-    bar.querySelector('.up-go').onclick = () => { window.fanboxUpdate.open(url); bar.remove(); };
+    // #26 一键下载：主进程按当前架构下对应 dmg 到 ~/Downloads 并打开挂载，拖一下完成更新
+    const dl = bar.querySelector('.up-dl');
+    if (dl) {
+      dl.onclick = async () => {
+        dl.disabled = true; dl.textContent = '下载中…';
+        const r = await window.fanboxUpdate.download(version).catch(() => ({ ok: false }));
+        if (r && r.ok) { bar.querySelector('.up-msg').textContent = '已下载并打开 dmg，拖进 Applications 完成更新'; dl.remove(); }
+        else { dl.disabled = false; dl.textContent = '下载更新'; toast('下载失败，去发布页手动下吧', true); }
+      };
+      if (window.fanboxUpdate.onProgress) window.fanboxUpdate.onProgress((m) => {
+        if (m.state === 'downloading' && dl.disabled) dl.textContent = m.pct >= 0 ? `下载中 ${m.pct}%` : '下载中…';
+      });
+      bar.querySelector('.up-page').onclick = () => window.fanboxUpdate.open(url);
+    } else {
+      bar.querySelector('.up-go').onclick = () => { window.fanboxUpdate.open(url); bar.remove(); };
+    }
     bar.querySelector('.up-x').onclick = () => { localStorage.setItem('fb_skip_ver', version); bar.remove(); };
   };
   window.fanboxUpdate.onAvailable(show);
@@ -4971,7 +5259,8 @@ function bindUpdateNotice() {
   if (window.fanboxUpdate.get) window.fanboxUpdate.get().then((m) => { if (m) show(m); }).catch(() => {});
 }
 
-// 终端渲染器诊断开关：fbWebgl(false) 关 WebGL 用 DOM renderer 排查 CJK 残影，fbWebgl(true) 恢复。改完新开一个终端标签生效
-window.fbWebgl = (on) => { try { if (on) localStorage.removeItem('fanbox.noWebgl'); else localStorage.setItem('fanbox.noWebgl', '1'); } catch {} const off = (() => { try { return localStorage.getItem('fanbox.noWebgl') === '1'; } catch { return false; } })(); console.log('[fanbox] WebGL ' + (off ? '已关闭（DOM renderer）' : '已开启') + '，请新开一个终端标签验证'); return !off; };
+// 终端渲染器诊断开关：fbWebgl(false) 关 WebGL 用 DOM renderer 排查 CJK 残影，fbWebgl(true) 恢复。
+// 与设置面板「WebGL 加速渲染」同一逻辑，对所有已开标签立即生效
+window.fbWebgl = (on) => { term.setWebgl(!!on); console.log('[fanbox] WebGL ' + (on ? '已开启' : '已关闭（DOM renderer 兼容渲染）') + '，已对所有终端标签生效'); return !!on; };
 
 init();
