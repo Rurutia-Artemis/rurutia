@@ -530,32 +530,113 @@
     cur.innerHTML = '<span class="fbx-bars">' + bars + '</span><span class="fbx-nm">' +
       (n ? '已自定义 ' + n + ' 项' : '皮肤默认') + '</span><span class="fbx-caret">▾</span>';
   }
+  /* ---------- 自绘取色器：系统原生 <input type=color> 的弹窗和皮肤完全不搭，换成
+   * 跟面板同一套 CSS 变量的小取色盘（SV 面 + 色相条 + hex 输入），拖动即时生效。 ---------- */
+  var cpEl = null, cpState = null;
+  function inColorPicker(node) { return !!(cpEl && node && cpEl.contains(node)); }
+  function closeColorPicker() { if (cpEl) { cpEl.remove(); cpEl = null; cpState = null; } }
+  function hexToHsv(hex) {
+    var c = toRgb(hex), r = c.r / 255, g = c.g / 255, b = c.b / 255;
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    var h = 0;
+    if (d) h = (mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+    return { h: h, s: mx ? d / mx : 0, v: mx };
+  }
+  function hsvToHex(h, s, v) {
+    var f = function (n) { var k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+    return toHex({ r: f(5) * 255, g: f(3) * 255, b: f(1) * 255 });
+  }
+  function openColorPicker(anchor, startHex, onPick) {
+    closeColorPicker();
+    cpState = hexToHsv(tcHex6(startHex));
+    var cp = document.createElement('div');
+    cp.className = 'fbx-cp';
+    cp.innerHTML =
+      '<div class="fbx-cp-sv"><i class="fbx-cp-dot"></i></div>' +
+      '<div class="fbx-cp-hue"><i class="fbx-cp-hcur"></i></div>' +
+      '<div class="fbx-cp-foot"><span class="fbx-cp-was" title="原来的颜色"></span><span class="fbx-cp-now"></span>' +
+      '<input class="fbx-cp-hex" spellcheck="false" maxlength="7"></div>';
+    document.body.appendChild(cp);
+    // 位置：优先贴在色块右侧（侧栏窄，往内容区弹），出屏就往左收
+    var r = anchor.getBoundingClientRect();
+    var W = 196, H = 208;
+    var x = Math.min(r.right + 10, window.innerWidth - W - 8);
+    var y = Math.max(8, Math.min(r.top - H / 2, window.innerHeight - H - 8));
+    cp.style.left = Math.round(x) + 'px';
+    cp.style.top = Math.round(y) + 'px';
+    cpEl = cp;
+    var sv = cp.querySelector('.fbx-cp-sv'), dot = cp.querySelector('.fbx-cp-dot');
+    var hue = cp.querySelector('.fbx-cp-hue'), hcur = cp.querySelector('.fbx-cp-hcur');
+    var was = cp.querySelector('.fbx-cp-was'), now = cp.querySelector('.fbx-cp-now'), hexIn = cp.querySelector('.fbx-cp-hex');
+    was.style.background = tcHex6(startHex);
+    was.onclick = function () { cpState = hexToHsv(tcHex6(startHex)); paint(); emit(); };
+    function paint() {
+      var pure = hsvToHex(cpState.h, 1, 1);
+      sv.style.background = 'linear-gradient(to top,#000,transparent),linear-gradient(to right,#fff,' + pure + ')';
+      dot.style.left = (cpState.s * 100) + '%';
+      dot.style.top = ((1 - cpState.v) * 100) + '%';
+      hcur.style.left = (cpState.h / 360 * 100) + '%';
+      var hex = hsvToHex(cpState.h, cpState.s, cpState.v);
+      now.style.background = hex;
+      if (document.activeElement !== hexIn) hexIn.value = hex;
+    }
+    function emit() { onPick(hsvToHex(cpState.h, cpState.s, cpState.v)); }
+    function drag(el, move) {
+      el.addEventListener('pointerdown', function (e) {
+        e.preventDefault(); el.setPointerCapture(e.pointerId);
+        var mm = function (ev) { move(ev); paint(); emit(); };
+        mm(e);
+        el.addEventListener('pointermove', mm);
+        el.addEventListener('pointerup', function up() { el.removeEventListener('pointermove', mm); el.removeEventListener('pointerup', up); }, { once: true });
+      });
+    }
+    drag(sv, function (e) {
+      var b = sv.getBoundingClientRect();
+      cpState.s = Math.max(0, Math.min(1, (e.clientX - b.left) / b.width));
+      cpState.v = 1 - Math.max(0, Math.min(1, (e.clientY - b.top) / b.height));
+    });
+    drag(hue, function (e) {
+      var b = hue.getBoundingClientRect();
+      cpState.h = Math.max(0, Math.min(0.9999, (e.clientX - b.left) / b.width)) * 360;
+    });
+    hexIn.addEventListener('input', function () {
+      if (/^#[0-9a-fA-F]{6}$/.test(hexIn.value)) { cpState = hexToHsv(hexIn.value); paint(); emit(); }
+    });
+    paint();
+  }
+
   function buildTcRows(pop, skin) {
     pop.innerHTML = '';
+    closeColorPicker();
     var t = tcEffective(skin);
     if (!t) { pop.innerHTML = '<div class="fbx-tc-empty">终端还没就绪</div>'; return; }
     var o = ovFor(skin);
     var mkRow = function (s) {
-      var row = document.createElement('label');
+      var row = document.createElement('div');
       row.className = 'fbx-tc-row' + (o[s.k] ? ' changed' : '');
       row.title = s.d || s.n;
-      var val = tcHex6(t[s.k]);
       row.innerHTML = '<span class="fbx-tc-nm">' + s.n + '</span>' +
         (s.d ? '<span class="fbx-tc-d">' + s.d + '</span>' : '') +
-        '<input type="color" value="' + val + '">' +
+        '<button class="fbx-tc-chip" title="点击取色"></button>' +
         '<button class="fbx-tc-reset" title="还原这项默认">↺</button>';
-      var input = row.querySelector('input');
-      input.addEventListener('input', function () {
-        TERM_OVERRIDES[skin] = TERM_OVERRIDES[skin] || {};
-        // 选中底色带透明度：取色后补上默认 28% alpha，不然一选就实心盖住文字
-        TERM_OVERRIDES[skin][s.k] = s.a ? (input.value + '47') : input.value;
-        saveTermOverrides(); tcApply(skin); row.classList.add('changed');
+      var chip = row.querySelector('.fbx-tc-chip');
+      chip.style.background = tcHex6(t[s.k]);
+      chip.addEventListener('click', function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        openColorPicker(chip, tcHex6((tcEffective(skin) || t)[s.k]), function (hex) {
+          TERM_OVERRIDES[skin] = TERM_OVERRIDES[skin] || {};
+          // 选中底色带透明度：取色后补上默认 28% alpha，不然一选就实心盖住文字
+          TERM_OVERRIDES[skin][s.k] = s.a ? (hex + '47') : hex;
+          saveTermOverrides(); tcApply(skin);
+          chip.style.background = hex; row.classList.add('changed');
+        });
       });
       row.querySelector('.fbx-tc-reset').addEventListener('click', function (ev) {
         ev.preventDefault(); ev.stopPropagation();
+        closeColorPicker();
         if (TERM_OVERRIDES[skin]) { delete TERM_OVERRIDES[skin][s.k]; if (!Object.keys(TERM_OVERRIDES[skin]).length) delete TERM_OVERRIDES[skin]; }
         saveTermOverrides(); tcApply(skin);
-        var bt = tcEffective(skin); if (bt) input.value = tcHex6(bt[s.k]);
+        var bt = tcEffective(skin); if (bt) chip.style.background = tcHex6(bt[s.k]);
         row.classList.remove('changed');
       });
       return row;
@@ -587,32 +668,35 @@
     pop.appendChild(foot);
   }
   function buildTcSwitcher() {
+    // 直接住进「皮肤」块里（#theme-switch）——提示符/语言选择器是后加载的、往皮肤后面插，
+    // 独立成块会被它们挤到最下面；嵌进来就永远和皮肤贴在一起。
     var themeHost = document.getElementById('theme-switch');
-    if (!themeHost || document.getElementById('termcolor-switch')) return;
-    var host = document.createElement('div');
-    host.className = 'theme-switch';
-    host.id = 'termcolor-switch';
+    if (!themeHost || document.getElementById('fbx-tc-current')) return;
     var label = document.createElement('div');
-    label.className = 'theme-switch-label';
+    label.className = 'theme-switch-label fbx-tc-label';
     label.textContent = '终端配色';
-    host.appendChild(label);
+    themeHost.appendChild(label);
     var current = document.createElement('button');
     current.id = 'fbx-tc-current';
     current.className = 'fbx-skin-current';
-    host.appendChild(current);
+    themeHost.appendChild(current);
+    var hint = document.createElement('div');
+    hint.className = 'fbx-tc-hint';
+    hint.textContent = '默认已跟皮肤调好终端与 Claude Code 的颜色，想自定义再点上面改';
+    themeHost.appendChild(hint);
     var pop = document.createElement('div');
     pop.id = 'fbx-tc-pop';
     pop.className = 'fbx-tc-pop hidden';
-    host.appendChild(pop);
-    themeHost.parentNode.insertBefore(host, themeHost.nextSibling);
+    themeHost.appendChild(pop);
     current.addEventListener('click', function (ev) {
       ev.stopPropagation();
       var opening = pop.classList.contains('hidden');
       if (opening) buildTcRows(pop, state.theme); // 每次打开按当前皮肤现算
       pop.classList.toggle('hidden');
+      if (!opening) closeColorPicker();
     });
     document.addEventListener('click', function (ev) {
-      if (!host.contains(ev.target)) pop.classList.add('hidden');
+      if (!themeHost.contains(ev.target) && !inColorPicker(ev.target)) { pop.classList.add('hidden'); closeColorPicker(); }
     });
     updateTcCurrent(state.theme);
   }
@@ -633,8 +717,9 @@
       '.fbx-swatch:hover{color:var(--text);border-color:var(--accent);}',
       '.fbx-swatch.active{border-color:var(--accent);color:var(--text);background:var(--accent-soft);}',
       '.fbx-swatch .fbx-nm{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-fname);}',
-      /* 终端配色编辑器 */
-      '#termcolor-switch{position:relative;}', // 弹窗 absolute，宿主必须 relative（v2.8.1 语言选择器的教训）
+      /* 终端配色编辑器（嵌在 #theme-switch 里，和皮肤贴着住） */
+      '.fbx-tc-label{margin-top:9px;}',
+      '.fbx-tc-hint{margin-top:4px;font-size:10px;line-height:1.5;color:var(--text-faint);}',
       '.fbx-tc-pop{position:absolute;left:0;right:0;bottom:calc(100% + 6px);max-height:56vh;overflow-y:auto;padding:7px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);z-index:120;}',
       '.fbx-tc-pop.hidden{display:none;}',
       '.fbx-tc-head{padding:4px 5px 8px;font-size:11.5px;font-weight:600;color:var(--text-dim);border-bottom:1px solid var(--rule);margin-bottom:4px;}',
@@ -643,8 +728,20 @@
       '.fbx-tc-row .fbx-tc-nm{font-size:11.5px;color:var(--text);white-space:nowrap;}',
       '.fbx-tc-row.changed .fbx-tc-nm{color:var(--accent);}',
       '.fbx-tc-row .fbx-tc-d{font-size:10px;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
-      '.fbx-tc-row input[type="color"]{width:26px;height:18px;padding:0;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;}',
+      '.fbx-tc-chip{width:26px;height:18px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer;transition:.12s;}',
+      '.fbx-tc-chip:hover{border-color:var(--accent);transform:scale(1.08);}',
       '.fbx-tc-row .fbx-tc-reset{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:12px;padding:0 2px;visibility:hidden;}',
+      /* 自绘取色器：和面板同一套变量，不再弹系统原生框 */
+      '.fbx-cp{position:fixed;z-index:300;width:196px;padding:9px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);}',
+      '.fbx-cp-sv{position:relative;height:110px;border-radius:7px;cursor:crosshair;touch-action:none;border:1px solid var(--border);}',
+      '.fbx-cp-dot{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.55);pointer-events:none;}',
+      '.fbx-cp-hue{position:relative;height:12px;margin-top:9px;border-radius:6px;cursor:ew-resize;touch-action:none;border:1px solid var(--border);background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);}',
+      '.fbx-cp-hcur{position:absolute;top:-2px;bottom:-2px;width:6px;margin-left:-3px;border:2px solid #fff;border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,.55);pointer-events:none;}',
+      '.fbx-cp-foot{display:flex;align-items:center;gap:6px;margin-top:9px;}',
+      '.fbx-cp-was,.fbx-cp-now{width:20px;height:20px;border-radius:5px;border:1px solid var(--border);flex:none;}',
+      '.fbx-cp-was{cursor:pointer;}',
+      '.fbx-cp-hex{flex:1;min-width:0;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text);font:11.5px ui-monospace,Menlo,monospace;padding:3px 7px;outline:none;}',
+      '.fbx-cp-hex:focus{border-color:var(--accent);}',
       '.fbx-tc-row:hover .fbx-tc-reset,.fbx-tc-row.changed .fbx-tc-reset{visibility:visible;}',
       '.fbx-tc-row .fbx-tc-reset:hover{color:var(--accent);}',
       '.fbx-tc-adv{display:block;width:100%;text-align:left;border:none;background:none;color:var(--text-dim);font-size:11px;padding:6px 5px 2px;cursor:pointer;}',

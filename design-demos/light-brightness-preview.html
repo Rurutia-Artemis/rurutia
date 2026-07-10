@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rurutia 浅色皮肤亮度对比 · 旧 vs 新</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #232227; color: #e8e8ee; font: 14px/1.6 -apple-system, "PingFang SC", sans-serif; padding: 28px clamp(16px, 4vw, 48px) 80px; }
+  header { max-width: 1180px; margin: 0 auto 26px; }
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  header p { color: #9a9aa8; font-size: 13px; max-width: 72ch; }
+  .card { max-width: 1180px; margin: 0 auto 30px; }
+  .card h2 { font-size: 14px; margin-bottom: 8px; font-weight: 600; }
+  .card h2 code { color: #9a9aa8; font-size: 11px; margin-left: 6px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 860px) { .pair { grid-template-columns: 1fr; } }
+  .shell { display: flex; border-radius: 10px; overflow: hidden; min-height: 210px; position: relative; border: 1px solid #00000022; }
+  .shell-tag { position: absolute; top: 6px; right: 10px; font-size: 10.5px; color: #00000088; background: #ffffff55; padding: 1px 7px; border-radius: 99px; }
+  .sh-side { width: 118px; flex: none; padding: 10px 9px; font-size: 11px; }
+  .sh-brand { font-weight: 700; font-size: 12.5px; margin-bottom: 10px; }
+  .sh-nav { font-size: 9.5px; letter-spacing: .06em; margin: 8px 0 3px; }
+  .sh-item { padding: 3px 6px; border-radius: 6px; }
+  .sh-item.act { font-weight: 600; }
+  .sh-main { flex: 1; display: flex; flex-direction: column; }
+  .sh-top { padding: 7px 12px; font-size: 11px; }
+  .sh-body { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .sh-card { border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; }
+  .sh-card:last-child { flex-direction: row; align-items: center; gap: 10px; }
+  .sh-btn { font-size: 11px; padding: 4px 12px; border-radius: 7px; font-weight: 600; }
+  .sh-tagchip { font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+</style></head><body>
+<header>
+  <h1>浅色皮肤亮度对比 —— 旧 vs 新（9 套）</h1>
+  <p>左边是 v2.8.1 的亮度（页面底 67–80%、内容面最高 85%，长时间盯着刺眼），右边是降亮度后
+  （页面底压进 57–61%、最亮面 61–64%）。色相没动，皮肤还是那张脸，只是从「发光的白纸」换成「哑光的牛皮纸」。
+  角标里的百分比是页面底的相对亮度。</p>
+</header>
+
+  <section class="card">
+    <h2>新孟菲斯 <code>memphis</code></h2>
+    <div class="pair">
+      
+  <div class="shell" style="background:#F7DEC9">
+    <div class="shell-tag">旧（v2.8.1 亮度） · 页面底 76%</div>
+    <div class="sh-side" style="background:#f8e3d1;border-right:1px solid #d9c3b1">
+      <div class="sh-brand" style="color:#232A4D">Rurutia</div>
+      <div class="sh-nav" style="color:#b71e5f">快速入口</div>
+      <div class="sh-item" style="color:#78727f">文档</div>
+      <div class="sh-item act" style="background:#2D4CC824;color:#232A4D">主目录</div>
+      <div class="sh-item" style="color:#78727f">下载</div>
+      <div class="sh-nav" style="color:#b71e5f">AGENT 项目</div>
+      <div class="sh-item" style="color:#78727f">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#edd5c1;border-bottom:1px solid #d9c3b1;color:#78727f">Users › <b style="color:#232A4D">rurutia</b></div>
+      <div class="sh-body" style="background:#F7DEC9">
+        <div class="sh-card" style="background:#f9e7d7;border:1px solid #d9c3b1">
+          <div style="color:#232A4D;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#78727f;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#a69a9a;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#f9e7d7;border:1px solid #d9c3b1">
+          <span class="sh-btn" style="background:#2D4CC8;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#F4B400;color:#0b0c0a">徽章</span>
+          <span style="color:#b71e5f;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+      
+  <div class="shell" style="background:#dbc4b2">
+    <div class="shell-tag">新（降亮度后） · 页面底 58%</div>
+    <div class="sh-side" style="background:#ddc7b6;border-right:1px solid #bca999">
+      <div class="sh-brand" style="color:#232A4D">Rurutia</div>
+      <div class="sh-nav" style="color:#9d1b52">快速入口</div>
+      <div class="sh-item" style="color:#5e5b6d">文档</div>
+      <div class="sh-item act" style="background:#2D4CC824;color:#232A4D">主目录</div>
+      <div class="sh-item" style="color:#5e5b6d">下载</div>
+      <div class="sh-nav" style="color:#9d1b52">AGENT 项目</div>
+      <div class="sh-item" style="color:#5e5b6d">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#d0baa9;border-bottom:1px solid #bca999;color:#5e5b6d">Users › <b style="color:#232A4D">rurutia</b></div>
+      <div class="sh-body" style="background:#dbc4b2">
+        <div class="sh-card" style="background:#dfcaba;border:1px solid #bca999">
+          <div style="color:#232A4D;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#5e5b6d;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#867d84;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#dfcaba;border:1px solid #bca999">
+          <span class="sh-btn" style="background:#2D4CC8;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#F4B400;color:#0b0c0a">徽章</span>
+          <span style="color:#9d1b52;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>现代博物 <code>museum</code></h2>
+    <div class="pair">
+      
+  <div class="shell" style="background:#EFE6D2">
+    <div class="shell-tag">旧（v2.8.1 亮度） · 页面底 80%</div>
+    <div class="sh-side" style="background:#f1ead8;border-right:1px solid #d2cab9">
+      <div class="sh-brand" style="color:#232838">Rurutia</div>
+      <div class="sh-nav" style="color:#9b5240">快速入口</div>
+      <div class="sh-item" style="color:#757476">文档</div>
+      <div class="sh-item act" style="background:#2A4A8F24;color:#232838">主目录</div>
+      <div class="sh-item" style="color:#757476">下载</div>
+      <div class="sh-nav" style="color:#9b5240">AGENT 项目</div>
+      <div class="sh-item" style="color:#757476">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#e5ddca;border-bottom:1px solid #d2cab9;color:#757476">Users › <b style="color:#232838">rurutia</b></div>
+      <div class="sh-body" style="background:#EFE6D2">
+        <div class="sh-card" style="background:#f3edde;border:1px solid #d2cab9">
+          <div style="color:#232838;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#757476;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#a19e97;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#f3edde;border:1px solid #d2cab9">
+          <span class="sh-btn" style="background:#2A4A8F;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#C99A3C;color:#0b0c0a">徽章</span>
+          <span style="color:#9b5240;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+      
+  <div class="shell" style="background:#d3ccba">
+    <div class="shell-tag">新（降亮度后） · 页面底 61%</div>
+    <div class="sh-side" style="background:#d5cfbd;border-right:1px solid #b5afa0">
+      <div class="sh-brand" style="color:#232838">Rurutia</div>
+      <div class="sh-nav" style="color:#7e4334">快速入口</div>
+      <div class="sh-item" style="color:#5b5c62">文档</div>
+      <div class="sh-item act" style="background:#2A4A8F24;color:#232838">主目录</div>
+      <div class="sh-item" style="color:#5b5c62">下载</div>
+      <div class="sh-nav" style="color:#7e4334">AGENT 项目</div>
+      <div class="sh-item" style="color:#5b5c62">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#c8c2b1;border-bottom:1px solid #b5afa0;color:#5b5c62">Users › <b style="color:#232838">rurutia</b></div>
+      <div class="sh-body" style="background:#d3ccba">
+        <div class="sh-card" style="background:#d7d1c1;border:1px solid #b5afa0">
+          <div style="color:#232838;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#5b5c62;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#82817e;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#d7d1c1;border:1px solid #b5afa0">
+          <span class="sh-btn" style="background:#2A4A8F;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#C99A3C;color:#0b0c0a">徽章</span>
+          <span style="color:#7e4334;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>酸性时尚 <code>acid</code></h2>
+    <div class="pair">
+      
+  <div class="shell" style="background:#DEC95C">
+    <div class="shell-tag">旧（v2.8.1 亮度） · 页面底 58%</div>
+    <div class="sh-side" style="background:#e3d173;border-right:1px solid #c3b151">
+      <div class="sh-brand" style="color:#15173A">Rurutia</div>
+      <div class="sh-nav" style="color:#9b1956">快速入口</div>
+      <div class="sh-item" style="color:#655e48">文档</div>
+      <div class="sh-item act" style="background:#2433C824;color:#15173A">主目录</div>
+      <div class="sh-item" style="color:#655e48">下载</div>
+      <div class="sh-nav" style="color:#9b1956">AGENT 项目</div>
+      <div class="sh-item" style="color:#655e48">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#d5c158;border-bottom:1px solid #c3b151;color:#655e48">Users › <b style="color:#15173A">rurutia</b></div>
+      <div class="sh-body" style="background:#DEC95C">
+        <div class="sh-card" style="background:#e7d786;border:1px solid #c3b151">
+          <div style="color:#15173A;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#655e48;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#92854f;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#e7d786;border:1px solid #c3b151">
+          <span class="sh-btn" style="background:#2433C8;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#00897B;color:#0b0c0a">徽章</span>
+          <span style="color:#9b1956;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+      
+  <div class="shell" style="background:#DEC95C">
+    <div class="shell-tag">新（降亮度后） · 页面底 58%</div>
+    <div class="sh-side" style="background:#e0cc64;border-right:1px solid #bfad4f">
+      <div class="sh-brand" style="color:#15173A">Rurutia</div>
+      <div class="sh-nav" style="color:#9b1956">快速入口</div>
+      <div class="sh-item" style="color:#555045">文档</div>
+      <div class="sh-item act" style="background:#2433C824;color:#15173A">主目录</div>
+      <div class="sh-item" style="color:#555045">下载</div>
+      <div class="sh-nav" style="color:#9b1956">AGENT 项目</div>
+      <div class="sh-item" style="color:#555045">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#d3bf57;border-bottom:1px solid #bfad4f;color:#555045">Users › <b style="color:#15173A">rurutia</b></div>
+      <div class="sh-body" style="background:#DEC95C">
+        <div class="sh-card" style="background:#e1ce6c;border:1px solid #bfad4f">
+          <div style="color:#15173A;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#555045;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#82774c;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#e1ce6c;border:1px solid #bfad4f">
+          <span class="sh-btn" style="background:#2433C8;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#00897B;color:#0b0c0a">徽章</span>
+          <span style="color:#9b1956;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>未来社区 <code>future</code></h2>
+    <div class="pair">
+      
+  <div class="shell" style="background:#C9EFDD">
+    <div class="shell-tag">旧（v2.8.1 亮度） · 页面底 79%</div>
+    <div class="sh-side" style="background:#d1f1e2;border-right:1px solid #b1d2c2">
+      <div class="sh-brand" style="color:#1B2540">Rurutia</div>
+      <div class="sh-nav" style="color:#0a6f88">快速入口</div>
+      <div class="sh-item" style="color:#61767f">文档</div>
+      <div class="sh-item act" style="background:#7C3AED24;color:#1B2540">主目录</div>
+      <div class="sh-item" style="color:#61767f">下载</div>
+      <div class="sh-nav" style="color:#0a6f88">AGENT 项目</div>
+      <div class="sh-item" style="color:#61767f">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#c1e5d4;border-bottom:1px solid #b1d2c2;color:#61767f">Users › <b style="color:#1B2540">rurutia</b></div>
+      <div class="sh-body" style="background:#C9EFDD">
+        <div class="sh-card" style="background:#d7f3e6;border:1px solid #b1d2c2">
+          <div style="color:#1B2540;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#61767f;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#87a2a1;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#d7f3e6;border:1px solid #b1d2c2">
+          <span class="sh-btn" style="background:#7C3AED;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#E0457E;color:#0b0c0a">徽章</span>
+          <span style="color:#0a6f88;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+      
+  <div class="shell" style="background:#b2d3c4">
+    <div class="shell-tag">新（降亮度后） · 页面底 60%</div>
+    <div class="sh-side" style="background:#b6d5c7;border-right:1px solid #99b5a9">
+      <div class="sh-brand" style="color:#1B2540">Rurutia</div>
+      <div class="sh-nav" style="color:#0a5a6f">快速入口</div>
+      <div class="sh-item" style="color:#4b5d6a">文档</div>
+      <div class="sh-item act" style="background:#7C3AED24;color:#1B2540">主目录</div>
+      <div class="sh-item" style="color:#4b5d6a">下载</div>
+      <div class="sh-nav" style="color:#0a5a6f">AGENT 项目</div>
+      <div class="sh-item" style="color:#4b5d6a">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#a9c8ba;border-bottom:1px solid #99b5a9;color:#4b5d6a">Users › <b style="color:#1B2540">rurutia</b></div>
+      <div class="sh-body" style="background:#b2d3c4">
+        <div class="sh-card" style="background:#bad7ca;border:1px solid #99b5a9">
+          <div style="color:#1B2540;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#4b5d6a;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#6d8387;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#bad7ca;border:1px solid #99b5a9">
+          <span class="sh-btn" style="background:#7C3AED;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#E0457E;color:#0b0c0a">徽章</span>
+          <span style="color:#0a5a6f;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>热带运动 <code>tropical</code></h2>
+    <div class="pair">
+      
+  <div class="shell" style="background:#FAD6A6">
+    <div class="shell-tag">旧（v2.8.1 亮度） · 页面底 71%</div>
+    <div class="sh-side" style="background:#fbdcb2;border-right:1px solid #dcbc92">
+      <div class="sh-brand" style="color:#2A4A66">Rurutia</div>
+      <div class="sh-nav" style="color:#964615">快速入口</div>
+      <div class="sh-item" style="color:#7d8280">文档</div>
+      <div class="sh-item act" style="background:#00604A24;color:#2A4A66">主目录</div>
+      <div class="sh-item" style="color:#7d8280">下载</div>
+      <div class="sh-nav" style="color:#964615">AGENT 项目</div>
+      <div class="sh-item" style="color:#7d8280">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#f0cd9f;border-bottom:1px solid #dcbc92;color:#7d8280">Users › <b style="color:#2A4A66">rurutia</b></div>
+      <div class="sh-body" style="background:#FAD6A6">
+        <div class="sh-card" style="background:#fbe1bd;border:1px solid #dcbc92">
+          <div style="color:#2A4A66;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#7d8280;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#aba18e;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#fbe1bd;border:1px solid #dcbc92">
+          <span class="sh-btn" style="background:#00604A;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#234F96;color:#ffffff">徽章</span>
+          <span style="color:#964615;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+      
+  <div class="shell" style="background:#e6c599">
+    <div class="shell-tag">新（降亮度后） · 页面底 59%</div>
+    <div class="sh-side" style="background:#e7c89e;border-right:1px solid #c6a984">
+      <div class="sh-brand" style="color:#2A4A66">Rurutia</div>
+      <div class="sh-nav" style="color:#884013">快速入口</div>
+      <div class="sh-item" style="color:#667176">文档</div>
+      <div class="sh-item act" style="background:#00604A24;color:#2A4A66">主目录</div>
+      <div class="sh-item" style="color:#667176">下载</div>
+      <div class="sh-nav" style="color:#884013">AGENT 项目</div>
+      <div class="sh-item" style="color:#667176">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#dbbb91;border-bottom:1px solid #c6a984;color:#667176">Users › <b style="color:#2A4A66">rurutia</b></div>
+      <div class="sh-body" style="background:#e6c599">
+        <div class="sh-card" style="background:#e9cba3;border:1px solid #c6a984">
+          <div style="color:#2A4A66;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#667176;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#908c82;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#e9cba3;border:1px solid #c6a984">
+          <span class="sh-btn" style="background:#00604A;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#234F96;color:#ffffff">徽章</span>
+          <span style="color:#884013;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>电子舞厅 <code>disco</code></h2>
+    <div class="pair">
+      
+  <div class="shell" style="background:#E6CCFB">
+    <div class="shell-tag">旧（v2.8.1 亮度） · 页面底 67%</div>
+    <div class="sh-side" style="background:#ead3fc;border-right:1px solid #cab4dd">
+      <div class="sh-brand" style="color:#352A55">Rurutia</div>
+      <div class="sh-nav" style="color:#a41e84">快速入口</div>
+      <div class="sh-item" style="color:#7c6b97">文档</div>
+      <div class="sh-item act" style="background:#6E27D624;color:#352A55">主目录</div>
+      <div class="sh-item" style="color:#7c6b97">下载</div>
+      <div class="sh-nav" style="color:#a41e84">AGENT 项目</div>
+      <div class="sh-item" style="color:#7c6b97">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#ddc4f1;border-bottom:1px solid #cab4dd;color:#7c6b97">Users › <b style="color:#352A55">rurutia</b></div>
+      <div class="sh-body" style="background:#E6CCFB">
+        <div class="sh-card" style="background:#edd9fc;border:1px solid #cab4dd">
+          <div style="color:#352A55;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#7c6b97;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#a38ebc;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#edd9fc;border:1px solid #cab4dd">
+          <span class="sh-btn" style="background:#6E27D6;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#0E8FB0;color:#0b0c0a">徽章</span>
+          <span style="color:#a41e84;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+      
+  <div class="shell" style="background:#ddc4f1">
+    <div class="shell-tag">新（降亮度后） · 页面底 61%</div>
+    <div class="sh-side" style="background:#dfc7f2;border-right:1px solid #bea9cf">
+      <div class="sh-brand" style="color:#352A55">Rurutia</div>
+      <div class="sh-nav" style="color:#9c1d7d">快速入口</div>
+      <div class="sh-item" style="color:#6b5b87">文档</div>
+      <div class="sh-item act" style="background:#6E27D624;color:#352A55">主目录</div>
+      <div class="sh-item" style="color:#6b5b87">下载</div>
+      <div class="sh-nav" style="color:#9c1d7d">AGENT 项目</div>
+      <div class="sh-item" style="color:#6b5b87">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#d2bae5;border-bottom:1px solid #bea9cf;color:#6b5b87">Users › <b style="color:#352A55">rurutia</b></div>
+      <div class="sh-body" style="background:#ddc4f1">
+        <div class="sh-card" style="background:#e0caf2;border:1px solid #bea9cf">
+          <div style="color:#352A55;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#6b5b87;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#907da9;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#e0caf2;border:1px solid #bea9cf">
+          <span class="sh-btn" style="background:#6E27D6;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#0E8FB0;color:#0b0c0a">徽章</span>
+          <span style="color:#9c1d7d;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>赛艇俱乐部 <code>rowing</code></h2>
+    <div class="pair">
+      
+  <div class="shell" style="background:#F2E7C3">
+    <div class="shell-tag">旧（v2.8.1 亮度） · 页面底 80%</div>
+    <div class="sh-side" style="background:#f4eacb;border-right:1px solid #d5cbac">
+      <div class="sh-brand" style="color:#283A2C">Rurutia</div>
+      <div class="sh-nav" style="color:#2a7152">快速入口</div>
+      <div class="sh-item" style="color:#797f68">文档</div>
+      <div class="sh-item act" style="background:#2A4A8F24;color:#283A2C">主目录</div>
+      <div class="sh-item" style="color:#797f68">下载</div>
+      <div class="sh-nav" style="color:#2a7152">AGENT 项目</div>
+      <div class="sh-item" style="color:#797f68">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#e8debb;border-bottom:1px solid #d5cbac;color:#797f68">Users › <b style="color:#283A2C">rurutia</b></div>
+      <div class="sh-body" style="background:#F2E7C3">
+        <div class="sh-card" style="background:#f5edd3;border:1px solid #d5cbac">
+          <div style="color:#283A2C;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#797f68;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#a5a58a;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#f5edd3;border:1px solid #d5cbac">
+          <span class="sh-btn" style="background:#2A4A8F;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#D94A4A;color:#0b0c0a">徽章</span>
+          <span style="color:#2a7152;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+      
+  <div class="shell" style="background:#d6ccad">
+    <div class="shell-tag">新（降亮度后） · 页面底 60%</div>
+    <div class="sh-side" style="background:#d8cfb1;border-right:1px solid #b8af95">
+      <div class="sh-brand" style="color:#283A2C">Rurutia</div>
+      <div class="sh-nav" style="color:#246146">快速入口</div>
+      <div class="sh-item" style="color:#606955">文档</div>
+      <div class="sh-item act" style="background:#2A4A8F24;color:#283A2C">主目录</div>
+      <div class="sh-item" style="color:#606955">下载</div>
+      <div class="sh-nav" style="color:#246146">AGENT 项目</div>
+      <div class="sh-item" style="color:#606955">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#cbc2a4;border-bottom:1px solid #b8af95;color:#606955">Users › <b style="color:#283A2C">rurutia</b></div>
+      <div class="sh-body" style="background:#d6ccad">
+        <div class="sh-card" style="background:#dad1b5;border:1px solid #b8af95">
+          <div style="color:#283A2C;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#606955;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#868972;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#dad1b5;border:1px solid #b8af95">
+          <span class="sh-btn" style="background:#2A4A8F;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#D94A4A;color:#0b0c0a">徽章</span>
+          <span style="color:#246146;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>玻璃城市 <code>glass</code></h2>
+    <div class="pair">
+      
+  <div class="shell" style="background:#D2EAFB">
+    <div class="shell-tag">旧（v2.8.1 亮度） · 页面底 80%</div>
+    <div class="sh-side" style="background:#d8edfc;border-right:1px solid #b9cedd">
+      <div class="sh-brand" style="color:#283E78">Rurutia</div>
+      <div class="sh-nav" style="color:#177460">快速入口</div>
+      <div class="sh-item" style="color:#6c83ac">文档</div>
+      <div class="sh-item act" style="background:#1F54BC24;color:#283E78">主目录</div>
+      <div class="sh-item" style="color:#6c83ac">下载</div>
+      <div class="sh-nav" style="color:#177460">AGENT 项目</div>
+      <div class="sh-item" style="color:#6c83ac">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#cae1f1;border-bottom:1px solid #b9cedd;color:#6c83ac">Users › <b style="color:#283E78">rurutia</b></div>
+      <div class="sh-body" style="background:#D2EAFB">
+        <div class="sh-card" style="background:#deeffc;border:1px solid #b9cedd">
+          <div style="color:#283E78;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#6c83ac;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#91a9c9;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#deeffc;border:1px solid #b9cedd">
+          <span class="sh-btn" style="background:#1F54BC;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#6735BE;color:#ffffff">徽章</span>
+          <span style="color:#177460;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+      
+  <div class="shell" style="background:#bacfde">
+    <div class="shell-tag">新（降亮度后） · 页面底 60%</div>
+    <div class="sh-side" style="background:#bdd1e0;border-right:1px solid #a0b2bf">
+      <div class="sh-brand" style="color:#283E78">Rurutia</div>
+      <div class="sh-nav" style="color:#135f4e">快速入口</div>
+      <div class="sh-item" style="color:#576c99">文档</div>
+      <div class="sh-item act" style="background:#1F54BC24;color:#283E78">主目录</div>
+      <div class="sh-item" style="color:#576c99">下载</div>
+      <div class="sh-nav" style="color:#135f4e">AGENT 项目</div>
+      <div class="sh-item" style="color:#576c99">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#b1c5d3;border-bottom:1px solid #a0b2bf;color:#576c99">Users › <b style="color:#283E78">rurutia</b></div>
+      <div class="sh-body" style="background:#bacfde">
+        <div class="sh-card" style="background:#c1d4e1;border:1px solid #a0b2bf">
+          <div style="color:#283E78;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#576c99;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#778caf;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#c1d4e1;border:1px solid #a0b2bf">
+          <span class="sh-btn" style="background:#1F54BC;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#6735BE;color:#ffffff">徽章</span>
+          <span style="color:#135f4e;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>数字果冻 <code>jelly</code></h2>
+    <div class="pair">
+      
+  <div class="shell" style="background:#FBD9E4">
+    <div class="shell-tag">旧（v2.8.1 亮度） · 页面底 76%</div>
+    <div class="sh-side" style="background:#fcdee8;border-right:1px solid #ddbfc9">
+      <div class="sh-brand" style="color:#34285E">Rurutia</div>
+      <div class="sh-nav" style="color:#ad3662">快速入口</div>
+      <div class="sh-item" style="color:#846f94">文档</div>
+      <div class="sh-item act" style="background:#2A52CC24;color:#34285E">主目录</div>
+      <div class="sh-item" style="color:#846f94">下载</div>
+      <div class="sh-nav" style="color:#ad3662">AGENT 项目</div>
+      <div class="sh-item" style="color:#846f94">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#f1d0db;border-bottom:1px solid #ddbfc9;color:#846f94">Users › <b style="color:#34285E">rurutia</b></div>
+      <div class="sh-body" style="background:#FBD9E4">
+        <div class="sh-card" style="background:#fce3eb;border:1px solid #ddbfc9">
+          <div style="color:#34285E;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#846f94;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#af96b1;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#fce3eb;border:1px solid #ddbfc9">
+          <span class="sh-btn" style="background:#2A52CC;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#8B5CF6;color:#0b0c0a">徽章</span>
+          <span style="color:#ad3662;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+      
+  <div class="shell" style="background:#dec0ca">
+    <div class="shell-tag">新（降亮度后） · 页面底 57%</div>
+    <div class="sh-side" style="background:#e0c3cd;border-right:1px solid #bfa5ae">
+      <div class="sh-brand" style="color:#34285E">Rurutia</div>
+      <div class="sh-nav" style="color:#8d2c50">快速入口</div>
+      <div class="sh-item" style="color:#6a5981">文档</div>
+      <div class="sh-item act" style="background:#2A52CC24;color:#34285E">主目录</div>
+      <div class="sh-item" style="color:#6a5981">下载</div>
+      <div class="sh-nav" style="color:#8d2c50">AGENT 项目</div>
+      <div class="sh-item" style="color:#6a5981">Rurubox</div>
+    </div>
+    <div class="sh-main">
+      <div class="sh-top" style="background:#d3b6c0;border-bottom:1px solid #bfa5ae;color:#6a5981">Users › <b style="color:#34285E">rurutia</b></div>
+      <div class="sh-body" style="background:#dec0ca">
+        <div class="sh-card" style="background:#e1c6cf;border:1px solid #bfa5ae">
+          <div style="color:#34285E;font-weight:600">正文文字 AaBb 中文示例</div>
+          <div style="color:#6a5981;font-size:11px">暗淡说明文字 · 修改于 3 分钟前</div>
+          <div style="color:#907a98;font-size:11px">最淡的占位提示</div>
+        </div>
+        <div class="sh-card" style="background:#e1c6cf;border:1px solid #bfa5ae">
+          <span class="sh-btn" style="background:#2A52CC;color:#ffffff">主按钮</span>
+          <span class="sh-tagchip" style="background:#8B5CF6;color:#0b0c0a">徽章</span>
+          <span style="color:#8d2c50;font-size:11px">链接文字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+  </section>
+</body></html>
