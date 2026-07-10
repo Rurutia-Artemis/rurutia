@@ -29,7 +29,7 @@ function loadEngine(src) {
     return { PALETTES, buildVars, buildAnsi, alpha,
       themeOf: function (p) {
         var v = buildVars(p);
-        var a = buildAnsi(p, v['--accent'], v['--accent-2'], v['--accent-3']);
+        var a = buildAnsi(p, v['--accent'], v['--accent-2'], v['--accent-3'], v['--bg']); // 旧版 buildAnsi 无第 5 参，多传自动忽略
         a.background = v['--bg']; a.cursor = v['--accent']; a.cursorAccent = v['--bg'];
         a.selectionBackground = alpha(v['--accent'], 0.28);
         return a;

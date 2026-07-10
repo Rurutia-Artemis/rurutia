@@ -91,16 +91,20 @@
   function buildVarsMulti(p) {
     var a = p.acc, a1 = a[0], a2 = a[1], a3 = a[2], bg = p.bg, tx = p.text;
     var f = p.func || (p.dark ? DARK_FUNC : LIGHT_FUNC);   // 功能色：缺省走该明暗的共享状态色
+    // 浅色降亮度（Vela 契约 v3）：生产力工具要长时间盯，原页面底 67–80% 亮度、内容面 75–85%，
+    // 盯久了刺眼。把页面底压进 52–62% 带（>62% 按 4% 一档往下，最多五档；本来就在带内的不动），
+    // 面材贴着底走——「染色的纸」，不是发光的白。色相不动，皮肤还是那张脸，只是灯调暗了。
+    if (!p.dark) { for (var i = 0; i < 5 && relLum(bg) > 0.62; i++) bg = darken(bg, 0.04); }
     return {
       '--bg': bg,
-      '--bg-2': p.bg2 || (p.dark ? lighten(bg, 0.05) : lighten(bg, 0.26)),
-      '--bg-3': p.bg3 || (p.dark ? lighten(bg, 0.10) : darken(bg, 0.04)),
-      '--panel': p.panel || (p.dark ? lighten(bg, 0.02) : lighten(bg, 0.14)),
-      '--border': p.border || (p.dark ? lighten(bg, 0.14) : darken(bg, 0.12)),
-      '--rule': p.dark ? lighten(bg, 0.09) : darken(bg, 0.07),
+      '--bg-2': p.bg2 || (p.dark ? lighten(bg, 0.05) : lighten(bg, 0.10)),
+      '--bg-3': p.bg3 || (p.dark ? lighten(bg, 0.10) : darken(bg, 0.05)),
+      '--panel': p.panel || (p.dark ? lighten(bg, 0.02) : lighten(bg, 0.05)),
+      '--border': p.border || (p.dark ? lighten(bg, 0.14) : darken(bg, 0.14)), // 暗一点的纸配更结实的骨线
+      '--rule': p.dark ? lighten(bg, 0.09) : darken(bg, 0.08),
       '--text': tx,
-      '--text-dim': mix(tx, bg, 0.40),
-      '--text-faint': mix(tx, bg, 0.62),
+      '--text-dim': mix(tx, bg, p.dark ? 0.40 : 0.32),   // 浅底收窄混合，暗淡字抬回 3:1 以上
+      '--text-faint': mix(tx, bg, p.dark ? 0.62 : 0.54),
       '--accent': a1, '--accent-2': a2, '--accent-3': a3,
       '--accent-2-text': readableOn(a2, bg, 4.5),      // a2 当小字（标题/链接）的可读变体：浅底自动压深
       '--accent-soft': alpha(a1, p.dark ? 0.16 : 0.14),
@@ -192,7 +196,7 @@
       // 浅色用更亮的 bg-2），盖掉 fb-dark/fb-paper 的固定底——与终端(--bg)、面板同色系，无缝衔接。
       // 用 !important + [data-theme] 作用域压过 Monaco 自带的主题样式；只动背景，语法配色不碰。
       var codeBg = p.dark ? mix(v['--bg'], '#000000', 0.10) : v['--bg-2'];
-      var gutterBg = p.dark ? mix(v['--bg'], '#000000', 0.04) : lighten(v['--bg-2'], 0.4);
+      var gutterBg = p.dark ? mix(v['--bg'], '#000000', 0.04) : lighten(v['--bg-2'], 0.12); // 降亮度后 0.4 的白沟槽太晃，收到 0.12
       css += sel + ' .monaco-editor,' +
              sel + ' .monaco-editor .monaco-editor-background,' +
              sel + ' .monaco-editor .overflow-guard,' +
@@ -234,8 +238,8 @@
   function satOf(h) { var c = toRgb(h), mx = Math.max(c.r, c.g, c.b), mn = Math.min(c.r, c.g, c.b); return mx ? (mx - mn) / mx : 0; }
   function hueDist(a, b) { var d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
 
-  function buildAnsi(p, acc, acc2, acc3) {
-    var bg = p.bg;
+  function buildAnsi(p, acc, acc2, acc3, bgEff) {
+    var bg = bgEff || p.bg;   // 浅色降亮度后生效底 ≠ 原始 bg，可读性目标要对新纸算
     // 语义锚色：比 Catppuccin 更饱和、更亮堂（暗底），浅底用同族深色
     var A = p.dark
       ? { red: '#ff5c6c', green: '#3ddc84', yellow: '#ffd93d', blue: '#5b9bff', magenta: '#d67bff', cyan: '#35e0d0' }
@@ -285,7 +289,7 @@
       black: mix('#3a3d4d', acc, 0.10),
       red: base.red, green: base.green, yellow: base.yellow,
       blue: base.blue, magenta: base.magenta, cyan: base.cyan,
-      white: mix('#6c6f85', acc, 0.08),
+      white: fix(mix('#6c6f85', acc, 0.08)),
       brightBlack: fix(mix('#6c6f85', acc, 0.35), 2.6),
       brightRed: darken(base.red, 0.06), brightGreen: darken(base.green, 0.06), brightYellow: darken(base.yellow, 0.06),
       brightBlue: darken(base.blue, 0.06), brightMagenta: darken(base.magenta, 0.06), brightCyan: darken(base.cyan, 0.06),
@@ -332,7 +336,7 @@
           var base = p.dark ? term.themes.terminal : term.themes.warm;
           var t = {};
           for (var k in base) t[k] = base[k];          // 继承结构，补齐可能遗漏的键
-          var a = buildAnsi(p, v['--accent'], v['--accent-2'], v['--accent-3']);
+          var a = buildAnsi(p, v['--accent'], v['--accent-2'], v['--accent-3'], v['--bg']);
           for (var ak in a) t[ak] = a[ak];             // 覆盖前景 + 16 ANSI
           t.background = v['--bg'];
           t.cursor = v['--accent'];
