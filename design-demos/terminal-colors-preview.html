@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rurutia 终端配色预览 · 18 套皮肤 旧 vs 新</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #101014; color: #e8e8ee; font: 14px/1.6 -apple-system, "PingFang SC", sans-serif; padding: 28px clamp(16px, 4vw, 48px) 80px; }
+  header { max-width: 1200px; margin: 0 auto 28px; }
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  header p { color: #9a9aa8; font-size: 13px; }
+  .card { max-width: 1200px; margin: 0 auto 26px; }
+  .card h2 { font-size: 14px; margin-bottom: 8px; font-weight: 600; }
+  .card h2 code { color: #9a9aa8; font-size: 11px; margin: 0 6px; }
+  .card h2 em { font-style: normal; font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #26262e; color: #b8b8c4; }
+  .card h2 em.lt { background: #e8e4d8; color: #55503f; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
+  .term { border-radius: 10px; padding: 12px 14px 10px; font: 11.5px/1.55 ui-monospace, "SF Mono", Menlo, monospace; overflow-x: auto; border: 1px solid #ffffff14; position: relative; }
+  .term-tag { position: absolute; top: 8px; right: 10px; font-size: 10px; color: #888; font-family: -apple-system, sans-serif; opacity: .75; }
+  .ln { white-space: pre; }
+  .cbox { border: 1px solid; border-radius: 6px; padding: 4px 8px; margin: 6px 0; }
+  .rule { border-top: 1px dashed; margin: 8px 0 6px; opacity: .6; }
+  .swatches { display: flex; gap: 4px; margin-top: 8px; }
+  .swatches i { width: 22px; height: 10px; border-radius: 3px; display: block; border: 1px solid #00000030; }
+</style></head><body>
+<header>
+  <h1>终端配色预览 —— 18 套皮肤 · 旧 vs 新</h1>
+  <p>模拟 dark-ansi 下的 Claude Code 界面（欢迎框 / 权限对话框 / diff / 警告报错）+ Codex 输出。左旧右新；
+  新版的框线（brightBlack）带皮肤色温、蓝/品红/青槽按色相把皮肤强调色请上台，语义色（红错/绿成/黄警）拉高饱和。
+  App 里还有「终端配色」面板可逐项自调，此页只定默认值。</p>
+</header>
+
+  <section class="card">
+    <h2>电路板 <code>grid</code> <em>暗</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#0C140D;color:#c3d6ec">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#bdabec"> ✻ </span><span style="color:#c3d6ec">Welcome to </span><span style="color:#c3d6ec;font-weight:700">Claude Code</span><span style="color:#585b70">  v2.1.x</span></div><div class="ln"><span style="color:#585b70">   model: </span><span style="color:#8be1cd">claude-fable-5</span><span style="color:#585b70"> · </span><span style="color:#8be1cd">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#585b70">> </span><span style="color:#c3d6ec">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#bdabec">✻ </span><span style="color:#585b70">Thinking…</span></div>
+    <div class="ln"><span style="color:#81b8ee">⏺ </span><span style="color:#c3d6ec">Read</span><span style="color:#585b70">(</span><span style="color:#8be1cd">src/app.js</span><span style="color:#585b70">)</span></div>
+    <div class="ln"><span style="color:#9ce29e">  ⎿ </span><span style="color:#585b70">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#9ce29e">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#e193a4">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#c3d6ec">Do you want to make this edit to </span><span style="color:#8be1cd">app.js</span><span style="color:#c3d6ec">?</span></div><div class="ln"><span style="color:#9ce29e"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#585b70">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#585b70">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#e6e1ab">⚠ </span><span style="color:#e6e1ab">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#e193a4">✗ </span><span style="color:#e193a4">Error: </span><span style="color:#c3d6ec">connection timed out</span></div>
+    <div class="rule" style="border-color:#585b70"></div>
+    <div class="ln"><span style="color:#81b8ee">▌ </span><span style="color:#c3d6ec;font-weight:700">OpenAI Codex</span><span style="color:#585b70"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#585b70">  › </span><span style="color:#c3d6ec">跑一下测试</span></div>
+    <div class="ln"><span style="color:#bdabec">  • </span><span style="color:#c3d6ec">Ran </span><span style="color:#8be1cd">npm test</span></div>
+    <div class="ln"><span style="color:#9ce29e">  ✓ 17 passed</span><span style="color:#585b70"> · </span><span style="color:#e6e1ab">1 skipped</span></div>
+    <div class="ln"><span style="color:#c3d6ec">  sel: </span><span style="background:#3DDC8447;color:#c3d6ec">选中的文本长这样</span><span style="color:#c3d6ec"> cursor:</span><span style="background:#3DDC84;color:#0C140D">█</span></div>
+    <div class="swatches"><i title="red" style="background:#e193a4"></i><i title="green" style="background:#9ce29e"></i><i title="yellow" style="background:#e6e1ab"></i><i title="blue" style="background:#81b8ee"></i><i title="magenta" style="background:#bdabec"></i><i title="cyan" style="background:#8be1cd"></i><i title="white" style="background:#b4c3da"></i><i title="brightBlack" style="background:#585b70"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#0C140D;color:#d7ebd6">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#6bae95"><div class="ln"><span style="color:#be8beb"> ✻ </span><span style="color:#d7ebd6">Welcome to </span><span style="color:#d7ebd6;font-weight:700">Claude Code</span><span style="color:#6bae95">  v2.1.x</span></div><div class="ln"><span style="color:#6bae95">   model: </span><span style="color:#2AD0E0">claude-fable-5</span><span style="color:#6bae95"> · </span><span style="color:#2AD0E0">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#6bae95">> </span><span style="color:#d7ebd6">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#be8beb">✻ </span><span style="color:#6bae95">Thinking…</span></div>
+    <div class="ln"><span style="color:#56a5eb">⏺ </span><span style="color:#d7ebd6">Read</span><span style="color:#6bae95">(</span><span style="color:#2AD0E0">src/app.js</span><span style="color:#6bae95">)</span></div>
+    <div class="ln"><span style="color:#3ddc84">  ⎿ </span><span style="color:#6bae95">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#3ddc84">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#ef666e">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#6bae95"><div class="ln"><span style="color:#d7ebd6">Do you want to make this edit to </span><span style="color:#2AD0E0">app.js</span><span style="color:#d7ebd6">?</span></div><div class="ln"><span style="color:#3ddc84"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#6bae95">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#6bae95">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#efd943">⚠ </span><span style="color:#efd943">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#ef666e">✗ </span><span style="color:#ef666e">Error: </span><span style="color:#d7ebd6">connection timed out</span></div>
+    <div class="rule" style="border-color:#6bae95"></div>
+    <div class="ln"><span style="color:#56a5eb">▌ </span><span style="color:#d7ebd6;font-weight:700">OpenAI Codex</span><span style="color:#6bae95"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#6bae95">  › </span><span style="color:#d7ebd6">跑一下测试</span></div>
+    <div class="ln"><span style="color:#be8beb">  • </span><span style="color:#d7ebd6">Ran </span><span style="color:#2AD0E0">npm test</span></div>
+    <div class="ln"><span style="color:#3ddc84">  ✓ 17 passed</span><span style="color:#6bae95"> · </span><span style="color:#efd943">1 skipped</span></div>
+    <div class="ln"><span style="color:#d7ebd6">  sel: </span><span style="background:#3DDC8447;color:#d7ebd6">选中的文本长这样</span><span style="color:#d7ebd6"> cursor:</span><span style="background:#3DDC84;color:#0C140D">█</span></div>
+    <div class="swatches"><i title="red" style="background:#ef666e"></i><i title="green" style="background:#3ddc84"></i><i title="yellow" style="background:#efd943"></i><i title="blue" style="background:#56a5eb"></i><i title="magenta" style="background:#be8beb"></i><i title="cyan" style="background:#2AD0E0"></i><i title="white" style="background:#bacfd5"></i><i title="brightBlack" style="background:#6bae95"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>像素光 <code>pixel</code> <em>暗</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#1B0F1A;color:#d1cbed">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#d09cec"> ✻ </span><span style="color:#d1cbed">Welcome to </span><span style="color:#d1cbed;font-weight:700">Claude Code</span><span style="color:#585b70">  v2.1.x</span></div><div class="ln"><span style="color:#585b70">   model: </span><span style="color:#9fd2ce">claude-fable-5</span><span style="color:#585b70"> · </span><span style="color:#9fd2ce">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#585b70">> </span><span style="color:#d1cbed">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#d09cec">✻ </span><span style="color:#585b70">Thinking…</span></div>
+    <div class="ln"><span style="color:#95a8ef">⏺ </span><span style="color:#d1cbed">Read</span><span style="color:#585b70">(</span><span style="color:#9fd2ce">src/app.js</span><span style="color:#585b70">)</span></div>
+    <div class="ln"><span style="color:#afd29f">  ⎿ </span><span style="color:#585b70">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#afd29f">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#f483a5">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#d1cbed">Do you want to make this edit to </span><span style="color:#9fd2ce">app.js</span><span style="color:#d1cbed">?</span></div><div class="ln"><span style="color:#afd29f"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#585b70">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#585b70">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#fad2ab">⚠ </span><span style="color:#fad2ab">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#f483a5">✗ </span><span style="color:#f483a5">Error: </span><span style="color:#d1cbed">connection timed out</span></div>
+    <div class="rule" style="border-color:#585b70"></div>
+    <div class="ln"><span style="color:#95a8ef">▌ </span><span style="color:#d1cbed;font-weight:700">OpenAI Codex</span><span style="color:#585b70"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#585b70">  › </span><span style="color:#d1cbed">跑一下测试</span></div>
+    <div class="ln"><span style="color:#d09cec">  • </span><span style="color:#d1cbed">Ran </span><span style="color:#9fd2ce">npm test</span></div>
+    <div class="ln"><span style="color:#afd29f">  ✓ 17 passed</span><span style="color:#585b70"> · </span><span style="color:#fad2ab">1 skipped</span></div>
+    <div class="ln"><span style="color:#d1cbed">  sel: </span><span style="background:#FF3D8B47;color:#d1cbed">选中的文本长这样</span><span style="color:#d1cbed"> cursor:</span><span style="background:#FF3D8B;color:#1B0F1A">█</span></div>
+    <div class="swatches"><i title="red" style="background:#f483a5"></i><i title="green" style="background:#afd29f"></i><i title="yellow" style="background:#fad2ab"></i><i title="blue" style="background:#95a8ef"></i><i title="magenta" style="background:#d09cec"></i><i title="cyan" style="background:#9fd2ce"></i><i title="white" style="background:#bdbbda"></i><i title="brightBlack" style="background:#585b70"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#1B0F1A;color:#eed8ea">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#b96e98"><div class="ln"><span style="color:#FF3D8B"> ✻ </span><span style="color:#eed8ea">Welcome to </span><span style="color:#eed8ea;font-weight:700">Claude Code</span><span style="color:#b96e98">  v2.1.x</span></div><div class="ln"><span style="color:#b96e98">   model: </span><span style="color:#21E6C1">claude-fable-5</span><span style="color:#b96e98"> · </span><span style="color:#21E6C1">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#b96e98">> </span><span style="color:#eed8ea">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#FF3D8B">✻ </span><span style="color:#b96e98">Thinking…</span></div>
+    <div class="ln"><span style="color:#758cec">⏺ </span><span style="color:#eed8ea">Read</span><span style="color:#b96e98">(</span><span style="color:#21E6C1">src/app.js</span><span style="color:#b96e98">)</span></div>
+    <div class="ln"><span style="color:#4dcf85">  ⎿ </span><span style="color:#b96e98">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#4dcf85">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#ff5a6e">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#b96e98"><div class="ln"><span style="color:#eed8ea">Do you want to make this edit to </span><span style="color:#21E6C1">app.js</span><span style="color:#eed8ea">?</span></div><div class="ln"><span style="color:#4dcf85"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#b96e98">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#b96e98">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#ffcd43">⚠ </span><span style="color:#ffcd43">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#ff5a6e">✗ </span><span style="color:#ff5a6e">Error: </span><span style="color:#eed8ea">connection timed out</span></div>
+    <div class="rule" style="border-color:#b96e98"></div>
+    <div class="ln"><span style="color:#758cec">▌ </span><span style="color:#eed8ea;font-weight:700">OpenAI Codex</span><span style="color:#b96e98"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#b96e98">  › </span><span style="color:#eed8ea">跑一下测试</span></div>
+    <div class="ln"><span style="color:#FF3D8B">  • </span><span style="color:#eed8ea">Ran </span><span style="color:#21E6C1">npm test</span></div>
+    <div class="ln"><span style="color:#4dcf85">  ✓ 17 passed</span><span style="color:#b96e98"> · </span><span style="color:#ffcd43">1 skipped</span></div>
+    <div class="ln"><span style="color:#eed8ea">  sel: </span><span style="background:#FF3D8B47;color:#eed8ea">选中的文本长这样</span><span style="color:#eed8ea"> cursor:</span><span style="background:#FF3D8B;color:#1B0F1A">█</span></div>
+    <div class="swatches"><i title="red" style="background:#ff5a6e"></i><i title="green" style="background:#4dcf85"></i><i title="yellow" style="background:#ffcd43"></i><i title="blue" style="background:#758cec"></i><i title="magenta" style="background:#FF3D8B"></i><i title="cyan" style="background:#21E6C1"></i><i title="white" style="background:#cec0d6"></i><i title="brightBlack" style="background:#b96e98"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>工业轴 <code>axis</code> <em>暗</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#1E1B10;color:#d1d1e5">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#d0a4e1"> ✻ </span><span style="color:#d1d1e5">Welcome to </span><span style="color:#d1d1e5;font-weight:700">Claude Code</span><span style="color:#585b70">  v2.1.x</span></div><div class="ln"><span style="color:#585b70">   model: </span><span style="color:#9fdac3">claude-fable-5</span><span style="color:#585b70"> · </span><span style="color:#9fdac3">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#585b70">> </span><span style="color:#d1d1e5">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#d0a4e1">✻ </span><span style="color:#585b70">Thinking…</span></div>
+    <div class="ln"><span style="color:#95b0e4">⏺ </span><span style="color:#d1d1e5">Read</span><span style="color:#585b70">(</span><span style="color:#9fdac3">src/app.js</span><span style="color:#585b70">)</span></div>
+    <div class="ln"><span style="color:#afdb94">  ⎿ </span><span style="color:#585b70">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#afdb94">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#f48b9a">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#d1d1e5">Do you want to make this edit to </span><span style="color:#9fdac3">app.js</span><span style="color:#d1d1e5">?</span></div><div class="ln"><span style="color:#afdb94"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#585b70">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#585b70">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#fadaa1">⚠ </span><span style="color:#fadaa1">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#f48b9a">✗ </span><span style="color:#f48b9a">Error: </span><span style="color:#d1d1e5">connection timed out</span></div>
+    <div class="rule" style="border-color:#585b70"></div>
+    <div class="ln"><span style="color:#95b0e4">▌ </span><span style="color:#d1d1e5;font-weight:700">OpenAI Codex</span><span style="color:#585b70"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#585b70">  › </span><span style="color:#d1d1e5">跑一下测试</span></div>
+    <div class="ln"><span style="color:#d0a4e1">  • </span><span style="color:#d1d1e5">Ran </span><span style="color:#9fdac3">npm test</span></div>
+    <div class="ln"><span style="color:#afdb94">  ✓ 17 passed</span><span style="color:#585b70"> · </span><span style="color:#fadaa1">1 skipped</span></div>
+    <div class="ln"><span style="color:#d1d1e5">  sel: </span><span style="background:#FF8F1F47;color:#d1d1e5">选中的文本长这样</span><span style="color:#d1d1e5"> cursor:</span><span style="background:#FF8F1F;color:#1E1B10">█</span></div>
+    <div class="swatches"><i title="red" style="background:#f48b9a"></i><i title="green" style="background:#afdb94"></i><i title="yellow" style="background:#fadaa1"></i><i title="blue" style="background:#95b0e4"></i><i title="magenta" style="background:#d0a4e1"></i><i title="cyan" style="background:#9fdac3"></i><i title="white" style="background:#bdbfd4"></i><i title="brightBlack" style="background:#585b70"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#1E1B10;color:#ebdfce">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#b98f6c"><div class="ln"><span style="color:#dd7edb"> ✻ </span><span style="color:#ebdfce">Welcome to </span><span style="color:#ebdfce;font-weight:700">Claude Code</span><span style="color:#b98f6c">  v2.1.x</span></div><div class="ln"><span style="color:#b98f6c">   model: </span><span style="color:#00BCD4">claude-fable-5</span><span style="color:#b98f6c"> · </span><span style="color:#00BCD4">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#b98f6c">> </span><span style="color:#ebdfce">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#dd7edb">✻ </span><span style="color:#b98f6c">Thinking…</span></div>
+    <div class="ln"><span style="color:#7599db">⏺ </span><span style="color:#ebdfce">Read</span><span style="color:#b98f6c">(</span><span style="color:#00BCD4">src/app.js</span><span style="color:#b98f6c">)</span></div>
+    <div class="ln"><span style="color:#4dd67c">  ⎿ </span><span style="color:#b98f6c">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#4dd67c">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#ff6066">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#b98f6c"><div class="ln"><span style="color:#ebdfce">Do you want to make this edit to </span><span style="color:#00BCD4">app.js</span><span style="color:#ebdfce">?</span></div><div class="ln"><span style="color:#4dd67c"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#b98f6c">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#b98f6c">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#ffd33b">⚠ </span><span style="color:#ffd33b">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#ff6066">✗ </span><span style="color:#ff6066">Error: </span><span style="color:#ebdfce">connection timed out</span></div>
+    <div class="rule" style="border-color:#b98f6c"></div>
+    <div class="ln"><span style="color:#7599db">▌ </span><span style="color:#ebdfce;font-weight:700">OpenAI Codex</span><span style="color:#b98f6c"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#b98f6c">  › </span><span style="color:#ebdfce">跑一下测试</span></div>
+    <div class="ln"><span style="color:#dd7edb">  • </span><span style="color:#ebdfce">Ran </span><span style="color:#00BCD4">npm test</span></div>
+    <div class="ln"><span style="color:#4dd67c">  ✓ 17 passed</span><span style="color:#b98f6c"> · </span><span style="color:#ffd33b">1 skipped</span></div>
+    <div class="ln"><span style="color:#ebdfce">  sel: </span><span style="background:#FF8F1F47;color:#ebdfce">选中的文本长这样</span><span style="color:#ebdfce"> cursor:</span><span style="background:#FF8F1F;color:#1E1B10">█</span></div>
+    <div class="swatches"><i title="red" style="background:#ff6066"></i><i title="green" style="background:#4dd67c"></i><i title="yellow" style="background:#ffd33b"></i><i title="blue" style="background:#7599db"></i><i title="magenta" style="background:#dd7edb"></i><i title="cyan" style="background:#00BCD4"></i><i title="white" style="background:#cec8cb"></i><i title="brightBlack" style="background:#b98f6c"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>虚空 <code>void</code> <em>暗</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#141A33;color:#c8cdf5">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#c59ff8"> ✻ </span><span style="color:#c8cdf5">Welcome to </span><span style="color:#c8cdf5;font-weight:700">Claude Code</span><span style="color:#585b70">  v2.1.x</span></div><div class="ln"><span style="color:#585b70">   model: </span><span style="color:#93d5d9">claude-fable-5</span><span style="color:#585b70"> · </span><span style="color:#93d5d9">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#585b70">> </span><span style="color:#c8cdf5">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#c59ff8">✻ </span><span style="color:#585b70">Thinking…</span></div>
+    <div class="ln"><span style="color:#89abfb">⏺ </span><span style="color:#c8cdf5">Read</span><span style="color:#585b70">(</span><span style="color:#93d5d9">src/app.js</span><span style="color:#585b70">)</span></div>
+    <div class="ln"><span style="color:#a3d6aa">  ⎿ </span><span style="color:#585b70">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#a3d6aa">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#e986b1">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#c8cdf5">Do you want to make this edit to </span><span style="color:#93d5d9">app.js</span><span style="color:#c8cdf5">?</span></div><div class="ln"><span style="color:#a3d6aa"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#585b70">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#585b70">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#eed5b7">⚠ </span><span style="color:#eed5b7">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#e986b1">✗ </span><span style="color:#e986b1">Error: </span><span style="color:#c8cdf5">connection timed out</span></div>
+    <div class="rule" style="border-color:#585b70"></div>
+    <div class="ln"><span style="color:#89abfb">▌ </span><span style="color:#c8cdf5;font-weight:700">OpenAI Codex</span><span style="color:#585b70"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#585b70">  › </span><span style="color:#c8cdf5">跑一下测试</span></div>
+    <div class="ln"><span style="color:#c59ff8">  • </span><span style="color:#c8cdf5">Ran </span><span style="color:#93d5d9">npm test</span></div>
+    <div class="ln"><span style="color:#a3d6aa">  ✓ 17 passed</span><span style="color:#585b70"> · </span><span style="color:#eed5b7">1 skipped</span></div>
+    <div class="ln"><span style="color:#c8cdf5">  sel: </span><span style="background:#8B5CFF47;color:#c8cdf5">选中的文本长这样</span><span style="color:#c8cdf5"> cursor:</span><span style="background:#8B5CFF;color:#141A33">█</span></div>
+    <div class="swatches"><i title="red" style="background:#e986b1"></i><i title="green" style="background:#a3d6aa"></i><i title="yellow" style="background:#eed5b7"></i><i title="blue" style="background:#89abfb"></i><i title="magenta" style="background:#c59ff8"></i><i title="cyan" style="background:#93d5d9"></i><i title="white" style="background:#b8bde0"></i><i title="brightBlack" style="background:#585b70"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#141A33;color:#dfd7f3">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#8a7bc6"><div class="ln"><span style="color:#ca76ff"> ✻ </span><span style="color:#dfd7f3">Welcome to </span><span style="color:#dfd7f3;font-weight:700">Claude Code</span><span style="color:#8a7bc6">  v2.1.x</span></div><div class="ln"><span style="color:#8a7bc6">   model: </span><span style="color:#00D9FF">claude-fable-5</span><span style="color:#8a7bc6"> · </span><span style="color:#00D9FF">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#8a7bc6">> </span><span style="color:#dfd7f3">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#ca76ff">✻ </span><span style="color:#8a7bc6">Thinking…</span></div>
+    <div class="ln"><span style="color:#8B5CFF">⏺ </span><span style="color:#dfd7f3">Read</span><span style="color:#8a7bc6">(</span><span style="color:#00D9FF">src/app.js</span><span style="color:#8a7bc6">)</span></div>
+    <div class="ln"><span style="color:#43d28e">  ⎿ </span><span style="color:#8a7bc6">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#43d28e">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#f65c78">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#8a7bc6"><div class="ln"><span style="color:#dfd7f3">Do you want to make this edit to </span><span style="color:#00D9FF">app.js</span><span style="color:#dfd7f3">?</span></div><div class="ln"><span style="color:#43d28e"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#8a7bc6">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#8a7bc6">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#f6cf4d">⚠ </span><span style="color:#f6cf4d">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#f65c78">✗ </span><span style="color:#f65c78">Error: </span><span style="color:#dfd7f3">connection timed out</span></div>
+    <div class="rule" style="border-color:#8a7bc6"></div>
+    <div class="ln"><span style="color:#8B5CFF">▌ </span><span style="color:#dfd7f3;font-weight:700">OpenAI Codex</span><span style="color:#8a7bc6"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#8a7bc6">  › </span><span style="color:#dfd7f3">跑一下测试</span></div>
+    <div class="ln"><span style="color:#ca76ff">  • </span><span style="color:#dfd7f3">Ran </span><span style="color:#00D9FF">npm test</span></div>
+    <div class="ln"><span style="color:#43d28e">  ✓ 17 passed</span><span style="color:#8a7bc6"> · </span><span style="color:#f6cf4d">1 skipped</span></div>
+    <div class="ln"><span style="color:#dfd7f3">  sel: </span><span style="background:#8B5CFF47;color:#dfd7f3">选中的文本长这样</span><span style="color:#dfd7f3"> cursor:</span><span style="background:#8B5CFF;color:#141A33">█</span></div>
+    <div class="swatches"><i title="red" style="background:#f65c78"></i><i title="green" style="background:#43d28e"></i><i title="yellow" style="background:#f6cf4d"></i><i title="blue" style="background:#8B5CFF"></i><i title="magenta" style="background:#ca76ff"></i><i title="cyan" style="background:#00D9FF"></i><i title="white" style="background:#c2c3e1"></i><i title="brightBlack" style="background:#8a7bc6"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>霓虹夜 <code>mode</code> <em>暗</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#1C0E14;color:#d1cae9">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#d09ae7"> ✻ </span><span style="color:#d1cae9">Welcome to </span><span style="color:#d1cae9;font-weight:700">Claude Code</span><span style="color:#585b70">  v2.1.x</span></div><div class="ln"><span style="color:#585b70">   model: </span><span style="color:#9fd0c8">claude-fable-5</span><span style="color:#585b70"> · </span><span style="color:#9fd0c8">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#585b70">> </span><span style="color:#d1cae9">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#d09ae7">✻ </span><span style="color:#585b70">Thinking…</span></div>
+    <div class="ln"><span style="color:#95a7ea">⏺ </span><span style="color:#d1cae9">Read</span><span style="color:#585b70">(</span><span style="color:#9fd0c8">src/app.js</span><span style="color:#585b70">)</span></div>
+    <div class="ln"><span style="color:#afd199">  ⎿ </span><span style="color:#585b70">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#afd199">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#f482a0">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#d1cae9">Do you want to make this edit to </span><span style="color:#9fd0c8">app.js</span><span style="color:#d1cae9">?</span></div><div class="ln"><span style="color:#afd199"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#585b70">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#585b70">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#fad0a6">⚠ </span><span style="color:#fad0a6">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#f482a0">✗ </span><span style="color:#f482a0">Error: </span><span style="color:#d1cae9">connection timed out</span></div>
+    <div class="rule" style="border-color:#585b70"></div>
+    <div class="ln"><span style="color:#95a7ea">▌ </span><span style="color:#d1cae9;font-weight:700">OpenAI Codex</span><span style="color:#585b70"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#585b70">  › </span><span style="color:#d1cae9">跑一下测试</span></div>
+    <div class="ln"><span style="color:#d09ae7">  • </span><span style="color:#d1cae9">Ran </span><span style="color:#9fd0c8">npm test</span></div>
+    <div class="ln"><span style="color:#afd199">  ✓ 17 passed</span><span style="color:#585b70"> · </span><span style="color:#fad0a6">1 skipped</span></div>
+    <div class="ln"><span style="color:#d1cae9">  sel: </span><span style="background:#FF2D5547;color:#d1cae9">选中的文本长这样</span><span style="color:#d1cae9"> cursor:</span><span style="background:#FF2D55;color:#1C0E14">█</span></div>
+    <div class="swatches"><i title="red" style="background:#f482a0"></i><i title="green" style="background:#afd199"></i><i title="yellow" style="background:#fad0a6"></i><i title="blue" style="background:#95a7ea"></i><i title="magenta" style="background:#d09ae7"></i><i title="cyan" style="background:#9fd0c8"></i><i title="white" style="background:#bdbbd7"></i><i title="brightBlack" style="background:#585b70"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#1C0E14;color:#f1d7de">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#b96882"><div class="ln"><span style="color:#FF2D55"> ✻ </span><span style="color:#f1d7de">Welcome to </span><span style="color:#f1d7de;font-weight:700">Claude Code</span><span style="color:#b96882">  v2.1.x</span></div><div class="ln"><span style="color:#b96882">   model: </span><span style="color:#55c3bc">claude-fable-5</span><span style="color:#b96882"> · </span><span style="color:#55c3bc">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#b96882">> </span><span style="color:#f1d7de">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#FF2D55">✻ </span><span style="color:#b96882">Thinking…</span></div>
+    <div class="ln"><span style="color:#5B8CFF">⏺ </span><span style="color:#f1d7de">Read</span><span style="color:#b96882">(</span><span style="color:#55c3bc">src/app.js</span><span style="color:#b96882">)</span></div>
+    <div class="ln"><span style="color:#4dce80">  ⎿ </span><span style="color:#b96882">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#4dce80">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#ff586a">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#b96882"><div class="ln"><span style="color:#f1d7de">Do you want to make this edit to </span><span style="color:#55c3bc">app.js</span><span style="color:#f1d7de">?</span></div><div class="ln"><span style="color:#4dce80"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#b96882">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#b96882">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#ffcb3f">⚠ </span><span style="color:#ffcb3f">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#ff586a">✗ </span><span style="color:#ff586a">Error: </span><span style="color:#f1d7de">connection timed out</span></div>
+    <div class="rule" style="border-color:#b96882"></div>
+    <div class="ln"><span style="color:#5B8CFF">▌ </span><span style="color:#f1d7de;font-weight:700">OpenAI Codex</span><span style="color:#b96882"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#b96882">  › </span><span style="color:#f1d7de">跑一下测试</span></div>
+    <div class="ln"><span style="color:#FF2D55">  • </span><span style="color:#f1d7de">Ran </span><span style="color:#55c3bc">npm test</span></div>
+    <div class="ln"><span style="color:#4dce80">  ✓ 17 passed</span><span style="color:#b96882"> · </span><span style="color:#ffcb3f">1 skipped</span></div>
+    <div class="ln"><span style="color:#f1d7de">  sel: </span><span style="background:#FF2D5547;color:#f1d7de">选中的文本长这样</span><span style="color:#f1d7de"> cursor:</span><span style="background:#FF2D55;color:#1C0E14">█</span></div>
+    <div class="swatches"><i title="red" style="background:#ff586a"></i><i title="green" style="background:#4dce80"></i><i title="yellow" style="background:#ffcb3f"></i><i title="blue" style="background:#5B8CFF"></i><i title="magenta" style="background:#FF2D55"></i><i title="cyan" style="background:#55c3bc"></i><i title="white" style="background:#cebed0"></i><i title="brightBlack" style="background:#b96882"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>电光紫 <code>unit</code> <em>暗</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#1E0E2A;color:#cccdf5">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#ca9ef8"> ✻ </span><span style="color:#cccdf5">Welcome to </span><span style="color:#cccdf5;font-weight:700">Claude Code</span><span style="color:#585b70">  v2.1.x</span></div><div class="ln"><span style="color:#585b70">   model: </span><span style="color:#98d4d9">claude-fable-5</span><span style="color:#585b70"> · </span><span style="color:#98d4d9">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#585b70">> </span><span style="color:#cccdf5">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#ca9ef8">✻ </span><span style="color:#585b70">Thinking…</span></div>
+    <div class="ln"><span style="color:#8eaafb">⏺ </span><span style="color:#cccdf5">Read</span><span style="color:#585b70">(</span><span style="color:#98d4d9">src/app.js</span><span style="color:#585b70">)</span></div>
+    <div class="ln"><span style="color:#a8d5aa">  ⎿ </span><span style="color:#585b70">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#a8d5aa">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#ee85b1">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#cccdf5">Do you want to make this edit to </span><span style="color:#98d4d9">app.js</span><span style="color:#cccdf5">?</span></div><div class="ln"><span style="color:#a8d5aa"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#585b70">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#585b70">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#f3d4b7">⚠ </span><span style="color:#f3d4b7">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#ee85b1">✗ </span><span style="color:#ee85b1">Error: </span><span style="color:#cccdf5">connection timed out</span></div>
+    <div class="rule" style="border-color:#585b70"></div>
+    <div class="ln"><span style="color:#8eaafb">▌ </span><span style="color:#cccdf5;font-weight:700">OpenAI Codex</span><span style="color:#585b70"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#585b70">  › </span><span style="color:#cccdf5">跑一下测试</span></div>
+    <div class="ln"><span style="color:#ca9ef8">  • </span><span style="color:#cccdf5">Ran </span><span style="color:#98d4d9">npm test</span></div>
+    <div class="ln"><span style="color:#a8d5aa">  ✓ 17 passed</span><span style="color:#585b70"> · </span><span style="color:#f3d4b7">1 skipped</span></div>
+    <div class="ln"><span style="color:#cccdf5">  sel: </span><span style="background:#BE52FF47;color:#cccdf5">选中的文本长这样</span><span style="color:#cccdf5"> cursor:</span><span style="background:#BE52FF;color:#1E0E2A">█</span></div>
+    <div class="swatches"><i title="red" style="background:#ee85b1"></i><i title="green" style="background:#a8d5aa"></i><i title="yellow" style="background:#f3d4b7"></i><i title="blue" style="background:#8eaafb"></i><i title="magenta" style="background:#ca9ef8"></i><i title="cyan" style="background:#98d4d9"></i><i title="white" style="background:#babce0"></i><i title="brightBlack" style="background:#585b70"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#1E0E2A;color:#e8d6f6">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#9f77c6"><div class="ln"><span style="color:#FF4DD8"> ✻ </span><span style="color:#e8d6f6">Welcome to </span><span style="color:#e8d6f6;font-weight:700">Claude Code</span><span style="color:#9f77c6">  v2.1.x</span></div><div class="ln"><span style="color:#9f77c6">   model: </span><span style="color:#00D9FF">claude-fable-5</span><span style="color:#9f77c6"> · </span><span style="color:#00D9FF">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#9f77c6">> </span><span style="color:#e8d6f6">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#FF4DD8">✻ </span><span style="color:#9f77c6">Thinking…</span></div>
+    <div class="ln"><span style="color:#BE52FF">⏺ </span><span style="color:#e8d6f6">Read</span><span style="color:#9f77c6">(</span><span style="color:#00D9FF">src/app.js</span><span style="color:#9f77c6">)</span></div>
+    <div class="ln"><span style="color:#47d18e">  ⎿ </span><span style="color:#9f77c6">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#47d18e">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#fa5b78">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#9f77c6"><div class="ln"><span style="color:#e8d6f6">Do you want to make this edit to </span><span style="color:#00D9FF">app.js</span><span style="color:#e8d6f6">?</span></div><div class="ln"><span style="color:#47d18e"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#9f77c6">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#9f77c6">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#face4d">⚠ </span><span style="color:#face4d">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#fa5b78">✗ </span><span style="color:#fa5b78">Error: </span><span style="color:#e8d6f6">connection timed out</span></div>
+    <div class="rule" style="border-color:#9f77c6"></div>
+    <div class="ln"><span style="color:#BE52FF">▌ </span><span style="color:#e8d6f6;font-weight:700">OpenAI Codex</span><span style="color:#9f77c6"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#9f77c6">  › </span><span style="color:#e8d6f6">跑一下测试</span></div>
+    <div class="ln"><span style="color:#FF4DD8">  • </span><span style="color:#e8d6f6">Ran </span><span style="color:#00D9FF">npm test</span></div>
+    <div class="ln"><span style="color:#47d18e">  ✓ 17 passed</span><span style="color:#9f77c6"> · </span><span style="color:#face4d">1 skipped</span></div>
+    <div class="ln"><span style="color:#e8d6f6">  sel: </span><span style="background:#BE52FF47;color:#e8d6f6">选中的文本长这样</span><span style="color:#e8d6f6"> cursor:</span><span style="background:#BE52FF;color:#1E0E2A">█</span></div>
+    <div class="swatches"><i title="red" style="background:#fa5b78"></i><i title="green" style="background:#47d18e"></i><i title="yellow" style="background:#face4d"></i><i title="blue" style="background:#BE52FF"></i><i title="magenta" style="background:#FF4DD8"></i><i title="cyan" style="background:#00D9FF"></i><i title="white" style="background:#c7c2e1"></i><i title="brightBlack" style="background:#9f77c6"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>熔岩橙 <code>flux</code> <em>暗</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#241509;color:#d1cfe7">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#d0a0e4"> ✻ </span><span style="color:#d1cfe7">Welcome to </span><span style="color:#d1cfe7;font-weight:700">Claude Code</span><span style="color:#585b70">  v2.1.x</span></div><div class="ln"><span style="color:#585b70">   model: </span><span style="color:#9fd6c5">claude-fable-5</span><span style="color:#585b70"> · </span><span style="color:#9fd6c5">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#585b70">> </span><span style="color:#d1cfe7">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#d0a0e4">✻ </span><span style="color:#585b70">Thinking…</span></div>
+    <div class="ln"><span style="color:#95ade6">⏺ </span><span style="color:#d1cfe7">Read</span><span style="color:#585b70">(</span><span style="color:#9fd6c5">src/app.js</span><span style="color:#585b70">)</span></div>
+    <div class="ln"><span style="color:#afd796">  ⎿ </span><span style="color:#585b70">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#afd796">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#f4889d">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#d1cfe7">Do you want to make this edit to </span><span style="color:#9fd6c5">app.js</span><span style="color:#d1cfe7">?</span></div><div class="ln"><span style="color:#afd796"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#585b70">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#585b70">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#fad6a3">⚠ </span><span style="color:#fad6a3">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#f4889d">✗ </span><span style="color:#f4889d">Error: </span><span style="color:#d1cfe7">connection timed out</span></div>
+    <div class="rule" style="border-color:#585b70"></div>
+    <div class="ln"><span style="color:#95ade6">▌ </span><span style="color:#d1cfe7;font-weight:700">OpenAI Codex</span><span style="color:#585b70"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#585b70">  › </span><span style="color:#d1cfe7">跑一下测试</span></div>
+    <div class="ln"><span style="color:#d0a0e4">  • </span><span style="color:#d1cfe7">Ran </span><span style="color:#9fd6c5">npm test</span></div>
+    <div class="ln"><span style="color:#afd796">  ✓ 17 passed</span><span style="color:#585b70"> · </span><span style="color:#fad6a3">1 skipped</span></div>
+    <div class="ln"><span style="color:#d1cfe7">  sel: </span><span style="background:#FF6B3547;color:#d1cfe7">选中的文本长这样</span><span style="color:#d1cfe7"> cursor:</span><span style="background:#FF6B35;color:#241509">█</span></div>
+    <div class="swatches"><i title="red" style="background:#f4889d"></i><i title="green" style="background:#afd796"></i><i title="yellow" style="background:#fad6a3"></i><i title="blue" style="background:#95ade6"></i><i title="magenta" style="background:#d0a0e4"></i><i title="cyan" style="background:#9fd6c5"></i><i title="white" style="background:#bdbed6"></i><i title="brightBlack" style="background:#585b70"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#241509;color:#f3ded4">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#b98175"><div class="ln"><span style="color:#FF6B35"> ✻ </span><span style="color:#f3ded4">Welcome to </span><span style="color:#f3ded4;font-weight:700">Claude Code</span><span style="color:#b98175">  v2.1.x</span></div><div class="ln"><span style="color:#b98175">   model: </span><span style="color:#55cdb7">claude-fable-5</span><span style="color:#b98175"> · </span><span style="color:#55cdb7">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#b98175">> </span><span style="color:#f3ded4">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#FF6B35">✻ </span><span style="color:#b98175">Thinking…</span></div>
+    <div class="ln"><span style="color:#2F9BED">⏺ </span><span style="color:#f3ded4">Read</span><span style="color:#b98175">(</span><span style="color:#55cdb7">src/app.js</span><span style="color:#b98175">)</span></div>
+    <div class="ln"><span style="color:#4dd37e">  ⎿ </span><span style="color:#b98175">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#4dd37e">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#ff5d68">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#b98175"><div class="ln"><span style="color:#f3ded4">Do you want to make this edit to </span><span style="color:#55cdb7">app.js</span><span style="color:#f3ded4">?</span></div><div class="ln"><span style="color:#4dd37e"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#b98175">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#b98175">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#ffd03c">⚠ </span><span style="color:#ffd03c">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#ff5d68">✗ </span><span style="color:#ff5d68">Error: </span><span style="color:#f3ded4">connection timed out</span></div>
+    <div class="rule" style="border-color:#b98175"></div>
+    <div class="ln"><span style="color:#2F9BED">▌ </span><span style="color:#f3ded4;font-weight:700">OpenAI Codex</span><span style="color:#b98175"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#b98175">  › </span><span style="color:#f3ded4">跑一下测试</span></div>
+    <div class="ln"><span style="color:#FF6B35">  • </span><span style="color:#f3ded4">Ran </span><span style="color:#55cdb7">npm test</span></div>
+    <div class="ln"><span style="color:#4dd37e">  ✓ 17 passed</span><span style="color:#b98175"> · </span><span style="color:#ffd03c">1 skipped</span></div>
+    <div class="ln"><span style="color:#f3ded4">  sel: </span><span style="background:#FF6B3547;color:#f3ded4">选中的文本长这样</span><span style="color:#f3ded4"> cursor:</span><span style="background:#FF6B35;color:#241509">█</span></div>
+    <div class="swatches"><i title="red" style="background:#ff5d68"></i><i title="green" style="background:#4dd37e"></i><i title="yellow" style="background:#ffd03c"></i><i title="blue" style="background:#2F9BED"></i><i title="magenta" style="background:#FF6B35"></i><i title="cyan" style="background:#55cdb7"></i><i title="white" style="background:#cec4cd"></i><i title="brightBlack" style="background:#b98175"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>深海核 <code>core</code> <em>暗</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#0C1E22;color:#bfd4ee">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#b7a8ee"> ✻ </span><span style="color:#bfd4ee">Welcome to </span><span style="color:#bfd4ee;font-weight:700">Claude Code</span><span style="color:#585b70">  v2.1.x</span></div><div class="ln"><span style="color:#585b70">   model: </span><span style="color:#85ded0">claude-fable-5</span><span style="color:#585b70"> · </span><span style="color:#85ded0">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#585b70">> </span><span style="color:#bfd4ee">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#b7a8ee">✻ </span><span style="color:#585b70">Thinking…</span></div>
+    <div class="ln"><span style="color:#7bb4f1">⏺ </span><span style="color:#bfd4ee">Read</span><span style="color:#585b70">(</span><span style="color:#85ded0">src/app.js</span><span style="color:#585b70">)</span></div>
+    <div class="ln"><span style="color:#95dfa1">  ⎿ </span><span style="color:#585b70">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#95dfa1">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#db90a7">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#bfd4ee">Do you want to make this edit to </span><span style="color:#85ded0">app.js</span><span style="color:#bfd4ee">?</span></div><div class="ln"><span style="color:#95dfa1"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#585b70">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#585b70">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#e0deae">⚠ </span><span style="color:#e0deae">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#db90a7">✗ </span><span style="color:#db90a7">Error: </span><span style="color:#bfd4ee">connection timed out</span></div>
+    <div class="rule" style="border-color:#585b70"></div>
+    <div class="ln"><span style="color:#7bb4f1">▌ </span><span style="color:#bfd4ee;font-weight:700">OpenAI Codex</span><span style="color:#585b70"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#585b70">  › </span><span style="color:#bfd4ee">跑一下测试</span></div>
+    <div class="ln"><span style="color:#b7a8ee">  • </span><span style="color:#bfd4ee">Ran </span><span style="color:#85ded0">npm test</span></div>
+    <div class="ln"><span style="color:#95dfa1">  ✓ 17 passed</span><span style="color:#585b70"> · </span><span style="color:#e0deae">1 skipped</span></div>
+    <div class="ln"><span style="color:#bfd4ee">  sel: </span><span style="background:#00B8A047;color:#bfd4ee">选中的文本长这样</span><span style="color:#bfd4ee"> cursor:</span><span style="background:#00B8A0;color:#0C1E22">█</span></div>
+    <div class="swatches"><i title="red" style="background:#db90a7"></i><i title="green" style="background:#95dfa1"></i><i title="yellow" style="background:#e0deae"></i><i title="blue" style="background:#7bb4f1"></i><i title="magenta" style="background:#b7a8ee"></i><i title="cyan" style="background:#85ded0"></i><i title="white" style="background:#b1c2db"></i><i title="brightBlack" style="background:#585b70"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#0C1E22;color:#cce6e4">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#539fa0"><div class="ln"><span style="color:#b485f0"> ✻ </span><span style="color:#cce6e4">Welcome to </span><span style="color:#cce6e4;font-weight:700">Claude Code</span><span style="color:#539fa0">  v2.1.x</span></div><div class="ln"><span style="color:#539fa0">   model: </span><span style="color:#00B8A0">claude-fable-5</span><span style="color:#539fa0"> · </span><span style="color:#00B8A0">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#539fa0">> </span><span style="color:#cce6e4">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#b485f0">✻ </span><span style="color:#539fa0">Thinking…</span></div>
+    <div class="ln"><span style="color:#4DA6FF">⏺ </span><span style="color:#cce6e4">Read</span><span style="color:#539fa0">(</span><span style="color:#00B8A0">src/app.js</span><span style="color:#539fa0">)</span></div>
+    <div class="ln"><span style="color:#38d986">  ⎿ </span><span style="color:#539fa0">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#38d986">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#eb6370">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#539fa0"><div class="ln"><span style="color:#cce6e4">Do you want to make this edit to </span><span style="color:#00B8A0">app.js</span><span style="color:#cce6e4">?</span></div><div class="ln"><span style="color:#38d986"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#539fa0">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#539fa0">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#ebd645">⚠ </span><span style="color:#ebd645">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#eb6370">✗ </span><span style="color:#eb6370">Error: </span><span style="color:#cce6e4">connection timed out</span></div>
+    <div class="rule" style="border-color:#539fa0"></div>
+    <div class="ln"><span style="color:#4DA6FF">▌ </span><span style="color:#cce6e4;font-weight:700">OpenAI Codex</span><span style="color:#539fa0"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#539fa0">  › </span><span style="color:#cce6e4">跑一下测试</span></div>
+    <div class="ln"><span style="color:#b485f0">  • </span><span style="color:#cce6e4">Ran </span><span style="color:#00B8A0">npm test</span></div>
+    <div class="ln"><span style="color:#38d986">  ✓ 17 passed</span><span style="color:#539fa0"> · </span><span style="color:#ebd645">1 skipped</span></div>
+    <div class="ln"><span style="color:#cce6e4">  sel: </span><span style="background:#00B8A047;color:#cce6e4">选中的文本长这样</span><span style="color:#cce6e4"> cursor:</span><span style="background:#00B8A0;color:#0C1E22">█</span></div>
+    <div class="swatches"><i title="red" style="background:#eb6370"></i><i title="green" style="background:#38d986"></i><i title="yellow" style="background:#ebd645"></i><i title="blue" style="background:#4DA6FF"></i><i title="magenta" style="background:#b485f0"></i><i title="cyan" style="background:#00B8A0"></i><i title="white" style="background:#b4ccd8"></i><i title="brightBlack" style="background:#539fa0"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>翡翠林 <code>form</code> <em>暗</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#102A19;color:#bfd6ea">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#b7aae8"> ✻ </span><span style="color:#bfd6ea">Welcome to </span><span style="color:#bfd6ea;font-weight:700">Claude Code</span><span style="color:#585b70">  v2.1.x</span></div><div class="ln"><span style="color:#585b70">   model: </span><span style="color:#85e0ca">claude-fable-5</span><span style="color:#585b70"> · </span><span style="color:#85e0ca">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#585b70">> </span><span style="color:#bfd6ea">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#b7aae8">✻ </span><span style="color:#585b70">Thinking…</span></div>
+    <div class="ln"><span style="color:#7bb7eb">⏺ </span><span style="color:#bfd6ea">Read</span><span style="color:#585b70">(</span><span style="color:#85e0ca">src/app.js</span><span style="color:#585b70">)</span></div>
+    <div class="ln"><span style="color:#95e19b">  ⎿ </span><span style="color:#585b70">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#95e19b">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#db92a1">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#585b70"><div class="ln"><span style="color:#bfd6ea">Do you want to make this edit to </span><span style="color:#85e0ca">app.js</span><span style="color:#bfd6ea">?</span></div><div class="ln"><span style="color:#95e19b"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#585b70">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#585b70">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#e0e0a8">⚠ </span><span style="color:#e0e0a8">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#db92a1">✗ </span><span style="color:#db92a1">Error: </span><span style="color:#bfd6ea">connection timed out</span></div>
+    <div class="rule" style="border-color:#585b70"></div>
+    <div class="ln"><span style="color:#7bb7eb">▌ </span><span style="color:#bfd6ea;font-weight:700">OpenAI Codex</span><span style="color:#585b70"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#585b70">  › </span><span style="color:#bfd6ea">跑一下测试</span></div>
+    <div class="ln"><span style="color:#b7aae8">  • </span><span style="color:#bfd6ea">Ran </span><span style="color:#85e0ca">npm test</span></div>
+    <div class="ln"><span style="color:#95e19b">  ✓ 17 passed</span><span style="color:#585b70"> · </span><span style="color:#e0e0a8">1 skipped</span></div>
+    <div class="ln"><span style="color:#bfd6ea">  sel: </span><span style="background:#00D16547;color:#bfd6ea">选中的文本长这样</span><span style="color:#bfd6ea"> cursor:</span><span style="background:#00D165;color:#102A19">█</span></div>
+    <div class="swatches"><i title="red" style="background:#db92a1"></i><i title="green" style="background:#95e19b"></i><i title="yellow" style="background:#e0e0a8"></i><i title="blue" style="background:#7bb7eb"></i><i title="magenta" style="background:#b7aae8"></i><i title="cyan" style="background:#85e0ca"></i><i title="white" style="background:#b1c3d8"></i><i title="brightBlack" style="background:#585b70"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#102A19;color:#d0eada">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#53a988"><div class="ln"><span style="color:#FF7043"> ✻ </span><span style="color:#d0eada">Welcome to </span><span style="color:#d0eada;font-weight:700">Claude Code</span><span style="color:#53a988">  v2.1.x</span></div><div class="ln"><span style="color:#53a988">   model: </span><span style="color:#00D165">claude-fable-5</span><span style="color:#53a988"> · </span><span style="color:#00D165">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#53a988">> </span><span style="color:#d0eada">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#FF7043">✻ </span><span style="color:#53a988">Thinking…</span></div>
+    <div class="ln"><span style="color:#4ca4e6">⏺ </span><span style="color:#d0eada">Read</span><span style="color:#53a988">(</span><span style="color:#00D165">src/app.js</span><span style="color:#53a988">)</span></div>
+    <div class="ln"><span style="color:#38db82">  ⎿ </span><span style="color:#53a988">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#38db82">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#eb656b">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#53a988"><div class="ln"><span style="color:#d0eada">Do you want to make this edit to </span><span style="color:#00D165">app.js</span><span style="color:#d0eada">?</span></div><div class="ln"><span style="color:#38db82"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#53a988">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#53a988">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#ebd840">⚠ </span><span style="color:#ebd840">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#eb656b">✗ </span><span style="color:#eb656b">Error: </span><span style="color:#d0eada">connection timed out</span></div>
+    <div class="rule" style="border-color:#53a988"></div>
+    <div class="ln"><span style="color:#4ca4e6">▌ </span><span style="color:#d0eada;font-weight:700">OpenAI Codex</span><span style="color:#53a988"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#53a988">  › </span><span style="color:#d0eada">跑一下测试</span></div>
+    <div class="ln"><span style="color:#FF7043">  • </span><span style="color:#d0eada">Ran </span><span style="color:#00D165">npm test</span></div>
+    <div class="ln"><span style="color:#38db82">  ✓ 17 passed</span><span style="color:#53a988"> · </span><span style="color:#ebd840">1 skipped</span></div>
+    <div class="ln"><span style="color:#d0eada">  sel: </span><span style="background:#00D16547;color:#d0eada">选中的文本长这样</span><span style="color:#d0eada"> cursor:</span><span style="background:#00D165;color:#102A19">█</span></div>
+    <div class="swatches"><i title="red" style="background:#eb656b"></i><i title="green" style="background:#38db82"></i><i title="yellow" style="background:#ebd840"></i><i title="blue" style="background:#4ca4e6"></i><i title="magenta" style="background:#FF7043"></i><i title="cyan" style="background:#00D165"></i><i title="white" style="background:#b4ced2"></i><i title="brightBlack" style="background:#53a988"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>新孟菲斯 <code>memphis</code> <em class="lt">浅</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#F7DEC9;color:#4a4f71">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#6622b6"> ✻ </span><span style="color:#4a4f71">Welcome to </span><span style="color:#4a4f71;font-weight:700">Claude Code</span><span style="color:#6c6f85">  v2.1.x</span></div><div class="ln"><span style="color:#6c6f85">   model: </span><span style="color:#0d5563">claude-fable-5</span><span style="color:#6c6f85"> · </span><span style="color:#0d5563">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#6c6f85">> </span><span style="color:#4a4f71">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#6622b6">✻ </span><span style="color:#6c6f85">Thinking…</span></div>
+    <div class="ln"><span style="color:#1443be">⏺ </span><span style="color:#4a4f71">Read</span><span style="color:#6c6f85">(</span><span style="color:#0d5563">src/app.js</span><span style="color:#6c6f85">)</span></div>
+    <div class="ln"><span style="color:#276226">  ⎿ </span><span style="color:#6c6f85">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#276226">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#9e1638">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#4a4f71">Do you want to make this edit to </span><span style="color:#0d5563">app.js</span><span style="color:#4a4f71">?</span></div><div class="ln"><span style="color:#276226"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#6c6f85">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#6c6f85">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#6f5015">⚠ </span><span style="color:#6f5015">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#9e1638">✗ </span><span style="color:#9e1638">Error: </span><span style="color:#4a4f71">connection timed out</span></div>
+    <div class="rule" style="border-color:#6c6f85"></div>
+    <div class="ln"><span style="color:#1443be">▌ </span><span style="color:#4a4f71;font-weight:700">OpenAI Codex</span><span style="color:#6c6f85"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#6c6f85">  › </span><span style="color:#4a4f71">跑一下测试</span></div>
+    <div class="ln"><span style="color:#6622b6">  • </span><span style="color:#4a4f71">Ran </span><span style="color:#0d5563">npm test</span></div>
+    <div class="ln"><span style="color:#276226">  ✓ 17 passed</span><span style="color:#6c6f85"> · </span><span style="color:#6f5015">1 skipped</span></div>
+    <div class="ln"><span style="color:#4a4f71">  sel: </span><span style="background:#2D4CC847;color:#4a4f71">选中的文本长这样</span><span style="color:#4a4f71"> cursor:</span><span style="background:#2D4CC8;color:#F7DEC9">█</span></div>
+    <div class="swatches"><i title="red" style="background:#9e1638"></i><i title="green" style="background:#276226"></i><i title="yellow" style="background:#6f5015"></i><i title="blue" style="background:#1443be"></i><i title="magenta" style="background:#6622b6"></i><i title="cyan" style="background:#0d5563"></i><i title="white" style="background:#696d88"></i><i title="brightBlack" style="background:#6c6f85"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#F7DEC9;color:#242d57">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#56639c"><div class="ln"><span style="color:#D6246E"> ✻ </span><span style="color:#242d57">Welcome to </span><span style="color:#242d57;font-weight:700">Claude Code</span><span style="color:#56639c">  v2.1.x</span></div><div class="ln"><span style="color:#56639c">   model: </span><span style="color:#107590">claude-fable-5</span><span style="color:#56639c"> · </span><span style="color:#107590">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#56639c">> </span><span style="color:#242d57">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#D6246E">✻ </span><span style="color:#56639c">Thinking…</span></div>
+    <div class="ln"><span style="color:#2D4CC8">⏺ </span><span style="color:#242d57">Read</span><span style="color:#56639c">(</span><span style="color:#107590">src/app.js</span><span style="color:#56639c">)</span></div>
+    <div class="ln"><span style="color:#1e7640">  ⎿ </span><span style="color:#56639c">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#1e7640">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#b61c45">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#56639c"><div class="ln"><span style="color:#242d57">Do you want to make this edit to </span><span style="color:#107590">app.js</span><span style="color:#242d57">?</span></div><div class="ln"><span style="color:#1e7640"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#56639c">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#56639c">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#876016">⚠ </span><span style="color:#876016">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#b61c45">✗ </span><span style="color:#b61c45">Error: </span><span style="color:#242d57">connection timed out</span></div>
+    <div class="rule" style="border-color:#56639c"></div>
+    <div class="ln"><span style="color:#2D4CC8">▌ </span><span style="color:#242d57;font-weight:700">OpenAI Codex</span><span style="color:#56639c"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#56639c">  › </span><span style="color:#242d57">跑一下测试</span></div>
+    <div class="ln"><span style="color:#D6246E">  • </span><span style="color:#242d57">Ran </span><span style="color:#107590">npm test</span></div>
+    <div class="ln"><span style="color:#1e7640">  ✓ 17 passed</span><span style="color:#56639c"> · </span><span style="color:#876016">1 skipped</span></div>
+    <div class="ln"><span style="color:#242d57">  sel: </span><span style="background:#2D4CC847;color:#242d57">选中的文本长这样</span><span style="color:#242d57"> cursor:</span><span style="background:#2D4CC8;color:#F7DEC9">█</span></div>
+    <div class="swatches"><i title="red" style="background:#b61c45"></i><i title="green" style="background:#1e7640"></i><i title="yellow" style="background:#876016"></i><i title="blue" style="background:#2D4CC8"></i><i title="magenta" style="background:#D6246E"></i><i title="cyan" style="background:#107590"></i><i title="white" style="background:#676c8a"></i><i title="brightBlack" style="background:#56639c"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>现代博物 <code>museum</code> <em class="lt">浅</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#EFE6D2;color:#494f6c">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#6622b1"> ✻ </span><span style="color:#494f6c">Welcome to </span><span style="color:#494f6c;font-weight:700">Claude Code</span><span style="color:#6c6f85">  v2.1.x</span></div><div class="ln"><span style="color:#6c6f85">   model: </span><span style="color:#0d555e">claude-fable-5</span><span style="color:#6c6f85"> · </span><span style="color:#0d555e">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#6c6f85">> </span><span style="color:#494f6c">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#6622b1">✻ </span><span style="color:#6c6f85">Thinking…</span></div>
+    <div class="ln"><span style="color:#1443b9">⏺ </span><span style="color:#494f6c">Read</span><span style="color:#6c6f85">(</span><span style="color:#0d555e">src/app.js</span><span style="color:#6c6f85">)</span></div>
+    <div class="ln"><span style="color:#266222">  ⎿ </span><span style="color:#6c6f85">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#266222">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#9e1633">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#494f6c">Do you want to make this edit to </span><span style="color:#0d555e">app.js</span><span style="color:#494f6c">?</span></div><div class="ln"><span style="color:#266222"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#6c6f85">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#6c6f85">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#6f5010">⚠ </span><span style="color:#6f5010">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#9e1633">✗ </span><span style="color:#9e1633">Error: </span><span style="color:#494f6c">connection timed out</span></div>
+    <div class="rule" style="border-color:#6c6f85"></div>
+    <div class="ln"><span style="color:#1443b9">▌ </span><span style="color:#494f6c;font-weight:700">OpenAI Codex</span><span style="color:#6c6f85"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#6c6f85">  › </span><span style="color:#494f6c">跑一下测试</span></div>
+    <div class="ln"><span style="color:#6622b1">  • </span><span style="color:#494f6c">Ran </span><span style="color:#0d555e">npm test</span></div>
+    <div class="ln"><span style="color:#266222">  ✓ 17 passed</span><span style="color:#6c6f85"> · </span><span style="color:#6f5010">1 skipped</span></div>
+    <div class="ln"><span style="color:#494f6c">  sel: </span><span style="background:#2A4A8F47;color:#494f6c">选中的文本长这样</span><span style="color:#494f6c"> cursor:</span><span style="background:#2A4A8F;color:#EFE6D2">█</span></div>
+    <div class="swatches"><i title="red" style="background:#9e1633"></i><i title="green" style="background:#266222"></i><i title="yellow" style="background:#6f5010"></i><i title="blue" style="background:#1443b9"></i><i title="magenta" style="background:#6622b1"></i><i title="cyan" style="background:#0d555e"></i><i title="white" style="background:#696d86"></i><i title="brightBlack" style="background:#6c6f85"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#EFE6D2;color:#242b3f">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#556289"><div class="ln"><span style="color:#B5604A"> ✻ </span><span style="color:#242b3f">Welcome to </span><span style="color:#242b3f;font-weight:700">Claude Code</span><span style="color:#556289">  v2.1.x</span></div><div class="ln"><span style="color:#556289">   model: </span><span style="color:#107587">claude-fable-5</span><span style="color:#556289"> · </span><span style="color:#107587">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#556289">> </span><span style="color:#242b3f">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#B5604A">✻ </span><span style="color:#556289">Thinking…</span></div>
+    <div class="ln"><span style="color:#2A4A8F">⏺ </span><span style="color:#242b3f">Read</span><span style="color:#556289">(</span><span style="color:#107587">src/app.js</span><span style="color:#556289">)</span></div>
+    <div class="ln"><span style="color:#1e763b">  ⎿ </span><span style="color:#556289">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#1e763b">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#b61c41">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#556289"><div class="ln"><span style="color:#242b3f">Do you want to make this edit to </span><span style="color:#107587">app.js</span><span style="color:#242b3f">?</span></div><div class="ln"><span style="color:#1e763b"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#556289">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#556289">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#876011">⚠ </span><span style="color:#876011">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#b61c41">✗ </span><span style="color:#b61c41">Error: </span><span style="color:#242b3f">connection timed out</span></div>
+    <div class="rule" style="border-color:#556289"></div>
+    <div class="ln"><span style="color:#2A4A8F">▌ </span><span style="color:#242b3f;font-weight:700">OpenAI Codex</span><span style="color:#556289"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#556289">  › </span><span style="color:#242b3f">跑一下测试</span></div>
+    <div class="ln"><span style="color:#B5604A">  • </span><span style="color:#242b3f">Ran </span><span style="color:#107587">npm test</span></div>
+    <div class="ln"><span style="color:#1e763b">  ✓ 17 passed</span><span style="color:#556289"> · </span><span style="color:#876011">1 skipped</span></div>
+    <div class="ln"><span style="color:#242b3f">  sel: </span><span style="background:#2A4A8F47;color:#242b3f">选中的文本长这样</span><span style="color:#242b3f"> cursor:</span><span style="background:#2A4A8F;color:#EFE6D2">█</span></div>
+    <div class="swatches"><i title="red" style="background:#b61c41"></i><i title="green" style="background:#1e763b"></i><i title="yellow" style="background:#876011"></i><i title="blue" style="background:#2A4A8F"></i><i title="magenta" style="background:#B5604A"></i><i title="cyan" style="background:#107587"></i><i title="white" style="background:#676c86"></i><i title="brightBlack" style="background:#556289"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>酸性时尚 <code>acid</code> <em class="lt">浅</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#DEC95C;color:#494d71">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#6520b6"> ✻ </span><span style="color:#494d71">Welcome to </span><span style="color:#494d71;font-weight:700">Claude Code</span><span style="color:#6c6f85">  v2.1.x</span></div><div class="ln"><span style="color:#6c6f85">   model: </span><span style="color:#0c5363">claude-fable-5</span><span style="color:#6c6f85"> · </span><span style="color:#0c5363">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#6c6f85">> </span><span style="color:#494d71">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#6520b6">✻ </span><span style="color:#6c6f85">Thinking…</span></div>
+    <div class="ln"><span style="color:#1341be">⏺ </span><span style="color:#494d71">Read</span><span style="color:#6c6f85">(</span><span style="color:#0c5363">src/app.js</span><span style="color:#6c6f85">)</span></div>
+    <div class="ln"><span style="color:#266026">  ⎿ </span><span style="color:#6c6f85">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#266026">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#9d1438">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#494d71">Do you want to make this edit to </span><span style="color:#0c5363">app.js</span><span style="color:#494d71">?</span></div><div class="ln"><span style="color:#266026"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#6c6f85">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#6c6f85">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#6f4e15">⚠ </span><span style="color:#6f4e15">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#9d1438">✗ </span><span style="color:#9d1438">Error: </span><span style="color:#494d71">connection timed out</span></div>
+    <div class="rule" style="border-color:#6c6f85"></div>
+    <div class="ln"><span style="color:#1341be">▌ </span><span style="color:#494d71;font-weight:700">OpenAI Codex</span><span style="color:#6c6f85"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#6c6f85">  › </span><span style="color:#494d71">跑一下测试</span></div>
+    <div class="ln"><span style="color:#6520b6">  • </span><span style="color:#494d71">Ran </span><span style="color:#0c5363">npm test</span></div>
+    <div class="ln"><span style="color:#266026">  ✓ 17 passed</span><span style="color:#6c6f85"> · </span><span style="color:#6f4e15">1 skipped</span></div>
+    <div class="ln"><span style="color:#494d71">  sel: </span><span style="background:#2433C847;color:#494d71">选中的文本长这样</span><span style="color:#494d71"> cursor:</span><span style="background:#2433C8;color:#DEC95C">█</span></div>
+    <div class="swatches"><i title="red" style="background:#9d1438"></i><i title="green" style="background:#266026"></i><i title="yellow" style="background:#6f4e15"></i><i title="blue" style="background:#1341be"></i><i title="magenta" style="background:#6520b6"></i><i title="cyan" style="background:#0c5363"></i><i title="white" style="background:#686c88"></i><i title="brightBlack" style="background:#6c6f85"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#DEC95C;color:#161945">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#535a9c"><div class="ln"><span style="color:#C81E6E"> ✻ </span><span style="color:#161945">Welcome to </span><span style="color:#161945;font-weight:700">Claude Code</span><span style="color:#535a9c">  v2.1.x</span></div><div class="ln"><span style="color:#535a9c">   model: </span><span style="color:#007669">claude-fable-5</span><span style="color:#535a9c"> · </span><span style="color:#007669">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#535a9c">> </span><span style="color:#161945">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#C81E6E">✻ </span><span style="color:#535a9c">Thinking…</span></div>
+    <div class="ln"><span style="color:#2433C8">⏺ </span><span style="color:#161945">Read</span><span style="color:#535a9c">(</span><span style="color:#007669">src/app.js</span><span style="color:#535a9c">)</span></div>
+    <div class="ln"><span style="color:#1e7440">  ⎿ </span><span style="color:#535a9c">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#1e7440">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#b51a45">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#535a9c"><div class="ln"><span style="color:#161945">Do you want to make this edit to </span><span style="color:#007669">app.js</span><span style="color:#161945">?</span></div><div class="ln"><span style="color:#1e7440"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#535a9c">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#535a9c">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#865e16">⚠ </span><span style="color:#865e16">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#b51a45">✗ </span><span style="color:#b51a45">Error: </span><span style="color:#161945">connection timed out</span></div>
+    <div class="rule" style="border-color:#535a9c"></div>
+    <div class="ln"><span style="color:#2433C8">▌ </span><span style="color:#161945;font-weight:700">OpenAI Codex</span><span style="color:#535a9c"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#535a9c">  › </span><span style="color:#161945">跑一下测试</span></div>
+    <div class="ln"><span style="color:#C81E6E">  • </span><span style="color:#161945">Ran </span><span style="color:#007669">npm test</span></div>
+    <div class="ln"><span style="color:#1e7440">  ✓ 17 passed</span><span style="color:#535a9c"> · </span><span style="color:#865e16">1 skipped</span></div>
+    <div class="ln"><span style="color:#161945">  sel: </span><span style="background:#2433C847;color:#161945">选中的文本长这样</span><span style="color:#161945"> cursor:</span><span style="background:#2433C8;color:#DEC95C">█</span></div>
+    <div class="swatches"><i title="red" style="background:#b51a45"></i><i title="green" style="background:#1e7440"></i><i title="yellow" style="background:#865e16"></i><i title="blue" style="background:#2433C8"></i><i title="magenta" style="background:#C81E6E"></i><i title="cyan" style="background:#007669"></i><i title="white" style="background:#666a8a"></i><i title="brightBlack" style="background:#535a9c"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>未来社区 <code>future</code> <em class="lt">浅</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#C9EFDD;color:#504d74">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#6c20b9"> ✻ </span><span style="color:#504d74">Welcome to </span><span style="color:#504d74;font-weight:700">Claude Code</span><span style="color:#6c6f85">  v2.1.x</span></div><div class="ln"><span style="color:#6c6f85">   model: </span><span style="color:#135466">claude-fable-5</span><span style="color:#6c6f85"> · </span><span style="color:#135466">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#6c6f85">> </span><span style="color:#504d74">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#6c20b9">✻ </span><span style="color:#6c6f85">Thinking…</span></div>
+    <div class="ln"><span style="color:#1a41c1">⏺ </span><span style="color:#504d74">Read</span><span style="color:#6c6f85">(</span><span style="color:#135466">src/app.js</span><span style="color:#6c6f85">)</span></div>
+    <div class="ln"><span style="color:#2d6129">  ⎿ </span><span style="color:#6c6f85">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#2d6129">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#a4143b">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#504d74">Do you want to make this edit to </span><span style="color:#135466">app.js</span><span style="color:#504d74">?</span></div><div class="ln"><span style="color:#2d6129"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#6c6f85">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#6c6f85">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#764e18">⚠ </span><span style="color:#764e18">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#a4143b">✗ </span><span style="color:#a4143b">Error: </span><span style="color:#504d74">connection timed out</span></div>
+    <div class="rule" style="border-color:#6c6f85"></div>
+    <div class="ln"><span style="color:#1a41c1">▌ </span><span style="color:#504d74;font-weight:700">OpenAI Codex</span><span style="color:#6c6f85"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#6c6f85">  › </span><span style="color:#504d74">跑一下测试</span></div>
+    <div class="ln"><span style="color:#6c20b9">  • </span><span style="color:#504d74">Ran </span><span style="color:#135466">npm test</span></div>
+    <div class="ln"><span style="color:#2d6129">  ✓ 17 passed</span><span style="color:#6c6f85"> · </span><span style="color:#764e18">1 skipped</span></div>
+    <div class="ln"><span style="color:#504d74">  sel: </span><span style="background:#7C3AED47;color:#504d74">选中的文本长这样</span><span style="color:#504d74"> cursor:</span><span style="background:#7C3AED;color:#C9EFDD">█</span></div>
+    <div class="swatches"><i title="red" style="background:#a4143b"></i><i title="green" style="background:#2d6129"></i><i title="yellow" style="background:#764e18"></i><i title="blue" style="background:#1a41c1"></i><i title="magenta" style="background:#6c20b9"></i><i title="cyan" style="background:#135466"></i><i title="white" style="background:#6d6c8a"></i><i title="brightBlack" style="background:#6c6f85"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#C9EFDD;color:#23274e">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#725ca9"><div class="ln"><span style="color:#d54278"> ✻ </span><span style="color:#23274e">Welcome to </span><span style="color:#23274e;font-weight:700">Claude Code</span><span style="color:#725ca9">  v2.1.x</span></div><div class="ln"><span style="color:#725ca9">   model: </span><span style="color:#0d88a7">claude-fable-5</span><span style="color:#725ca9"> · </span><span style="color:#0d88a7">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#725ca9">> </span><span style="color:#23274e">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#d54278">✻ </span><span style="color:#725ca9">Thinking…</span></div>
+    <div class="ln"><span style="color:#7C3AED">⏺ </span><span style="color:#23274e">Read</span><span style="color:#725ca9">(</span><span style="color:#0d88a7">src/app.js</span><span style="color:#725ca9">)</span></div>
+    <div class="ln"><span style="color:#257543">  ⎿ </span><span style="color:#725ca9">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#257543">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#bc1b48">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#725ca9"><div class="ln"><span style="color:#23274e">Do you want to make this edit to </span><span style="color:#0d88a7">app.js</span><span style="color:#23274e">?</span></div><div class="ln"><span style="color:#257543"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#725ca9">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#725ca9">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#8d5f18">⚠ </span><span style="color:#8d5f18">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#bc1b48">✗ </span><span style="color:#bc1b48">Error: </span><span style="color:#23274e">connection timed out</span></div>
+    <div class="rule" style="border-color:#725ca9"></div>
+    <div class="ln"><span style="color:#7C3AED">▌ </span><span style="color:#23274e;font-weight:700">OpenAI Codex</span><span style="color:#725ca9"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#725ca9">  › </span><span style="color:#23274e">跑一下测试</span></div>
+    <div class="ln"><span style="color:#d54278">  • </span><span style="color:#23274e">Ran </span><span style="color:#0d88a7">npm test</span></div>
+    <div class="ln"><span style="color:#257543">  ✓ 17 passed</span><span style="color:#725ca9"> · </span><span style="color:#8d5f18">1 skipped</span></div>
+    <div class="ln"><span style="color:#23274e">  sel: </span><span style="background:#7C3AED47;color:#23274e">选中的文本长这样</span><span style="color:#23274e"> cursor:</span><span style="background:#7C3AED;color:#C9EFDD">█</span></div>
+    <div class="swatches"><i title="red" style="background:#bc1b48"></i><i title="green" style="background:#257543"></i><i title="yellow" style="background:#8d5f18"></i><i title="blue" style="background:#7C3AED"></i><i title="magenta" style="background:#d54278"></i><i title="cyan" style="background:#0d88a7"></i><i title="white" style="background:#6d6b8d"></i><i title="brightBlack" style="background:#725ca9"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>热带运动 <code>tropical</code> <em class="lt">浅</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#FAD6A6;color:#465067">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#6223ac"> ✻ </span><span style="color:#465067">Welcome to </span><span style="color:#465067;font-weight:700">Claude Code</span><span style="color:#6c6f85">  v2.1.x</span></div><div class="ln"><span style="color:#6c6f85">   model: </span><span style="color:#095759">claude-fable-5</span><span style="color:#6c6f85"> · </span><span style="color:#095759">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#6c6f85">> </span><span style="color:#465067">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#6223ac">✻ </span><span style="color:#6c6f85">Thinking…</span></div>
+    <div class="ln"><span style="color:#1144b4">⏺ </span><span style="color:#465067">Read</span><span style="color:#6c6f85">(</span><span style="color:#095759">src/app.js</span><span style="color:#6c6f85">)</span></div>
+    <div class="ln"><span style="color:#23641c">  ⎿ </span><span style="color:#6c6f85">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#23641c">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#9b172d">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#465067">Do you want to make this edit to </span><span style="color:#095759">app.js</span><span style="color:#465067">?</span></div><div class="ln"><span style="color:#23641c"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#6c6f85">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#6c6f85">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#6c510b">⚠ </span><span style="color:#6c510b">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#9b172d">✗ </span><span style="color:#9b172d">Error: </span><span style="color:#465067">connection timed out</span></div>
+    <div class="rule" style="border-color:#6c6f85"></div>
+    <div class="ln"><span style="color:#1144b4">▌ </span><span style="color:#465067;font-weight:700">OpenAI Codex</span><span style="color:#6c6f85"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#6c6f85">  › </span><span style="color:#465067">跑一下测试</span></div>
+    <div class="ln"><span style="color:#6223ac">  • </span><span style="color:#465067">Ran </span><span style="color:#095759">npm test</span></div>
+    <div class="ln"><span style="color:#23641c">  ✓ 17 passed</span><span style="color:#6c6f85"> · </span><span style="color:#6c510b">1 skipped</span></div>
+    <div class="ln"><span style="color:#465067">  sel: </span><span style="background:#00604A47;color:#465067">选中的文本长这样</span><span style="color:#465067"> cursor:</span><span style="background:#00604A;color:#FAD6A6">█</span></div>
+    <div class="swatches"><i title="red" style="background:#9b172d"></i><i title="green" style="background:#23641c"></i><i title="yellow" style="background:#6c510b"></i><i title="blue" style="background:#1144b4"></i><i title="magenta" style="background:#6223ac"></i><i title="cyan" style="background:#095759"></i><i title="white" style="background:#676e82"></i><i title="brightBlack" style="background:#6c6f85"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#FAD6A6;color:#274c64">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#466a70"><div class="ln"><span style="color:#7429b4"> ✻ </span><span style="color:#274c64">Welcome to </span><span style="color:#274c64;font-weight:700">Claude Code</span><span style="color:#466a70">  v2.1.x</span></div><div class="ln"><span style="color:#466a70">   model: </span><span style="color:#00604A">claude-fable-5</span><span style="color:#466a70"> · </span><span style="color:#00604A">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#466a70">> </span><span style="color:#274c64">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#7429b4">✻ </span><span style="color:#466a70">Thinking…</span></div>
+    <div class="ln"><span style="color:#234F96">⏺ </span><span style="color:#274c64">Read</span><span style="color:#466a70">(</span><span style="color:#00604A">src/app.js</span><span style="color:#466a70">)</span></div>
+    <div class="ln"><span style="color:#1b7836">  ⎿ </span><span style="color:#466a70">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#1b7836">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#b21e3b">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#466a70"><div class="ln"><span style="color:#274c64">Do you want to make this edit to </span><span style="color:#00604A">app.js</span><span style="color:#274c64">?</span></div><div class="ln"><span style="color:#1b7836"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#466a70">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#466a70">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#84620b">⚠ </span><span style="color:#84620b">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#b21e3b">✗ </span><span style="color:#b21e3b">Error: </span><span style="color:#274c64">connection timed out</span></div>
+    <div class="rule" style="border-color:#466a70"></div>
+    <div class="ln"><span style="color:#234F96">▌ </span><span style="color:#274c64;font-weight:700">OpenAI Codex</span><span style="color:#466a70"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#466a70">  › </span><span style="color:#274c64">跑一下测试</span></div>
+    <div class="ln"><span style="color:#7429b4">  • </span><span style="color:#274c64">Ran </span><span style="color:#00604A">npm test</span></div>
+    <div class="ln"><span style="color:#1b7836">  ✓ 17 passed</span><span style="color:#466a70"> · </span><span style="color:#84620b">1 skipped</span></div>
+    <div class="ln"><span style="color:#274c64">  sel: </span><span style="background:#00604A47;color:#274c64">选中的文本长这样</span><span style="color:#274c64"> cursor:</span><span style="background:#00604A;color:#FAD6A6">█</span></div>
+    <div class="swatches"><i title="red" style="background:#b21e3b"></i><i title="green" style="background:#1b7836"></i><i title="yellow" style="background:#84620b"></i><i title="blue" style="background:#234F96"></i><i title="magenta" style="background:#7429b4"></i><i title="cyan" style="background:#00604A"></i><i title="white" style="background:#636e80"></i><i title="brightBlack" style="background:#466a70"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>电子舞厅 <code>disco</code> <em class="lt">浅</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#E6CCFB;color:#4f4c72">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#6b1fb7"> ✻ </span><span style="color:#4f4c72">Welcome to </span><span style="color:#4f4c72;font-weight:700">Claude Code</span><span style="color:#6c6f85">  v2.1.x</span></div><div class="ln"><span style="color:#6c6f85">   model: </span><span style="color:#125264">claude-fable-5</span><span style="color:#6c6f85"> · </span><span style="color:#125264">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#6c6f85">> </span><span style="color:#4f4c72">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#6b1fb7">✻ </span><span style="color:#6c6f85">Thinking…</span></div>
+    <div class="ln"><span style="color:#1940bf">⏺ </span><span style="color:#4f4c72">Read</span><span style="color:#6c6f85">(</span><span style="color:#125264">src/app.js</span><span style="color:#6c6f85">)</span></div>
+    <div class="ln"><span style="color:#2c5f27">  ⎿ </span><span style="color:#6c6f85">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#2c5f27">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#a31339">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#4f4c72">Do you want to make this edit to </span><span style="color:#125264">app.js</span><span style="color:#4f4c72">?</span></div><div class="ln"><span style="color:#2c5f27"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#6c6f85">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#6c6f85">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#744d16">⚠ </span><span style="color:#744d16">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#a31339">✗ </span><span style="color:#a31339">Error: </span><span style="color:#4f4c72">connection timed out</span></div>
+    <div class="rule" style="border-color:#6c6f85"></div>
+    <div class="ln"><span style="color:#1940bf">▌ </span><span style="color:#4f4c72;font-weight:700">OpenAI Codex</span><span style="color:#6c6f85"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#6c6f85">  › </span><span style="color:#4f4c72">跑一下测试</span></div>
+    <div class="ln"><span style="color:#6b1fb7">  • </span><span style="color:#4f4c72">Ran </span><span style="color:#125264">npm test</span></div>
+    <div class="ln"><span style="color:#2c5f27">  ✓ 17 passed</span><span style="color:#6c6f85"> · </span><span style="color:#744d16">1 skipped</span></div>
+    <div class="ln"><span style="color:#4f4c72">  sel: </span><span style="background:#6E27D647;color:#4f4c72">选中的文本长这样</span><span style="color:#4f4c72"> cursor:</span><span style="background:#6E27D6;color:#E6CCFB">█</span></div>
+    <div class="swatches"><i title="red" style="background:#a31339"></i><i title="green" style="background:#2c5f27"></i><i title="yellow" style="background:#744d16"></i><i title="blue" style="background:#1940bf"></i><i title="magenta" style="background:#6b1fb7"></i><i title="cyan" style="background:#125264"></i><i title="white" style="background:#6c6b89"></i><i title="brightBlack" style="background:#6c6f85"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#E6CCFB;color:#3a2a5f">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#6d56a1"><div class="ln"><span style="color:#C0249A"> ✻ </span><span style="color:#3a2a5f">Welcome to </span><span style="color:#3a2a5f;font-weight:700">Claude Code</span><span style="color:#6d56a1">  v2.1.x</span></div><div class="ln"><span style="color:#6d56a1">   model: </span><span style="color:#0b7b97">claude-fable-5</span><span style="color:#6d56a1"> · </span><span style="color:#0b7b97">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#6d56a1">> </span><span style="color:#3a2a5f">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#C0249A">✻ </span><span style="color:#6d56a1">Thinking…</span></div>
+    <div class="ln"><span style="color:#6E27D6">⏺ </span><span style="color:#3a2a5f">Read</span><span style="color:#6d56a1">(</span><span style="color:#0b7b97">src/app.js</span><span style="color:#6d56a1">)</span></div>
+    <div class="ln"><span style="color:#237341">  ⎿ </span><span style="color:#6d56a1">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#237341">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#bb1946">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#6d56a1"><div class="ln"><span style="color:#3a2a5f">Do you want to make this edit to </span><span style="color:#0b7b97">app.js</span><span style="color:#3a2a5f">?</span></div><div class="ln"><span style="color:#237341"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#6d56a1">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#6d56a1">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#8c5d17">⚠ </span><span style="color:#8c5d17">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#bb1946">✗ </span><span style="color:#bb1946">Error: </span><span style="color:#3a2a5f">connection timed out</span></div>
+    <div class="rule" style="border-color:#6d56a1"></div>
+    <div class="ln"><span style="color:#6E27D6">▌ </span><span style="color:#3a2a5f;font-weight:700">OpenAI Codex</span><span style="color:#6d56a1"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#6d56a1">  › </span><span style="color:#3a2a5f">跑一下测试</span></div>
+    <div class="ln"><span style="color:#C0249A">  • </span><span style="color:#3a2a5f">Ran </span><span style="color:#0b7b97">npm test</span></div>
+    <div class="ln"><span style="color:#237341">  ✓ 17 passed</span><span style="color:#6d56a1"> · </span><span style="color:#8c5d17">1 skipped</span></div>
+    <div class="ln"><span style="color:#3a2a5f">  sel: </span><span style="background:#6E27D647;color:#3a2a5f">选中的文本长这样</span><span style="color:#3a2a5f"> cursor:</span><span style="background:#6E27D6;color:#E6CCFB">█</span></div>
+    <div class="swatches"><i title="red" style="background:#bb1946"></i><i title="green" style="background:#237341"></i><i title="yellow" style="background:#8c5d17"></i><i title="blue" style="background:#6E27D6"></i><i title="magenta" style="background:#C0249A"></i><i title="cyan" style="background:#0b7b97"></i><i title="white" style="background:#6c698b"></i><i title="brightBlack" style="background:#6d56a1"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>赛艇俱乐部 <code>rowing</code> <em class="lt">浅</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#F2E7C3;color:#494f6c">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#6622b1"> ✻ </span><span style="color:#494f6c">Welcome to </span><span style="color:#494f6c;font-weight:700">Claude Code</span><span style="color:#6c6f85">  v2.1.x</span></div><div class="ln"><span style="color:#6c6f85">   model: </span><span style="color:#0d555e">claude-fable-5</span><span style="color:#6c6f85"> · </span><span style="color:#0d555e">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#6c6f85">> </span><span style="color:#494f6c">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#6622b1">✻ </span><span style="color:#6c6f85">Thinking…</span></div>
+    <div class="ln"><span style="color:#1443b9">⏺ </span><span style="color:#494f6c">Read</span><span style="color:#6c6f85">(</span><span style="color:#0d555e">src/app.js</span><span style="color:#6c6f85">)</span></div>
+    <div class="ln"><span style="color:#266222">  ⎿ </span><span style="color:#6c6f85">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#266222">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#9e1633">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#494f6c">Do you want to make this edit to </span><span style="color:#0d555e">app.js</span><span style="color:#494f6c">?</span></div><div class="ln"><span style="color:#266222"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#6c6f85">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#6c6f85">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#6f5010">⚠ </span><span style="color:#6f5010">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#9e1633">✗ </span><span style="color:#9e1633">Error: </span><span style="color:#494f6c">connection timed out</span></div>
+    <div class="rule" style="border-color:#6c6f85"></div>
+    <div class="ln"><span style="color:#1443b9">▌ </span><span style="color:#494f6c;font-weight:700">OpenAI Codex</span><span style="color:#6c6f85"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#6c6f85">  › </span><span style="color:#494f6c">跑一下测试</span></div>
+    <div class="ln"><span style="color:#6622b1">  • </span><span style="color:#494f6c">Ran </span><span style="color:#0d555e">npm test</span></div>
+    <div class="ln"><span style="color:#266222">  ✓ 17 passed</span><span style="color:#6c6f85"> · </span><span style="color:#6f5010">1 skipped</span></div>
+    <div class="ln"><span style="color:#494f6c">  sel: </span><span style="background:#2A4A8F47;color:#494f6c">选中的文本长这样</span><span style="color:#494f6c"> cursor:</span><span style="background:#2A4A8F;color:#F2E7C3">█</span></div>
+    <div class="swatches"><i title="red" style="background:#9e1633"></i><i title="green" style="background:#266222"></i><i title="yellow" style="background:#6f5010"></i><i title="blue" style="background:#1443b9"></i><i title="magenta" style="background:#6622b1"></i><i title="cyan" style="background:#0d555e"></i><i title="white" style="background:#696d86"></i><i title="brightBlack" style="background:#6c6f85"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#F2E7C3;color:#283b34">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#556289"><div class="ln"><span style="color:#D94A4A"> ✻ </span><span style="color:#283b34">Welcome to </span><span style="color:#283b34;font-weight:700">Claude Code</span><span style="color:#556289">  v2.1.x</span></div><div class="ln"><span style="color:#556289">   model: </span><span style="color:#2E7D5B">claude-fable-5</span><span style="color:#556289"> · </span><span style="color:#2E7D5B">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#556289">> </span><span style="color:#283b34">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#D94A4A">✻ </span><span style="color:#556289">Thinking…</span></div>
+    <div class="ln"><span style="color:#2A4A8F">⏺ </span><span style="color:#283b34">Read</span><span style="color:#556289">(</span><span style="color:#2E7D5B">src/app.js</span><span style="color:#556289">)</span></div>
+    <div class="ln"><span style="color:#1e763b">  ⎿ </span><span style="color:#556289">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#1e763b">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#b61c41">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#556289"><div class="ln"><span style="color:#283b34">Do you want to make this edit to </span><span style="color:#2E7D5B">app.js</span><span style="color:#283b34">?</span></div><div class="ln"><span style="color:#1e763b"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#556289">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#556289">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#876011">⚠ </span><span style="color:#876011">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#b61c41">✗ </span><span style="color:#b61c41">Error: </span><span style="color:#283b34">connection timed out</span></div>
+    <div class="rule" style="border-color:#556289"></div>
+    <div class="ln"><span style="color:#2A4A8F">▌ </span><span style="color:#283b34;font-weight:700">OpenAI Codex</span><span style="color:#556289"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#556289">  › </span><span style="color:#283b34">跑一下测试</span></div>
+    <div class="ln"><span style="color:#D94A4A">  • </span><span style="color:#283b34">Ran </span><span style="color:#2E7D5B">npm test</span></div>
+    <div class="ln"><span style="color:#1e763b">  ✓ 17 passed</span><span style="color:#556289"> · </span><span style="color:#876011">1 skipped</span></div>
+    <div class="ln"><span style="color:#283b34">  sel: </span><span style="background:#2A4A8F47;color:#283b34">选中的文本长这样</span><span style="color:#283b34"> cursor:</span><span style="background:#2A4A8F;color:#F2E7C3">█</span></div>
+    <div class="swatches"><i title="red" style="background:#b61c41"></i><i title="green" style="background:#1e763b"></i><i title="yellow" style="background:#876011"></i><i title="blue" style="background:#2A4A8F"></i><i title="magenta" style="background:#D94A4A"></i><i title="cyan" style="background:#2E7D5B"></i><i title="white" style="background:#676c86"></i><i title="brightBlack" style="background:#556289"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>玻璃城市 <code>glass</code> <em class="lt">浅</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#D2EAFB;color:#484f70">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#6522b5"> ✻ </span><span style="color:#484f70">Welcome to </span><span style="color:#484f70;font-weight:700">Claude Code</span><span style="color:#6c6f85">  v2.1.x</span></div><div class="ln"><span style="color:#6c6f85">   model: </span><span style="color:#0c5662">claude-fable-5</span><span style="color:#6c6f85"> · </span><span style="color:#0c5662">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#6c6f85">> </span><span style="color:#484f70">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#6522b5">✻ </span><span style="color:#6c6f85">Thinking…</span></div>
+    <div class="ln"><span style="color:#1343bd">⏺ </span><span style="color:#484f70">Read</span><span style="color:#6c6f85">(</span><span style="color:#0c5662">src/app.js</span><span style="color:#6c6f85">)</span></div>
+    <div class="ln"><span style="color:#256325">  ⎿ </span><span style="color:#6c6f85">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#256325">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#9d1637">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#484f70">Do you want to make this edit to </span><span style="color:#0c5662">app.js</span><span style="color:#484f70">?</span></div><div class="ln"><span style="color:#256325"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#6c6f85">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#6c6f85">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#6e5014">⚠ </span><span style="color:#6e5014">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#9d1637">✗ </span><span style="color:#9d1637">Error: </span><span style="color:#484f70">connection timed out</span></div>
+    <div class="rule" style="border-color:#6c6f85"></div>
+    <div class="ln"><span style="color:#1343bd">▌ </span><span style="color:#484f70;font-weight:700">OpenAI Codex</span><span style="color:#6c6f85"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#6c6f85">  › </span><span style="color:#484f70">跑一下测试</span></div>
+    <div class="ln"><span style="color:#6522b5">  • </span><span style="color:#484f70">Ran </span><span style="color:#0c5662">npm test</span></div>
+    <div class="ln"><span style="color:#256325">  ✓ 17 passed</span><span style="color:#6c6f85"> · </span><span style="color:#6e5014">1 skipped</span></div>
+    <div class="ln"><span style="color:#484f70">  sel: </span><span style="background:#1F54BC47;color:#484f70">选中的文本长这样</span><span style="color:#484f70"> cursor:</span><span style="background:#1F54BC;color:#D2EAFB">█</span></div>
+    <div class="swatches"><i title="red" style="background:#9d1637"></i><i title="green" style="background:#256325"></i><i title="yellow" style="background:#6e5014"></i><i title="blue" style="background:#1343bd"></i><i title="magenta" style="background:#6522b5"></i><i title="cyan" style="background:#0c5662"></i><i title="white" style="background:#686e88"></i><i title="brightBlack" style="background:#6c6f85"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#D2EAFB;color:#27407d">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#516698"><div class="ln"><span style="color:#6735BE"> ✻ </span><span style="color:#27407d">Welcome to </span><span style="color:#27407d;font-weight:700">Claude Code</span><span style="color:#516698">  v2.1.x</span></div><div class="ln"><span style="color:#516698">   model: </span><span style="color:#1B8E76">claude-fable-5</span><span style="color:#516698"> · </span><span style="color:#1B8E76">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#516698">> </span><span style="color:#27407d">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#6735BE">✻ </span><span style="color:#516698">Thinking…</span></div>
+    <div class="ln"><span style="color:#1F54BC">⏺ </span><span style="color:#27407d">Read</span><span style="color:#516698">(</span><span style="color:#1B8E76">src/app.js</span><span style="color:#516698">)</span></div>
+    <div class="ln"><span style="color:#1d773f">  ⎿ </span><span style="color:#516698">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#1d773f">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#b51d44">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#516698"><div class="ln"><span style="color:#27407d">Do you want to make this edit to </span><span style="color:#1B8E76">app.js</span><span style="color:#27407d">?</span></div><div class="ln"><span style="color:#1d773f"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#516698">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#516698">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#866115">⚠ </span><span style="color:#866115">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#b51d44">✗ </span><span style="color:#b51d44">Error: </span><span style="color:#27407d">connection timed out</span></div>
+    <div class="rule" style="border-color:#516698"></div>
+    <div class="ln"><span style="color:#1F54BC">▌ </span><span style="color:#27407d;font-weight:700">OpenAI Codex</span><span style="color:#516698"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#516698">  › </span><span style="color:#27407d">跑一下测试</span></div>
+    <div class="ln"><span style="color:#6735BE">  • </span><span style="color:#27407d">Ran </span><span style="color:#1B8E76">npm test</span></div>
+    <div class="ln"><span style="color:#1d773f">  ✓ 17 passed</span><span style="color:#516698"> · </span><span style="color:#866115">1 skipped</span></div>
+    <div class="ln"><span style="color:#27407d">  sel: </span><span style="background:#1F54BC47;color:#27407d">选中的文本长这样</span><span style="color:#27407d"> cursor:</span><span style="background:#1F54BC;color:#D2EAFB">█</span></div>
+    <div class="swatches"><i title="red" style="background:#b51d44"></i><i title="green" style="background:#1d773f"></i><i title="yellow" style="background:#866115"></i><i title="blue" style="background:#1F54BC"></i><i title="magenta" style="background:#6735BE"></i><i title="cyan" style="background:#1B8E76"></i><i title="white" style="background:#666d89"></i><i title="brightBlack" style="background:#516698"></i></div>
+  </div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>数字果冻 <code>jelly</code> <em class="lt">浅</em></h2>
+    <div class="pair">
+      <div>
+  <div class="term" style="background:#FBD9E4;color:#494f71">
+    <div class="term-tag">旧（改动前）</div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#6622b6"> ✻ </span><span style="color:#494f71">Welcome to </span><span style="color:#494f71;font-weight:700">Claude Code</span><span style="color:#6c6f85">  v2.1.x</span></div><div class="ln"><span style="color:#6c6f85">   model: </span><span style="color:#0d5663">claude-fable-5</span><span style="color:#6c6f85"> · </span><span style="color:#0d5663">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#6c6f85">> </span><span style="color:#494f71">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#6622b6">✻ </span><span style="color:#6c6f85">Thinking…</span></div>
+    <div class="ln"><span style="color:#1443be">⏺ </span><span style="color:#494f71">Read</span><span style="color:#6c6f85">(</span><span style="color:#0d5663">src/app.js</span><span style="color:#6c6f85">)</span></div>
+    <div class="ln"><span style="color:#266326">  ⎿ </span><span style="color:#6c6f85">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#266326">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#9e1638">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#6c6f85"><div class="ln"><span style="color:#494f71">Do you want to make this edit to </span><span style="color:#0d5663">app.js</span><span style="color:#494f71">?</span></div><div class="ln"><span style="color:#266326"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#6c6f85">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#6c6f85">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#6f5015">⚠ </span><span style="color:#6f5015">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#9e1638">✗ </span><span style="color:#9e1638">Error: </span><span style="color:#494f71">connection timed out</span></div>
+    <div class="rule" style="border-color:#6c6f85"></div>
+    <div class="ln"><span style="color:#1443be">▌ </span><span style="color:#494f71;font-weight:700">OpenAI Codex</span><span style="color:#6c6f85"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#6c6f85">  › </span><span style="color:#494f71">跑一下测试</span></div>
+    <div class="ln"><span style="color:#6622b6">  • </span><span style="color:#494f71">Ran </span><span style="color:#0d5663">npm test</span></div>
+    <div class="ln"><span style="color:#266326">  ✓ 17 passed</span><span style="color:#6c6f85"> · </span><span style="color:#6f5015">1 skipped</span></div>
+    <div class="ln"><span style="color:#494f71">  sel: </span><span style="background:#2A52CC47;color:#494f71">选中的文本长这样</span><span style="color:#494f71"> cursor:</span><span style="background:#2A52CC;color:#FBD9E4">█</span></div>
+    <div class="swatches"><i title="red" style="background:#9e1638"></i><i title="green" style="background:#266326"></i><i title="yellow" style="background:#6f5015"></i><i title="blue" style="background:#1443be"></i><i title="magenta" style="background:#6622b6"></i><i title="cyan" style="background:#0d5663"></i><i title="white" style="background:#696e89"></i><i title="brightBlack" style="background:#6c6f85"></i></div>
+  </div></div>
+      <div>
+  <div class="term" style="background:#FBD9E4;color:#332b67">
+    <div class="term-tag">新（真跟皮肤）</div>
+    <div class="cbox" style="border-color:#55659e"><div class="ln"><span style="color:#d54278"> ✻ </span><span style="color:#332b67">Welcome to </span><span style="color:#332b67;font-weight:700">Claude Code</span><span style="color:#55659e">  v2.1.x</span></div><div class="ln"><span style="color:#55659e">   model: </span><span style="color:#107690">claude-fable-5</span><span style="color:#55659e"> · </span><span style="color:#107690">~/Documents/RuruCode/Rurubox</span></div></div>
+    <div class="ln"><span style="color:#55659e">> </span><span style="color:#332b67">把这个 bug 修一下</span></div>
+    <div class="ln"><span style="color:#d54278">✻ </span><span style="color:#55659e">Thinking…</span></div>
+    <div class="ln"><span style="color:#2A52CC">⏺ </span><span style="color:#332b67">Read</span><span style="color:#55659e">(</span><span style="color:#107690">src/app.js</span><span style="color:#55659e">)</span></div>
+    <div class="ln"><span style="color:#1e7740">  ⎿ </span><span style="color:#55659e">Read 120 lines</span></div>
+    <div class="ln"><span style="color:#1e7740">+ const ok = validate(input);</span></div>
+    <div class="ln"><span style="color:#b61d46">- const ok = true; // FIXME</span></div>
+    <div class="cbox" style="border-color:#55659e"><div class="ln"><span style="color:#332b67">Do you want to make this edit to </span><span style="color:#107690">app.js</span><span style="color:#332b67">?</span></div><div class="ln"><span style="color:#1e7740"> ❯ 1. Yes</span></div><div class="ln"><span style="color:#55659e">   2. Yes, and don’t ask again</span></div><div class="ln"><span style="color:#55659e">   3. No, tell Claude what to do differently</span></div></div>
+    <div class="ln"><span style="color:#876116">⚠ </span><span style="color:#876116">Context left until auto-compact: 12%</span></div>
+    <div class="ln"><span style="color:#b61d46">✗ </span><span style="color:#b61d46">Error: </span><span style="color:#332b67">connection timed out</span></div>
+    <div class="rule" style="border-color:#55659e"></div>
+    <div class="ln"><span style="color:#2A52CC">▌ </span><span style="color:#332b67;font-weight:700">OpenAI Codex</span><span style="color:#55659e"> (v0.14x)</span></div>
+    <div class="ln"><span style="color:#55659e">  › </span><span style="color:#332b67">跑一下测试</span></div>
+    <div class="ln"><span style="color:#d54278">  • </span><span style="color:#332b67">Ran </span><span style="color:#107690">npm test</span></div>
+    <div class="ln"><span style="color:#1e7740">  ✓ 17 passed</span><span style="color:#55659e"> · </span><span style="color:#876116">1 skipped</span></div>
+    <div class="ln"><span style="color:#332b67">  sel: </span><span style="background:#2A52CC47;color:#332b67">选中的文本长这样</span><span style="color:#332b67"> cursor:</span><span style="background:#2A52CC;color:#FBD9E4">█</span></div>
+    <div class="swatches"><i title="red" style="background:#b61d46"></i><i title="green" style="background:#1e7740"></i><i title="yellow" style="background:#876116"></i><i title="blue" style="background:#2A52CC"></i><i title="magenta" style="background:#d54278"></i><i title="cyan" style="background:#107690"></i><i title="white" style="background:#676d8b"></i><i title="brightBlack" style="background:#55659e"></i></div>
+  </div></div>
+    </div>
+  </section>
+</body></html>

@@ -11,6 +11,22 @@
 
 ## [Unreleased]
 
+### Added
+- **终端配色自选面板**：侧栏「皮肤」下新增「终端配色」。20 个槽位全部按 Claude Code 里的实际用途标注（框线/暗淡字＝对话框边框、蓝＝信息横幅、青＝链接路径、绿＝成功新增、红＝错误删除、黄＝警告等待……），点色块即改、所有开着的终端（含正跑着的 Claude Code / Codex）即时变色；每套皮肤分开记忆（localStorage `fb_term_colors`），可逐项 ↺ 或整套还原。自选了背景时 tintTheme 不再抢着盖回皮肤底色。
+- **预览工具**：`design-demos/gen-terminal-preview.js` 从 themes-patch 真代码取色，生成 18 套皮肤旧 vs 新的 Claude Code / Codex 界面模拟对照页（terminal-colors-preview.html，待用户过目定稿）。
+
+### Changed
+- **终端 ANSI 16 色 v2——真跟皮肤 + 醒目**（修「换肤终端没变化」的根因：18 套皮肤原共用一副 Catppuccin 锚色、只偏皮肤色 10%，dark-ansi 下的 Claude Code 换肤几乎无感）：蓝/品红/青三个关系槽按色相就近把皮肤三强调色请上台（像素光的品红槽就是那支 #FF3D8B）；红/绿/黄语义槽保色相拉饱和；brightBlack（Claude Code 对话框框线/思考灰字）往皮肤主强调色偏 40%，框线跟皮肤发光。可读性全量整备：浅底彩字对终端底对比 ≥3.2、暗底 ≥2.8。Codex 同一副调色板，自动跟随。
+- **Claude 启动命令按皮肤明暗现选主题**：浅皮肤 `light-ansi`、深皮肤 `dark-ansi`（点击时求值，换肤后再启动就跟上）。
+
+### Merged
+- **上游 FanBox v2.4.0 → v2.6.2 全量合入**（基线 v2.3.3 → v2.6.2，+1817 行）：
+  - 11 个 coding agent 一键启动注册表 + ⚙ 设置面板（勾选启停、未装点击复制安装命令、WebGL 兼容渲染开关）；工具栏保留 Rurutia 内联 SVG 图标，claude/codex 按钮改上游动态注入（id 不变、CSS 依旧命中），普通终端按钮保留。
+  - 回合安全带：agent 每轮开工前自动存档 + 一键回滚 + 影子 git 兜底非 git 项目（状态栏新增「回合存档」）。
+  - xterm 6.0 全家：中文乱码根治（CapsLock IME 补丁已入上游 6.0 正式版，按退场条件删除 `check:vendor-patch` 守卫）+ 图集自动保养（v2.6.0/2.6.1）+ 压力监视真重建（v2.6.2）。
+  - 更新胶囊一键下载 dmg、Intel x64 构建脚本（公证 profile 换 rurutia-notary，不收上游作者签名证书）、窄布局文件名优先 (#49)。
+  - i18n：上游 26 条新词条 + 8 条插值规则补齐 ja/ko/fr/es/zh-TW 五语言（英文词典上游自带）。「终端配色」面板文案暂为中文，待定稿后补翻。
+
 ## [2.8.1] - 2026-06-29
 
 ### Fixed

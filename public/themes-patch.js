@@ -216,39 +216,114 @@
     document.head.appendChild(st);
   }
 
-  /* ---------- 每套皮肤一整套 ANSI 16 色 ----------
-   * 锚色用 Catppuccin Mocha(暗)/Latte(亮)——成熟、对比均衡、长读可读；再把每个色「微偏」该皮肤
-   * 强调色（~10%），让每套皮肤的终端输出 + dark-ansi 下的 Claude Code 都带自己的色温，又不丢语义
-   * （红还是红、绿还是绿）。前景从原来刺眼的近纯白柔化成偏皮肤色的柔白。
+  /* ---------- 每套皮肤一整套 ANSI 16 色（v2：真跟皮肤 + 醒目）----------
+   * 上一版的问题：18 套皮肤共用一副 Catppuccin 锚色、只往皮肤色偏 10%——换肤后终端里的
+   * Claude Code（dark-ansi 下界面全走这 16 色）几乎看不出差别，框线永远是灰的。这版两刀：
+   *   1. 关系槽（蓝/品红/青，Claude Code 的横幅/强调/链接）按色相就近把皮肤三强调色请上台——
+   *      皮肤是什么色，终端里的重点就是什么色；语义槽（红=错、绿=成、黄=警）保住色相、拉高饱和。
+   *   2. brightBlack 是 Claude Code 对话框的框线/暗淡文字——往皮肤主强调色偏 40%，框跟皮肤发光。
+   * 可读性：浅底所有彩字压到对终端底 >= 3.2 对比度；暗底彩字提亮到 >= 2.8。
    */
-  function buildAnsi(p, acc) {
-    var t = function (h, amt) { return mix(h, acc, amt == null ? 0.10 : amt); };
+  function hueOf6(h) {
+    var c = toRgb(h), r = c.r / 255, g = c.g / 255, b = c.b / 255;
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (!d) return -1; // 无色相（灰）
+    var H = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return H * 60;
+  }
+  function satOf(h) { var c = toRgb(h), mx = Math.max(c.r, c.g, c.b), mn = Math.min(c.r, c.g, c.b); return mx ? (mx - mn) / mx : 0; }
+  function hueDist(a, b) { var d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+
+  function buildAnsi(p, acc, acc2, acc3) {
+    var bg = p.bg;
+    // 语义锚色：比 Catppuccin 更饱和、更亮堂（暗底），浅底用同族深色
+    var A = p.dark
+      ? { red: '#ff5c6c', green: '#3ddc84', yellow: '#ffd93d', blue: '#5b9bff', magenta: '#d67bff', cyan: '#35e0d0' }
+      : { red: '#c2183a', green: '#1d7a34', yellow: '#8f6206', blue: '#1c4fd6', magenta: '#8a1ec8', cyan: '#0b7d85' };
+    // 关系槽 ← 皮肤强调色：按色相就近分配（每个强调色最多占一个槽；灰调/离得太远的不硬塞）
+    var SLOT_HUE = { blue: 225, magenta: 310, cyan: 180 };
+    var accs = [acc, acc2, acc3].filter(Boolean).filter(function (c) { return satOf(c) > 0.30 && hueOf6(c) >= 0; });
+    var pairs = [];
+    Object.keys(SLOT_HUE).forEach(function (slot) {
+      accs.forEach(function (c) { pairs.push({ slot: slot, c: c, d: hueDist(hueOf6(c), SLOT_HUE[slot]) }); });
+    });
+    pairs.sort(function (x, y) { return x.d - y.d; });
+    var slotColor = {}, usedAcc = {};
+    pairs.forEach(function (pr) {
+      if (pr.d > 70 || slotColor[pr.slot] || usedAcc[pr.c]) return;
+      slotColor[pr.slot] = pr.c; usedAcc[pr.c] = 1;
+    });
+    // 可读性整备：暗底提亮、浅底压暗
+    var fix = p.dark
+      ? function (c, t) { return readableOn(c, bg, t || 2.8); }
+      : function (c, t) { return readableOn(c, bg, t || 3.2); };
+    var tint = function (h, amt) { return mix(h, acc, amt); };
+    var base = {
+      red: fix(tint(A.red, 0.08), p.dark ? 2.8 : 3.5),
+      green: fix(tint(A.green, 0.08)),
+      yellow: fix(tint(A.yellow, 0.08)),
+      blue: fix(slotColor.blue || tint(A.blue, 0.16)),
+      magenta: fix(slotColor.magenta || tint(A.magenta, 0.16)),
+      cyan: fix(slotColor.cyan || tint(A.cyan, 0.16)),
+    };
     if (p.dark) {
       return {
-        foreground: mix('#cdd6f4', acc, 0.07),
-        black: '#45475a', red: t('#f38ba8'), green: t('#a6e3a1'), yellow: t('#f9e2af'),
-        blue: t('#89b4fa'), magenta: t('#cba6f7'), cyan: t('#94e2d5'), white: t('#bac2de', 0.05),
-        brightBlack: '#585b70', brightRed: t('#f5a0b8'), brightGreen: t('#b6f0b1'), brightYellow: t('#ffeec0'),
-        brightBlue: t('#a6c8ff'), brightMagenta: t('#dcc0ff'), brightCyan: t('#aef0e2'), brightWhite: mix('#ffffff', acc, 0.04),
+        foreground: mix(p.text, acc, 0.08),
+        black: mix(lighten(bg, 0.20), acc, 0.10),
+        red: base.red, green: base.green, yellow: base.yellow,
+        blue: base.blue, magenta: base.magenta, cyan: base.cyan,
+        white: mix('#c8cede', acc, 0.10),
+        // Claude Code 的框线/暗淡字：带足皮肤色温但压着亮度，框「发光」而字不抢正文
+        brightBlack: fix(mix('#8a8fa0', acc, 0.40), 2.4),
+        brightRed: lighten(base.red, 0.18), brightGreen: lighten(base.green, 0.18), brightYellow: lighten(base.yellow, 0.18),
+        brightBlue: lighten(base.blue, 0.18), brightMagenta: lighten(base.magenta, 0.18), brightCyan: lighten(base.cyan, 0.18),
+        brightWhite: mix('#ffffff', acc, 0.05),
       };
     }
-    // 浅底上的彩字：Latte 锚色在饱和浅底（尤其 acid 金黄）对比会塌——统一压暗、黄/绿/青压更狠，
-    // 再微偏皮肤强调色保留色温；实测每套浅皮肤的彩色对终端底对比度都 >= 3.5。brightWhite 原是近白、
-    // 在浅底上隐形，这里也压成深色。
-    var d = function (h, amt, tint) { return mix(darken(h, amt), acc, tint == null ? 0.08 : tint); };
     return {
-      foreground: mix('#4c4f69', acc, 0.08),
-      black: '#5c5f77', red: d('#b3122e', 0.06), green: d('#2f7d1e', 0.20), yellow: d('#8f6206', 0.18),
-      blue: d('#1346c9', 0.06), magenta: d('#7421c4', 0.08), cyan: d('#0c666b', 0.16), white: mix('#6c6f85', acc, 0.05),
-      brightBlack: '#6c6f85', brightRed: d('#c5183a', 0.02), brightGreen: d('#36912b', 0.20), brightYellow: d('#9c6e0a', 0.10),
-      brightBlue: d('#2a5fe6', 0.02), brightMagenta: d('#8631e6', 0.04), brightCyan: d('#159195', 0.20), brightWhite: '#2a2c3e',
+      foreground: mix(p.text, acc, 0.08),
+      black: mix('#3a3d4d', acc, 0.10),
+      red: base.red, green: base.green, yellow: base.yellow,
+      blue: base.blue, magenta: base.magenta, cyan: base.cyan,
+      white: mix('#6c6f85', acc, 0.08),
+      brightBlack: fix(mix('#6c6f85', acc, 0.35), 2.6),
+      brightRed: darken(base.red, 0.06), brightGreen: darken(base.green, 0.06), brightYellow: darken(base.yellow, 0.06),
+      brightBlue: darken(base.blue, 0.06), brightMagenta: darken(base.magenta, 0.06), brightCyan: darken(base.cyan, 0.06),
+      brightWhite: mix('#2a2c3e', acc, 0.08), // 浅底上「亮白」反而要深，否则隐形
     };
+  }
+
+  /* ---------- 用户自选终端色：每套皮肤分开记忆，存 localStorage ---------- */
+  var TERM_OVERRIDES = (function () {
+    try { return JSON.parse(localStorage.getItem('fb_term_colors') || '{}') || {}; } catch (e) { return {}; }
+  })();
+  function saveTermOverrides() {
+    try { localStorage.setItem('fb_term_colors', JSON.stringify(TERM_OVERRIDES)); } catch (e) { /* */ }
+  }
+  function ovFor(skin) { return TERM_OVERRIDES[skin] || {}; }
+  // 皮肤默认 + 用户覆盖 = 生效主题；写回 term.themes[skin] 让 app.js 的 theme()/retheme() 原样吃到
+  function mergeSkinTheme(skin) {
+    try {
+      if (typeof term === 'undefined' || !term.themesBase || !term.themesBase[skin]) return;
+      var t = {}, b = term.themesBase[skin], o = ovFor(skin);
+      for (var k in b) t[k] = b[k];
+      for (var k2 in o) t[k2] = o[k2];
+      term.themes[skin] = t;
+    } catch (e) { /* */ }
   }
 
   /* ---------- 让终端 / 编辑器跟着换色（复用最接近的现有主题，低风险）---------- */
   function extendTermAndMonaco() {
     try {
       if (typeof term !== 'undefined' && term.themes) {
+        // 原始默认存一份（含 app.js 自带的 3 套），自选颜色的「还原默认」从这里取
+        term.themesBase = term.themesBase || {};
+        ['terminal', 'warm', 'editorial'].forEach(function (id) {
+          if (term.themes[id] && !term.themesBase[id]) {
+            var c = {}; for (var k in term.themes[id]) c[k] = term.themes[id][k];
+            term.themesBase[id] = c;
+          }
+        });
         PALETTES.forEach(function (p) {
           // 每套皮肤一套终端配色：背景/光标/选区取该皮肤推导色（与面板同底、无缝衔接），
           // 前景 + ANSI 16 色由 buildAnsi 按皮肤推导（让 dark-ansi 下的 Claude Code 也跟皮肤）。
@@ -257,14 +332,26 @@
           var base = p.dark ? term.themes.terminal : term.themes.warm;
           var t = {};
           for (var k in base) t[k] = base[k];          // 继承结构，补齐可能遗漏的键
-          var a = buildAnsi(p, v['--accent']);
+          var a = buildAnsi(p, v['--accent'], v['--accent-2'], v['--accent-3']);
           for (var ak in a) t[ak] = a[ak];             // 覆盖前景 + 16 ANSI
           t.background = v['--bg'];
           t.cursor = v['--accent'];
           t.cursorAccent = v['--bg'];
           t.selectionBackground = alpha(v['--accent'], 0.28);
-          term.themes[p.id] = t;
+          term.themesBase[p.id] = t;
+          mergeSkinTheme(p.id);
         });
+        ['terminal', 'warm', 'editorial'].forEach(mergeSkinTheme);
+        // 终端背景跟随 --bg 是 tintTheme 干的；用户自选了背景就得让用户说了算
+        if (term.tintTheme && !term.__tcTintWrapped) {
+          var origTint = term.tintTheme.bind(term);
+          term.tintTheme = function (th, dir) {
+            var out = origTint(th, dir);
+            try { var o = ovFor(state.theme); if (o.background) out.background = o.background; } catch (e) { /* */ }
+            return out;
+          };
+          term.__tcTintWrapped = 1;
+        }
       }
     } catch (e) { /* 终端在浏览器版可能不存在，忽略 */ }
     try {
@@ -309,6 +396,7 @@
     if (link) link.href = '/vendor/hljs/styles/' + (isDark(skin) ? 'github-dark' : 'github') + '.min.css';
     updateActive(skin);
     setTabCursor(); // 让标签光标跟着新皮肤的强调色重拼
+    try { updateTcCurrent(skin); var tp = document.getElementById('fbx-tc-pop'); if (tp && !tp.classList.contains('hidden')) buildTcRows(tp, skin); } catch (e) { /* 编辑器未装好不挡换肤 */ }
     try { if (typeof term !== 'undefined' && term.sessions && term.sessions.length) term.retheme(); } catch (e) { /* */ }
     try { if (typeof mona !== 'undefined') mona.retheme(); } catch (e) { /* */ }
     // 补回原版 applyTheme 的 rerender：让文件列表 / 预览的代码高亮也随皮肤即时刷新
@@ -391,6 +479,140 @@
     });
   }
 
+  /* ---------- 终端配色编辑器：每个槽位标着 Claude Code 里的实际用途，改哪个框什么色一目了然 ----------
+   * 皮肤下面自己一行「终端配色」。点开出面板：常用 12 槽 + 亮色变体（折叠）。改动即时下发到所有
+   * 开着的终端（含正在跑的 Claude Code），每套皮肤分开记忆（fb_term_colors），可逐项/整套还原。
+   */
+  var TC_SLOTS = [
+    { k: 'background', n: '背景', d: '终端底色（默认跟皮肤面板）' },
+    { k: 'foreground', n: '正文文字', d: 'Claude 回答、命令输出的默认色' },
+    { k: 'cursor', n: '光标', d: '' },
+    { k: 'selectionBackground', n: '选中底色', d: '鼠标选中文本的背景', a: true },
+    { k: 'brightBlack', n: '框线 / 暗淡字', d: 'Claude Code 对话框的边框、思考中的灰字' },
+    { k: 'blue', n: '蓝 · 信息横幅', d: '提示框、进行中状态' },
+    { k: 'cyan', n: '青 · 链接路径', d: '文件路径、URL、命令名' },
+    { k: 'magenta', n: '品红 · 强调', d: '特殊高亮' },
+    { k: 'green', n: '绿 · 成功新增', d: '确认框选中项、diff 新增行' },
+    { k: 'red', n: '红 · 错误删除', d: '报错、diff 删除行' },
+    { k: 'yellow', n: '黄 · 警告等待', d: '警告、待确认' },
+    { k: 'white', n: '次要文字', d: '' },
+    { k: 'black', n: '暗底块', d: '', adv: true },
+    { k: 'brightRed', n: '亮红', d: '', adv: true },
+    { k: 'brightGreen', n: '亮绿', d: '', adv: true },
+    { k: 'brightYellow', n: '亮黄', d: '', adv: true },
+    { k: 'brightBlue', n: '亮蓝', d: '', adv: true },
+    { k: 'brightMagenta', n: '亮品红', d: '', adv: true },
+    { k: 'brightCyan', n: '亮青', d: '', adv: true },
+    { k: 'brightWhite', n: '亮白', d: '', adv: true },
+  ];
+  function tcEffective(skin) {
+    try { return (typeof term !== 'undefined' && term.themes && term.themes[skin]) || null; } catch (e) { return null; }
+  }
+  function tcHex6(v) { return /^#[0-9a-fA-F]{8}$/.test(v || '') ? v.slice(0, 7) : (v || '#888888'); }
+  function tcApply(skin) {
+    mergeSkinTheme(skin);
+    try { if (typeof term !== 'undefined' && term.sessions && term.sessions.length && state.theme === skin) term.retheme(); } catch (e) { /* */ }
+    updateTcCurrent(skin);
+  }
+  function updateTcCurrent(skin) {
+    var cur = document.getElementById('fbx-tc-current');
+    if (!cur) return;
+    var t = tcEffective(skin);
+    var n = Object.keys(ovFor(skin)).length;
+    var bars = '';
+    if (t) ['foreground', 'brightBlack', 'blue', 'green', 'red', 'yellow'].forEach(function (k) {
+      bars += '<i style="background:' + tcHex6(t[k]) + '"></i>';
+    });
+    cur.innerHTML = '<span class="fbx-bars">' + bars + '</span><span class="fbx-nm">' +
+      (n ? '已自定义 ' + n + ' 项' : '皮肤默认') + '</span><span class="fbx-caret">▾</span>';
+  }
+  function buildTcRows(pop, skin) {
+    pop.innerHTML = '';
+    var t = tcEffective(skin);
+    if (!t) { pop.innerHTML = '<div class="fbx-tc-empty">终端还没就绪</div>'; return; }
+    var o = ovFor(skin);
+    var mkRow = function (s) {
+      var row = document.createElement('label');
+      row.className = 'fbx-tc-row' + (o[s.k] ? ' changed' : '');
+      row.title = s.d || s.n;
+      var val = tcHex6(t[s.k]);
+      row.innerHTML = '<span class="fbx-tc-nm">' + s.n + '</span>' +
+        (s.d ? '<span class="fbx-tc-d">' + s.d + '</span>' : '') +
+        '<input type="color" value="' + val + '">' +
+        '<button class="fbx-tc-reset" title="还原这项默认">↺</button>';
+      var input = row.querySelector('input');
+      input.addEventListener('input', function () {
+        TERM_OVERRIDES[skin] = TERM_OVERRIDES[skin] || {};
+        // 选中底色带透明度：取色后补上默认 28% alpha，不然一选就实心盖住文字
+        TERM_OVERRIDES[skin][s.k] = s.a ? (input.value + '47') : input.value;
+        saveTermOverrides(); tcApply(skin); row.classList.add('changed');
+      });
+      row.querySelector('.fbx-tc-reset').addEventListener('click', function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        if (TERM_OVERRIDES[skin]) { delete TERM_OVERRIDES[skin][s.k]; if (!Object.keys(TERM_OVERRIDES[skin]).length) delete TERM_OVERRIDES[skin]; }
+        saveTermOverrides(); tcApply(skin);
+        var bt = tcEffective(skin); if (bt) input.value = tcHex6(bt[s.k]);
+        row.classList.remove('changed');
+      });
+      return row;
+    };
+    var head = document.createElement('div');
+    head.className = 'fbx-tc-head';
+    head.textContent = '终端配色 · ' + ((byId(skin) || {}).name || skin);
+    pop.appendChild(head);
+    TC_SLOTS.filter(function (s) { return !s.adv; }).forEach(function (s) { pop.appendChild(mkRow(s)); });
+    var advBtn = document.createElement('button');
+    advBtn.className = 'fbx-tc-adv';
+    advBtn.textContent = '亮色变体（高级）▸';
+    pop.appendChild(advBtn);
+    var advBox = document.createElement('div');
+    advBox.className = 'fbx-tc-advbox hidden';
+    TC_SLOTS.filter(function (s) { return s.adv; }).forEach(function (s) { advBox.appendChild(mkRow(s)); });
+    pop.appendChild(advBox);
+    advBtn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      var open = !advBox.classList.toggle('hidden');
+      advBtn.textContent = open ? '亮色变体（高级）▾' : '亮色变体（高级）▸';
+    });
+    var foot = document.createElement('div');
+    foot.className = 'fbx-tc-foot';
+    foot.innerHTML = '<button class="fbx-tc-resetall">还原本皮肤全部默认</button><span>改动即时生效 · 每套皮肤分开记忆</span>';
+    foot.querySelector('.fbx-tc-resetall').addEventListener('click', function () {
+      delete TERM_OVERRIDES[skin]; saveTermOverrides(); tcApply(skin); buildTcRows(pop, skin);
+    });
+    pop.appendChild(foot);
+  }
+  function buildTcSwitcher() {
+    var themeHost = document.getElementById('theme-switch');
+    if (!themeHost || document.getElementById('termcolor-switch')) return;
+    var host = document.createElement('div');
+    host.className = 'theme-switch';
+    host.id = 'termcolor-switch';
+    var label = document.createElement('div');
+    label.className = 'theme-switch-label';
+    label.textContent = '终端配色';
+    host.appendChild(label);
+    var current = document.createElement('button');
+    current.id = 'fbx-tc-current';
+    current.className = 'fbx-skin-current';
+    host.appendChild(current);
+    var pop = document.createElement('div');
+    pop.id = 'fbx-tc-pop';
+    pop.className = 'fbx-tc-pop hidden';
+    host.appendChild(pop);
+    themeHost.parentNode.insertBefore(host, themeHost.nextSibling);
+    current.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var opening = pop.classList.contains('hidden');
+      if (opening) buildTcRows(pop, state.theme); // 每次打开按当前皮肤现算
+      pop.classList.toggle('hidden');
+    });
+    document.addEventListener('click', function (ev) {
+      if (!host.contains(ev.target)) pop.classList.add('hidden');
+    });
+    updateTcCurrent(state.theme);
+  }
+
   /* ---------- 选择器自身样式 ---------- */
   function injectSwitcherCSS() {
     var css = [
@@ -407,6 +629,28 @@
       '.fbx-swatch:hover{color:var(--text);border-color:var(--accent);}',
       '.fbx-swatch.active{border-color:var(--accent);color:var(--text);background:var(--accent-soft);}',
       '.fbx-swatch .fbx-nm{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-fname);}',
+      /* 终端配色编辑器 */
+      '#termcolor-switch{position:relative;}', // 弹窗 absolute，宿主必须 relative（v2.8.1 语言选择器的教训）
+      '.fbx-tc-pop{position:absolute;left:0;right:0;bottom:calc(100% + 6px);max-height:56vh;overflow-y:auto;padding:7px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);z-index:120;}',
+      '.fbx-tc-pop.hidden{display:none;}',
+      '.fbx-tc-head{padding:4px 5px 8px;font-size:11.5px;font-weight:600;color:var(--text-dim);border-bottom:1px solid var(--rule);margin-bottom:4px;}',
+      '.fbx-tc-row{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:6px;padding:4px 5px;border-radius:6px;cursor:pointer;}',
+      '.fbx-tc-row:hover{background:var(--bg-3);}',
+      '.fbx-tc-row .fbx-tc-nm{font-size:11.5px;color:var(--text);white-space:nowrap;}',
+      '.fbx-tc-row.changed .fbx-tc-nm{color:var(--accent);}',
+      '.fbx-tc-row .fbx-tc-d{font-size:10px;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+      '.fbx-tc-row input[type="color"]{width:26px;height:18px;padding:0;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;}',
+      '.fbx-tc-row .fbx-tc-reset{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:12px;padding:0 2px;visibility:hidden;}',
+      '.fbx-tc-row:hover .fbx-tc-reset,.fbx-tc-row.changed .fbx-tc-reset{visibility:visible;}',
+      '.fbx-tc-row .fbx-tc-reset:hover{color:var(--accent);}',
+      '.fbx-tc-adv{display:block;width:100%;text-align:left;border:none;background:none;color:var(--text-dim);font-size:11px;padding:6px 5px 2px;cursor:pointer;}',
+      '.fbx-tc-adv:hover{color:var(--text);}',
+      '.fbx-tc-advbox.hidden{display:none;}',
+      '.fbx-tc-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 5px 2px;border-top:1px solid var(--rule);margin-top:4px;}',
+      '.fbx-tc-foot span{font-size:10px;color:var(--text-faint);}',
+      '.fbx-tc-resetall{border:1px solid var(--border);background:var(--bg-3);color:var(--text-dim);font-size:10.5px;padding:3px 7px;border-radius:6px;cursor:pointer;}',
+      '.fbx-tc-resetall:hover{color:var(--text);border-color:var(--accent);}',
+      '.fbx-tc-empty{padding:10px;font-size:11px;color:var(--text-faint);}',
     ].join('\n');
     var st = document.createElement('style');
     st.id = 'fbx-switcher-css';
@@ -420,6 +664,7 @@
     injectSwitcherCSS();
     extendTermAndMonaco();
     buildSwitcher();
+    buildTcSwitcher();
 
     // 覆盖全局 applyTheme：内部其它调用（终端 spawn、编辑器 retheme 等）走同一套
     try { window.applyTheme = function (skin) { applySkin(skin); }; } catch (e) { /* */ }
