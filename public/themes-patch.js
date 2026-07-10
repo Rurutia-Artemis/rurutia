@@ -316,6 +316,93 @@
     } catch (e) { /* */ }
   }
 
+  /* ---------- CC 用户消息块背景：SGR 流改写 ----------
+   * Claude Code（dark-ansi）把「用户消息回显」的背景绑在 ANSI brightBlack（发 SGR 100），
+   * 文字用 white/brightWhite——这是按「stock 终端 brightBlack=深灰」的假设设计的浅字深底。
+   * 而 v2 调色板为了让框线发光，把 brightBlack 调成了亮的强调色（前景用途），结果整段
+   * 消息成了大亮砖，浅字还被 xterm 的 minimumContrastRatio 强行压黑，非常违和。
+   * 槽位一色两用（框线前景 + 消息背景）在 16 色调色板层面无解，这里在数据进 xterm 前
+   * 做一层改写：只把「当背景用的 slot 8」（SGR 100 / 48;5;8）换成按当前终端底推导的
+   * 真彩面板色（暗底提亮一档、浅底压深一档，与皮肤 bg-3 同律，含项目淡染/自选背景）。
+   * 前景用途的 brightBlack（90 / 38;5;8）一概不动，框线发光保留；CC 自己的 white/
+   * brightWhite 前景在这块面板上天然可读（浅色皮肤这两槽本就反转成深色），无需碰字色。 */
+  var ccPanelCache = {};
+  function ccPanelSgr(xt) {
+    try {
+      var bg = xt && xt.options && xt.options.theme && xt.options.theme.background;
+      if (!bg) return null;
+      bg = ('' + bg).slice(0, 7);
+      if (bg.charAt(0) !== '#' || bg.length !== 7) return null;
+      if (ccPanelCache[bg]) return ccPanelCache[bg];
+      var panel = relLum(bg) > 0.4 ? darken(bg, 0.05) : lighten(bg, 0.10);
+      var c = toRgb(panel);
+      return (ccPanelCache[bg] = '48;2;' + c.r + ';' + c.g + ';' + c.b);
+    } catch (e) { return null; }
+  }
+  // 逐 token 走一遍 SGR 参数：把背景用的 slot 8 换成面板色；38;2/38;5 按语法整组跳过，
+  // 免得把真彩分量里的「100」误当背景码。残缺序列返回 null（原样放行，不硬猜）。
+  function rewriteSgrParams(params, panel) {
+    var toks = params.split(';'), out = [], changed = false, i, t, n;
+    for (i = 0; i < toks.length; i++) {
+      t = toks[i];
+      if (t === '100' || t === '48:5:8') { out.push(panel); changed = true; continue; }
+      if (t === '48' || t === '38') {
+        n = toks[i + 1];
+        if (n === '5') {
+          if (i + 2 >= toks.length) return null;
+          if (t === '48' && toks[i + 2] === '8') { out.push(panel); changed = true; }
+          else out.push(t, n, toks[i + 2]);
+          i += 2; continue;
+        }
+        if (n === '2') {
+          if (i + 4 >= toks.length) return null;
+          out.push(t, n, toks[i + 2], toks[i + 3], toks[i + 4]);
+          i += 4; continue;
+        }
+        out.push(t); continue;
+      }
+      out.push(t);
+    }
+    return changed ? out.join(';') : null;
+  }
+  function ccRewriteChunk(xt, data) {
+    var st = xt.__fbxCc || (xt.__fbxCc = { tail: '' });
+    var s = st.tail + data; st.tail = '';
+    // PTY 分块可能把转义序列拦腰截断（如 "\x1b[10" + "0m"）：尾部若停在半截 CSI，
+    // 扣下来拼给下一笔。xterm 自己的解析器对半截序列同样是攒着不渲染，观感无差。
+    var esc = s.lastIndexOf('\x1b');
+    if (esc >= 0 && s.length - esc <= 64) {
+      var rest = s.slice(esc + 1);
+      if (rest === '' || /^\[[0-9;:]*$/.test(rest)) { st.tail = s.slice(esc); s = s.slice(0, esc); }
+    }
+    if (s.indexOf('\x1b[') === -1) return s;
+    var panel = ccPanelSgr(xt);
+    if (!panel) return s;
+    return s.replace(/\x1b\[([0-9;:]*)m/g, function (m, params) {
+      if (params.indexOf('100') === -1 && params.indexOf('48') === -1) return m;
+      var re = rewriteSgrParams(params, panel);
+      return re === null ? m : '\x1b[' + re + 'm';
+    });
+  }
+  function patchCcUserBlock() {
+    try {
+      var T = window.Terminal;
+      if (!T || !T.prototype || !T.prototype.write || T.__fbxCcPatched) return;
+      var orig = T.prototype.write;
+      T.prototype.write = function (data, cb) {
+        if (typeof data === 'string') {
+          try { data = ccRewriteChunk(this, data); } catch (e) { /* 改写出岔子就原样放行 */ }
+        } else if (this.__fbxCc && this.__fbxCc.tail) {
+          // 二进制路径不改写；先把扣压的尾巴按原序吐出去，保证字节顺序
+          var t0 = this.__fbxCc.tail; this.__fbxCc.tail = '';
+          orig.call(this, t0);
+        }
+        return orig.call(this, data, cb);
+      };
+      T.__fbxCcPatched = 1;
+    } catch (e) { /* 浏览器版可能没有 Terminal，忽略 */ }
+  }
+
   /* ---------- 让终端 / 编辑器跟着换色（复用最接近的现有主题，低风险）---------- */
   function extendTermAndMonaco() {
     try {
@@ -764,6 +851,7 @@
     injectThemeCSS();
     injectSwitcherCSS();
     extendTermAndMonaco();
+    patchCcUserBlock();
     buildSwitcher();
     buildTcSwitcher();
 
