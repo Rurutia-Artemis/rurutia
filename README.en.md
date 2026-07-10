@@ -7,13 +7,13 @@
 **A cockpit for your coding agents — a personal enhanced edition built on [FanBox](https://github.com/alchaincyf/fanbox)**
 
 Direct Claude Code / Codex to work locally, see every file it touches and every line it changes, and take over whenever you want.<br>
-On top of that, Rurutia reworks the visuals and typography, and adds **18 color skins**, a **built-in Starship terminal prompt**, and a **brand-icon terminal toolbar** — polishing the sidebar entries, the usage panel, and dozens of interaction details until everything feels smoother.
+On top of that, Rurutia reworks the visuals and typography, and adds **18 color skins**, **skin-following terminal colors (20 customizable slots)**, a **built-in Starship terminal prompt**, and a **brand-icon terminal toolbar** — polishing the sidebar entries, the usage panel, and dozens of interaction details until everything feels smoother.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#installation)
 [![Signed](https://img.shields.io/badge/Signed-Developer%20ID%20%2B%20Notarized-success?logo=apple)](#installation)
-[![Version](https://img.shields.io/badge/Version-v2.8.1-ff3d8b)](../../releases)
-[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
+[![Version](https://img.shields.io/badge/Version-v2.9.0-ff3d8b)](../../releases)
+[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.6.2-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · **English** · [日本語](README.ja.md) · [한국어](README.ko.md) · [Français](README.fr.md) · [Español](README.es.md)
 
@@ -26,7 +26,7 @@ On top of that, Rurutia reworks the visuals and typography, and adds **18 color 
 </p>
 <p align="center"><sub>▲ Main interface at a glance — the same screen, dark "Pixel Light" on the left, light "Digital Jelly" on the right. The file grid carries bold-color project badges; the sidebar gathers your agent projects and official usage.</sub></p>
 
-> **✨ New in v2.8.0**: 18 color skins retuned (lights de-whitened, darks de-homogenized) · **7 in-app languages** + a language picker · terminal copy-paste / font zoom · merged FanBox v2.3.3 core fixes.
+> **✨ New in v2.9.0**: terminal colors that truly follow each skin + a per-slot **Terminal Colors** panel (Claude Code / Codex UI colors pop with your skin) · all 9 light skins dimmed for long sessions · round snapshots with one-click rollback · 11 quick-launch coding agents + a settings panel · CJK garble fixed for good (xterm 6.0) · merged upstream FanBox v2.6.2.
 
 ---
 
@@ -94,12 +94,18 @@ On top of that, Rurutia reworks the visuals and typography, and adds **18 color 
 - **Agent usage**: Claude Code's official 5h window / weekly quota (same source as `/usage`) + local token counts; a Codex quota snapshot.
 - **Disk usage overview**: a bar ranking of real usage by `du`'s reckoning, with drill-down.
 
+- **Round snapshots (seatbelt)**: before each agent round, a full project snapshot is taken automatically (shadow git covers non-git folders); the status-bar "Snapshots" entry rolls back to any round in one click — the current state is snapshotted first, so you can always roll forward again.
+
 ### 🖥 Terminal · command the agent
 - **A real embedded terminal**: node-pty + xterm.js (WebGL rendering) — run Claude Code / vim / htop without tearing, and CJK wide characters render correctly.
 - **Drag files into the terminal**: drag a file or folder from the file list into the terminal to auto-insert its path as context for the agent.
 - **Clickable paths**: file paths that appear in the terminal open directly (it recognizes screenshot names with spaces, Chinese names, and wrapped long paths).
 - **Select and fling it to the terminal**: select a snippet in the preview and send it into the terminal in one click, formatted with "source file + fenced block."
 - **Situational awareness**: a tab dot shows the agent running / idle / exited; when it's your turn the terminal edge breathes a hint, and long tasks fire a system notification on completion.
+
+- **11 quick-launch coding agents**: a built-in registry (Claude Code / Codex / Hermes / Kimi / opencode …) with a ⚙ settings panel to toggle them; "not installed" copies the install command. Customize commands / add agents via config.json.
+- **CJK garble fixed for good**: xterm 6.0 + automatic glyph-atlas care + pressure-triggered full rebuilds; a one-click "compatibility renderer" toggle remains as a fallback.
+- **Update capsule**: when a new release is out, a capsule appears in the top bar — one click downloads the dmg.
 
 ### ✍️ Editing · what you see is what you get
 - **Markdown**: Milkdown Crepe delivers Notion-style WYSIWYG, auto-saving 0.8 seconds after you stop typing.
@@ -139,7 +145,15 @@ It works via ZDOTDIR injection: first it sources your real dotfile (PATH / alias
 
 - **16 prompt themes (independent of skins)**: Pill·Mocha / Pastel / Tokyo Night / Gruvbox Rainbow / Nord Polar / Dracula / Rosé Pine / Everforest / Kanagawa / Latte Light / Flat Color / Jetpack Cockpit / Pure Minimal / Bare One-Line / Two-Line / Plain Text.
 - **5 stackable modifiers (multi-select, run in parallel)**: hide language version / plain-text symbols·no icons / time off / command-duration off / drop the leading blank line.
-- **A dedicated terminal palette per skin**: terminal background / cursor / selection + all 16 ANSI colors are derived from the skin; the vivid text on light skins is pushed to contrast ≥ 3.5 so it no longer smudges into the light background.
+- **A dedicated terminal palette per skin**: background / cursor / selection + all 16 ANSI colors derived from each skin — see "Terminal colors" below.
+
+### 🎛 Terminal colors — follow the skin, or pick your own
+
+The 16 ANSI colors are no longer one palette shared by all 18 skins: blue / magenta / cyan are replaced by the skin’s own accent colors (matched by hue), red / green / yellow keep their meaning but gain saturation, and the borders Claude Code draws its dialogs with take on the skin’s tint — run Claude Code / Codex under `dark-ansi` and the in-terminal UI recolors with every skin switch. Light-skin colors hold ≥ 3.2 contrast, dark ≥ 2.8.
+
+Want it your way? Right under "Skins" sits the **Terminal Colors** panel — 20 slots, each labeled with what Claude Code actually uses it for (dialog borders / errors / success / paths / info banners …). A custom color picker applies changes to every open terminal instantly; overrides are remembered per skin and reset per slot or wholesale.
+
+The 9 light skins are also dimmer overall (page canvas pressed into a 52–62% luminance band, brightest surface down from 85% to under 64%) — a tool you stare at all day should read like matte kraft paper, not glowing white.
 
 ### 🖥 Terminal · brand icons + rainbow tabs
 

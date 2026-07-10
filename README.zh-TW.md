@@ -7,13 +7,13 @@
 **Coding Agent 的駕駛艙 —— 基於 [FanBox](https://github.com/alchaincyf/fanbox) 的個人增強版**
 
 指揮 Claude Code / Codex 在本機做事，看清它碰過的每個檔案、改過的每一行，隨時接手。<br>
-在此之上，Rurutia 重做了視覺與字型，加了 **18 套配色皮膚**、**自帶 Starship 的終端機提示符**、**終端機品牌圖示工具列**，把側邊欄入口、用量面板、互動細節都打磨得更順手。
+在此之上，Rurutia 重做了視覺與字型，加了 **18 套配色皮膚**、**跟隨皮膚的終端機配色（20 個槽位可自選）**、**自帶 Starship 的終端機提示符**、**終端機品牌圖示工具列**，把側邊欄入口、用量面板、互動細節都打磨得更順手。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#安裝)
 [![Signed](https://img.shields.io/badge/已簽名-Developer%20ID%20%2B%20公證-success?logo=apple)](#安裝)
-[![Version](https://img.shields.io/badge/版本-v2.8.1-ff3d8b)](../../releases)
-[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
+[![Version](https://img.shields.io/badge/版本-v2.9.0-ff3d8b)](../../releases)
+[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.6.2-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 [简体中文](README.md) · **繁體中文** · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Français](README.fr.md) · [Español](README.es.md)
 
@@ -26,7 +26,7 @@
 </p>
 <p align="center"><sub>▲ 主介面總覽 —— 同一介面、左深「像素光」右淺「數位果凍」。檔案網格帶強色專案徽章，側邊欄彙總 Agent 專案與官方用量。</sub></p>
 
-> **✨ v2.8.0 本版亮點**：18 套配色皮膚精調（淺色去白、暗色去同質化）· 應用內 **7 國語言** + 語言選擇器 · 終端複製貼上 / 字級縮放 · 合併上游 FanBox v2.3.3 核心修復。
+> **✨ v2.9.0 本版亮點**：終端機配色真正跟隨皮膚 + 「終端配色」自選面板（Claude Code / Codex 介面色隨皮膚醒目）· 淺色 9 套整體降亮度護眼 · 回合存檔一鍵回滾 · 11 個 coding agent 一鍵啟動 + 設定面板 · 終端機中文亂碼根治（xterm 6.0）· 合併上游 FanBox v2.6.2。
 
 ---
 
@@ -94,12 +94,18 @@
 - **Agent 用量**：Claude Code 官方 5h 視窗/週配額（和 `/usage` 同源）+ 本機 token 統計；Codex 限額快照。
 - **磁碟佔用透視**：`du` 口徑的真實佔用長條榜，可下鑽。
 
+- **回合存檔（安全帶）**：agent 每輪開工前自動存一份完整專案狀態（非 git 專案走影子 git 兜底），狀態列「回合存檔」一鍵回到任意一輪之前；恢復前會把目前狀態也存一份，隨時能滾回來。
+
 ### 🖥 終端機 · 指揮 agent
 - **真實內嵌終端機**：node-pty + xterm.js（WebGL 渲染），跑 Claude Code / vim / htop 不花屏，中文寬字元正確。
 - **拖檔案進終端機**：從檔案列表拖檔案/資料夾進終端機，自動插入路徑餵給 agent 當上下文。
 - **路徑可點擊**：終端機裡出現的檔案路徑直接點開（帶空格的截圖名、中文名、折行長路徑都能識別）。
 - **選中即丟給終端機**：預覽裡選一段文字，一鍵以「檔案出處 + 圍欄」格式發進終端機。
 - **態勢感知**：標籤圓點顯示 agent 執行/閒置/退出；輪到你時終端機邊緣呼吸提示，長任務完成發系統通知。
+
+- **11 個 coding agent 一鍵啟動**：內建註冊表（Claude Code / Codex / Hermes / Kimi / opencode……），⚙ 設定面板勾選啟停、未裝的點一下複製安裝指令；config.json 可自訂指令 / 加新 agent。
+- **中文亂碼根治**：xterm 6.0 + 字形圖集自動保養 + 壓力監視整體重建；仍有異常時設定面板一鍵切「相容渲染」。
+- **更新膠囊**：有新版本時頂欄浮出膠囊，一鍵下載 dmg。
 
 ### ✍️ 編輯 · 所見即所得
 - **Markdown**：Milkdown Crepe 提供 Notion 式所見即所得，停筆 0.8 秒自動儲存。
@@ -139,7 +145,15 @@
 
 - **16 套提示符主題（獨立於皮膚）**：藥丸·摩卡 / 帕斯特爾 / 東京夜 / Gruvbox 彩虹 / Nord 極地 / Dracula / Rosé Pine / Everforest / Kanagawa / 拿鐵淺色 / 扁平彩字 / Jetpack 座艙 / Pure 簡約 / 極簡單行 / 兩行 / 純文字。
 - **5 個可疊加修飾（可多選並行）**：隱藏語言版本 / 純文字符號·去圖示 / 關時間 / 關命令耗時 / 去前導空行。
-- **每套皮膚獨立終端機配色**：終端機背景 / 游標 / 選取區 + 16 ANSI 全按皮膚推導；淺色皮膚的彩字也壓到對比 ≥ 3.5，不再糊進淺底。
+- **每套皮膚獨立終端機配色**：背景 / 游標 / 選取區 + 16 ANSI 全按皮膚推導，詳見下面「終端機配色」一節。
+
+### 🎛 終端機配色 · 跟皮膚走，還能自己選
+
+終端機 16 ANSI 不再是 18 套皮膚共用一副：藍 / 品紅 / 青按色相就近換成該皮膚的強調色本尊，紅 / 綠 / 黃保住語義、拉高飽和，Claude Code 對話框的框線也帶上皮膚色溫——`dark-ansi` 下跑 Claude Code / Codex，換一套皮膚，終端機裡的介面色就跟著換一套。淺色皮膚的彩字全部壓到對比 ≥ 3.2、暗色 ≥ 2.8。
+
+想更個性化：側邊欄「皮膚」下面就是「**終端配色**」面板——20 個槽位全按 Claude Code 裡的實際用途標註（框線 / 錯誤 / 成功 / 連結路徑 / 資訊橫幅……），自繪取色器點開即改、所有開著的終端機即時變色；每套皮膚分開記憶，可逐項或整套還原。
+
+淺色 9 套還整體降了亮度（頁面底壓進 52–62% 亮度帶、最亮表面從 85% 降到 64% 以下）——生產力工具要長時間盯著，白紙換成霧面牛皮紙，不刺眼。
 
 ### 🖥 終端機 · 品牌圖示 + 彩虹標籤
 

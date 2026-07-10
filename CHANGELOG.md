@@ -11,6 +11,8 @@
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-07-11
+
 ### Added
 - **终端配色自选面板**：嵌在侧栏「皮肤」块内（紧贴皮肤选择器，带一行说明「默认已跟皮肤调好，想自定义再改」；不再被后加载的提示符/语言选择器挤到底部）。20 个槽位全部按 Claude Code 里的实际用途标注（框线/暗淡字＝对话框边框、蓝＝信息横幅、青＝链接路径、绿＝成功新增、红＝错误删除、黄＝警告等待……），点色块即改、所有开着的终端（含正跑着的 Claude Code / Codex）即时变色；每套皮肤分开记忆（localStorage `fb_term_colors`），可逐项 ↺ 或整套还原。自选了背景时 tintTheme 不再抢着盖回皮肤底色。取色不走系统原生弹窗，自绘取色器（SV 面 + 色相条 + hex 输入 + 新旧对照块）与皮肤同一套面板变量，拖动即时生效。
 - **预览工具**：`design-demos/gen-terminal-preview.js` 从 themes-patch 真代码取色，生成 18 套皮肤旧 vs 新的 Claude Code / Codex 界面模拟对照页（terminal-colors-preview.html，待用户过目定稿）。

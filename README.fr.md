@@ -7,13 +7,13 @@
 **Le cockpit de votre Coding Agent — une version personnelle améliorée de [FanBox](https://github.com/alchaincyf/fanbox)**
 
 Pilotez Claude Code / Codex en local, voyez clairement chaque fichier qu'il touche et chaque ligne qu'il modifie, et reprenez la main à tout moment.<br>
-Par-dessus, Rurutia a refait le visuel et les polices, ajouté **18 skins de couleurs**, une **invite de terminal avec Starship intégré** et une **barre d'outils à icônes de marque dans le terminal**, et peaufiné les entrées de la barre latérale, le panneau d'usage et les détails d'interaction pour les rendre plus agréables à utiliser.
+Par-dessus, Rurutia a refait le visuel et les polices, ajouté **18 skins de couleurs**, des **couleurs de terminal qui suivent le skin (20 emplacements personnalisables)**, une **invite de terminal avec Starship intégré** et une **barre d'outils à icônes de marque dans le terminal**, et peaufiné les entrées de la barre latérale, le panneau d'usage et les détails d'interaction pour les rendre plus agréables à utiliser.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#installation)
 [![Signed](https://img.shields.io/badge/Signé-Developer%20ID%20%2B%20Notarisé-success?logo=apple)](#installation)
-[![Version](https://img.shields.io/badge/Version-v2.8.1-ff3d8b)](../../releases)
-[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
+[![Version](https://img.shields.io/badge/Version-v2.9.0-ff3d8b)](../../releases)
+[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.6.2-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · **Français** · [Español](README.es.md)
 
@@ -26,7 +26,7 @@ Par-dessus, Rurutia a refait le visuel et les polices, ajouté **18 skins de cou
 </p>
 <p align="center"><sub>▲ Vue d'ensemble de l'interface principale — la même interface, « Lumière Pixel » sombre à gauche, « Gelée Numérique » clair à droite. La grille de fichiers porte des badges de projet aux couleurs vives, la barre latérale rassemble les projets Agent et l'usage officiel.</sub></p>
 
-> **✨ Nouveautés v2.8.0** : 18 skins de couleur retravaillés (clairs moins blancs, sombres moins uniformes) · **7 langues dans l'app** + un sélecteur de langue · copier-coller / zoom de police dans le terminal · fusion des correctifs clés de FanBox v2.3.3.
+> **✨ Nouveautés v2.9.0** : des couleurs de terminal qui suivent vraiment chaque skin + un panneau **Couleurs du terminal** par emplacement (les couleurs de Claude Code / Codex s'accordent au skin) · les 9 skins clairs assombris pour les longues sessions · instantanés de tour avec restauration en un clic · 11 agents à lancement rapide + panneau de réglages · corruption CJK corrigée pour de bon (xterm 6.0) · fusion de FanBox v2.6.2.
 
 ---
 
@@ -94,12 +94,18 @@ Par-dessus, Rurutia a refait le visuel et les polices, ajouté **18 skins de cou
 - **Usage de l'agent** : fenêtre officielle de 5 h / quota hebdomadaire de Claude Code (même source que `/usage`) + statistiques de tokens locales ; instantané des limites de Codex.
 - **Rayon X de l'occupation disque** : palmarès en barres de l'occupation réelle au sens de `du`, avec exploration en profondeur.
 
+- **Instantanés de tour (ceinture de sécurité)** : avant chaque tour de l'agent, un instantané complet du projet est pris automatiquement (un git fantôme couvre les dossiers hors git) ; l'entrée « Instantanés » de la barre d'état restaure n'importe quel tour en un clic — l'état courant est d'abord sauvegardé, retour possible à tout moment.
+
 ### 🖥 Terminal · piloter l'agent
 - **Vrai terminal intégré** : node-pty + xterm.js (rendu WebGL), fait tourner Claude Code / vim / htop sans artefacts d'affichage, les caractères larges chinois s'affichent correctement.
 - **Glisser des fichiers dans le terminal** : faites glisser un fichier / dossier de la liste vers le terminal, le chemin s'insère automatiquement pour servir de contexte à l'agent.
 - **Chemins cliquables** : les chemins de fichiers qui apparaissent dans le terminal s'ouvrent d'un clic (les noms de capture avec espaces, les noms chinois et les longs chemins coupés sur plusieurs lignes sont reconnus).
 - **Sélectionner pour envoyer au terminal** : sélectionnez un passage dans l'aperçu, envoyez-le en un clic au terminal au format « source du fichier + bloc clôturé ».
 - **Conscience de la situation** : la pastille de l'onglet indique l'agent en cours / au repos / terminé ; quand c'est à votre tour, le bord du terminal pulse pour vous alerter, et une notification système est envoyée à la fin des tâches longues.
+
+- **11 agents à lancement rapide** : registre intégré (Claude Code / Codex / Hermes / Kimi / opencode…) + panneau ⚙ pour les activer ; « non installé » copie la commande d'installation. Commandes personnalisées / nouveaux agents via config.json.
+- **Corruption CJK corrigée pour de bon** : xterm 6.0 + entretien automatique de l'atlas de glyphes + reconstruction sous pression ; un bouton « rendu de compatibilité » reste en secours.
+- **Capsule de mise à jour** : à chaque nouvelle version, une capsule apparaît en haut — un clic télécharge le dmg.
 
 ### ✍️ Édition · WYSIWYG
 - **Markdown** : Milkdown Crepe offre un WYSIWYG à la Notion, sauvegarde automatique 0,8 seconde après l'arrêt de la frappe.
@@ -139,7 +145,15 @@ Injection via ZDOTDIR : on source d'abord votre vrai dotfile (PATH / alias au po
 
 - **16 thèmes d'invite (indépendants des skins)** : Pastille · Moka / Pastel / Nuit de Tokyo / Gruvbox Arc-en-ciel / Nord Polaire / Dracula / Rosé Pine / Everforest / Kanagawa / Latte Clair / Couleurs Plates / Cockpit Jetpack / Pure Épuré / Ligne Unique Minimaliste / Deux Lignes / Texte Brut.
 - **5 modificateurs superposables (multi-sélection possible en parallèle)** : masquer la version du langage / symboles en texte brut · sans icônes / désactiver l'heure / désactiver la durée des commandes / supprimer la ligne vide en tête.
-- **Couleurs de terminal propres à chaque skin** : fond du terminal / curseur / sélection + 16 couleurs ANSI, tout est dérivé du skin ; le texte coloré des skins clairs est ramené à un contraste ≥ 3,5 pour ne plus se fondre dans le fond clair.
+- **Couleurs de terminal propres à chaque skin** : fond / curseur / sélection + les 16 couleurs ANSI dérivées de chaque skin — voir « Couleurs du terminal » ci-dessous.
+
+### 🎛 Couleurs du terminal — suivent le skin, ou à votre goût
+
+Les 16 couleurs ANSI ne sont plus une palette unique partagée par les 18 skins : bleu / magenta / cyan sont remplacés par les accents du skin (appariés par teinte), rouge / vert / jaune gardent leur sens en gagnant en saturation, et les bordures des dialogues de Claude Code prennent la teinte du skin — lancez Claude Code / Codex en `dark-ansi` et l'interface dans le terminal change de couleurs à chaque skin. Contraste ≥ 3,2 sur skins clairs, ≥ 2,8 sur sombres.
+
+Envie de personnaliser ? Juste sous « Skins », le panneau **Couleurs du terminal** — 20 emplacements, chacun étiqueté selon son usage réel dans Claude Code (bordures / erreurs / succès / chemins / bannières…). Un sélecteur de couleur maison applique le changement à tous les terminaux ouverts instantanément ; mémorisé par skin, réinitialisable par emplacement ou en bloc.
+
+Les 9 skins clairs sont aussi globalement assombris (fond ramené dans une bande de luminance 52–62 %, surface la plus claire de 85 % à moins de 64 %) — un outil qu'on fixe toute la journée doit ressembler à du papier kraft mat, pas à du blanc lumineux.
 
 ### 🖥 Terminal · icônes de marque + onglets arc-en-ciel
 

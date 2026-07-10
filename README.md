@@ -7,13 +7,13 @@
 **Coding Agent 的驾驶舱 —— 基于 [FanBox](https://github.com/alchaincyf/fanbox) 的个人增强版**
 
 指挥 Claude Code / Codex 在本地干活，看清它碰过的每个文件、改过的每一行，随时接手。<br>
-在此之上，Rurutia 重做了视觉与字体，加了 **18 套配色皮肤**、**自带 Starship 的终端提示符**、**终端品牌图标工具栏**，把侧栏入口、用量面板、交互细节都打磨得更顺手。
+在此之上，Rurutia 重做了视觉与字体，加了 **18 套配色皮肤**、**跟随皮肤的终端配色（20 个槽位可自选）**、**自带 Starship 的终端提示符**、**终端品牌图标工具栏**，把侧栏入口、用量面板、交互细节都打磨得更顺手。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#安装)
 [![Signed](https://img.shields.io/badge/已签名-Developer%20ID%20%2B%20公证-success?logo=apple)](#安装)
-[![Version](https://img.shields.io/badge/版本-v2.8.1-ff3d8b)](../../releases)
-[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.3.3-blueviolet)](https://github.com/alchaincyf/fanbox)
+[![Version](https://img.shields.io/badge/版本-v2.9.0-ff3d8b)](../../releases)
+[![Upstream](https://img.shields.io/badge/Upstream-FanBox%20v2.6.2-blueviolet)](https://github.com/alchaincyf/fanbox)
 
 **简体中文** · [繁體中文](README.zh-TW.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Français](README.fr.md) · [Español](README.es.md)
 
@@ -26,7 +26,7 @@
 </p>
 <p align="center"><sub>▲ 主界面总览 —— 同一界面、左深「像素光」右浅「数字果冻」。文件网格带强色项目徽章，侧栏汇总 Agent 项目与官方用量。</sub></p>
 
-> **✨ v2.8.0 本版亮点**：18 套配色皮肤精调（浅色去白、暗色去同质化）· 应用内 **7 国语言** + 语言选择器 · 终端复制粘贴 / 字号缩放 · 合并上游 FanBox v2.3.3 核心修复。
+> **✨ v2.9.0 本版亮点**：终端配色真正跟随皮肤 + 「终端配色」自选面板（Claude Code / Codex 界面色随皮肤醒目）· 浅色 9 套整体降亮度护眼 · 回合存档一键回滚 · 11 个 coding agent 一键启动 + 设置面板 · 终端中文乱码根治（xterm 6.0）· 合并上游 FanBox v2.6.2。
 
 ---
 
@@ -94,12 +94,18 @@
 - **Agent 用量**：Claude Code 官方 5h 窗口/周配额（和 `/usage` 同源）+ 本地 token 统计；Codex 限额快照。
 - **磁盘占用透视**：`du` 口径的真实占用条形榜，可下钻。
 
+- **回合存档（安全带）**：agent 每轮开工前自动存一份完整项目状态（非 git 项目走影子 git 兜底），状态栏「回合存档」一键回到任意一轮之前；恢复前会把当前态也存一份，随时能滚回来。
+
 ### 🖥 终端 · 指挥 agent
 - **真实内嵌终端**：node-pty + xterm.js（WebGL 渲染），跑 Claude Code / vim / htop 不花屏，中文宽字符正确。
 - **拖文件进终端**：从文件列表拖文件/文件夹进终端，自动插入路径喂给 agent 当上下文。
 - **路径可点击**：终端里出现的文件路径直接点开（带空格的截屏名、中文名、折行长路径都能识别）。
 - **选中即甩给终端**：预览里选一段文字，一键以「文件出处 + 围栏」格式发进终端。
 - **态势感知**：标签圆点显示 agent 运行/空闲/退出；轮到你时终端边缘呼吸提示，长任务完成发系统通知。
+
+- **11 个 coding agent 一键启动**：内置注册表（Claude Code / Codex / Hermes / Kimi / opencode……），⚙ 设置面板勾选启停、未装的点一下复制安装命令；config.json 可自定义命令 / 加新 agent。
+- **中文乱码根治**：xterm 6.0 + 字形图集自动保养 + 压力监视整体重建；仍有异常时设置面板一键切「兼容渲染」。
+- **更新胶囊**：有新版本时顶栏浮出胶囊，一键下载 dmg。
 
 ### ✍️ 编辑 · 所见即所得
 - **Markdown**：Milkdown Crepe 提供 Notion 式所见即所得，停笔 0.8 秒自动保存。
@@ -139,7 +145,15 @@
 
 - **16 套提示符主题（独立于皮肤）**：药丸·摩卡 / 帕斯特尔 / 东京夜 / Gruvbox 彩虹 / Nord 极地 / Dracula / Rosé Pine / Everforest / Kanagawa / 拿铁浅色 / 扁平彩字 / Jetpack 座舱 / Pure 简约 / 极简单行 / 两行 / 纯文本。
 - **5 个可叠加修饰（可多选并行）**：隐藏语言版本 / 纯文本符号·去图标 / 关时间 / 关命令耗时 / 去前导空行。
-- **每套皮肤独立终端配色**：终端背景 / 光标 / 选区 + 16 ANSI 全按皮肤推导；浅色皮肤的彩字也压到对比 ≥ 3.5，不再糊进浅底。
+- **每套皮肤独立终端配色**：背景 / 光标 / 选区 + 16 ANSI 全按皮肤推导，详见下面「终端配色」一节。
+
+### 🎛 终端配色 · 跟皮肤走，还能自己选
+
+终端 16 ANSI 不再是 18 套皮肤共用一副：蓝 / 品红 / 青按色相就近换成该皮肤的强调色本尊，红 / 绿 / 黄保住语义、拉高饱和，Claude Code 对话框的框线也带上皮肤色温——`dark-ansi` 下跑 Claude Code / Codex，换一套皮肤，终端里的界面色就跟着换一套。浅色皮肤的彩字全部压到对比 ≥ 3.2、暗色 ≥ 2.8。
+
+想更个性化：侧栏「皮肤」下面就是「**终端配色**」面板——20 个槽位全按 Claude Code 里的实际用途标注（框线 / 错误 / 成功 / 链接路径 / 信息横幅……），自绘取色器点开即改、所有开着的终端即时变色；每套皮肤分开记忆，可逐项或整套还原。
+
+浅色 9 套还整体降了亮度（页面底压进 52–62% 亮度带、最亮表面从 85% 降到 64% 以下）——生产力工具要长时间盯着，白纸换成哑光牛皮纸，不刺眼。
 
 ### 🖥 终端 · 品牌图标 + 彩虹标签
 
