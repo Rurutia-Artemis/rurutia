@@ -155,12 +155,13 @@
   .reel strong, .sep strong { display: block; height: 1em; line-height: 1; font-weight: 600; }
   .complete .progress-number-inner { animation: settle 520ms var(--ease-out); }
   .progress-number-inner { display: inline-block; }
-  .number-label { margin-left: 14px; color: var(--muted); font: 13px/1 var(--mono); letter-spacing: .08em; }
+  .number-label { margin: 0 0 12px 5px; color: var(--muted); font: 16px/1 var(--mono); letter-spacing: .12em; }
   .trend { margin-top: 16px; color: var(--muted); font: 14px/1 var(--mono); }
   .trend b { color: var(--mint); font-weight: 500; }
 
   /* ---- 6 模块 ---- */
-  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; padding: 34px 18px 12px; min-height: 0; overflow-y: auto; }
+  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; padding: 50px 18px 12px; min-height: 0; overflow-y: auto; }
+  .workflow.cols-1 { grid-template-columns: 1fr; } /* 1-2 个窗口：单列大块 */
   .workflow::-webkit-scrollbar { width: 0; }
   .worktree { position: relative; min-width: 0; padding: 12px 13px 13px; border: 1px solid var(--line); border-radius: 15px; background: var(--panel-2); }
   .worktree-head { display: flex; align-items: center; gap: 7px; margin-bottom: 11px; }
@@ -177,7 +178,7 @@
   .wt-pick .chev { color: var(--faint); font-size: 9px; }
   .wt-count { margin-left: auto; color: var(--muted); font: 13.5px/1 var(--mono); }
   .worktree.done .wt-count { color: var(--mint); }
-  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .grid { display: grid; gap: 6px; } /* 列数按窗口数自适应，内联设定 */
   .cell {
     position: relative;
     aspect-ratio: 1;
@@ -201,6 +202,13 @@
   }
   /* 刚翻态的落定弹跳：一次性、只动 transform */
   .cell.pop { animation: pop 340ms var(--ease-out); }
+
+  .sim { display: flex; align-items: center; gap: 3px; margin-left: 8px; }
+  .sim em { margin-right: 3px; color: var(--faint); font: 9px/1 var(--mono); font-style: normal; }
+  .sim button { width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--muted); font: 10px/1 var(--mono); cursor: pointer; transition: transform 140ms var(--ease-out), background 160ms ease, color 160ms ease; }
+  .sim button:hover { background: var(--panel-hover); }
+  .sim button:active { transform: scale(.94); }
+  .sim button.on { border-color: var(--line-2); background: var(--panel); color: var(--ink); }
 
   .obs-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line); color: var(--faint); font: 9.5px/1.5 var(--mono); }
   .legend { display: flex; gap: 10px; }
@@ -279,6 +287,7 @@
       <header class="obs-head">
         <span class="live-dot"></span>
         <span class="eyebrow">Live · 终端工作状态</span>
+        <span class="sim" title="模拟打开的窗口数（真实版自动跟随终端 tab 数量）"><em>窗口</em><button data-n="1">1</button><button data-n="2">2</button><button data-n="3">3</button><button data-n="6" class="on">6</button></span>
         <span class="spacer"></span>
         <button class="icon-btn" id="replay" title="重播归零演示">↺</button>
         <button class="icon-btn" id="close" title="收起（右缘保留把手）">✕</button>
@@ -287,11 +296,11 @@
       <!-- 总进度 -->
       <div class="hero" id="hero">
         <span class="number-bloom"></span>
+        <div class="number-label">未完成任务</div>
         <span class="progress-number-inner">
           <span class="progress-number">
             <span class="odo" id="odo"></span>
           </span>
-          <span class="number-label">未完成任务</span>
         </span>
         <div class="trend" id="trend"></div>
       </div>
@@ -336,21 +345,33 @@
   $('#tabs').innerHTML = WINDOWS.map((w, i) =>
     `<span class="tab ${i === 0 ? 'on' : ''}"><i style="background:var(--${w.tone})"></i>${w.name}</span>`).join('');
 
-  // ---------- 模块：默认 1:1 绑 6 个窗口，可各自换绑 ----------
-  const CELLS = 30; // 每模块 6 列 × 5 行
-  const modules = WINDOWS.map((w, i) => ({ idx: i, windowId: w.id }));
+  // ---------- 模块：数量自适应布局，可各自换绑 ----------
+  // 1 个窗口 → 独占单列超大格；2 个 → 竖排两大块；≥3 → 双列网格（真实版跟随终端 tab 数量）
+  const layoutFor = (n) => n === 1 ? { one: true, cols: 6, rows: 4 }
+    : n === 2 ? { one: true, cols: 8, rows: 3 }
+    : { one: false, cols: 6, rows: 5 };
   const workflow = $('#workflow');
-  workflow.innerHTML = modules.map((m) => `
+  const winOf = (m) => WINDOWS.find((w) => w.id === m.windowId);
+  let modules = [], modEls = [], gridCols = 6;
+  function renderModules(n) {
+    const L = layoutFor(n);
+    gridCols = L.cols;
+    const wins = WINDOWS.slice(0, n);
+    const sum = wins.reduce((s, w) => s + w.share, 0);
+    modules = wins.map((w, i) => ({ idx: i, windowId: w.id, share: w.share / sum })); // 份额归一，总数不变
+    workflow.classList.toggle('cols-1', L.one);
+    workflow.innerHTML = modules.map((m) => `
     <div class="worktree" data-mod="${m.idx}">
       <div class="worktree-head">
         <span class="wt-dot"></span>
         <button class="wt-pick" title="选择这个模块显示哪个窗口"><span class="wt-name"></span><span class="chev">▾</span></button>
         <span class="wt-count"></span>
       </div>
-      <div class="grid">${'<i class="cell"></i>'.repeat(CELLS)}</div>
+      <div class="grid" style="grid-template-columns:repeat(${L.cols},1fr)">${'<i class="cell"></i>'.repeat(L.cols * L.rows)}</div>
     </div>`).join('');
-  const modEls = [...workflow.children];
-  const winOf = (m) => WINDOWS.find((w) => w.id === m.windowId);
+    modEls = [...workflow.children];
+    modEls.forEach((el, i) => { renderModuleHead(el, modules[i]); seedModule(el); bindPicker(el, i); });
+  }
 
   const WORK_TONES = ['coral', 'mango', 'lilac', 'sky'];
   const CELL_STATES = [...WORK_TONES, 'mint'];
@@ -372,8 +393,6 @@
     el.querySelector('.wt-name').textContent = w.name;
     el.querySelector('.wt-dot').style.background = '';
   }
-  modEls.forEach((el, i) => { renderModuleHead(el, modules[i]); seedModule(el); });
-
   // ---------- 换绑选择器（origin-aware，从模块名长出来） ----------
   let menu = null;
   function closeMenu() {
@@ -384,7 +403,7 @@
     document.removeEventListener('mousedown', onOut, true);
   }
   function onOut(ev) { if (menu && !menu.contains(ev.target)) closeMenu(); }
-  modEls.forEach((el, i) => {
+  function bindPicker(el, i) {
     el.querySelector('.wt-pick').onclick = (ev) => {
       ev.stopPropagation();
       if (menu) { closeMenu(); return; }
@@ -407,7 +426,20 @@
       });
       document.addEventListener('mousedown', onOut, true);
     };
+  }
+  renderModules(6);
+  // 演示用窗口数模拟器（真实版由终端 tab 数量驱动，无此控件）
+  document.querySelectorAll('.sim button').forEach((b) => {
+    b.onclick = () => {
+      document.querySelectorAll('.sim button').forEach((x) => x.classList.toggle('on', x === b));
+      renderModules(+b.dataset.n);
+    };
   });
+  const simN = parseInt(new URLSearchParams(location.search).get('n'), 10);
+  if (simN >= 1 && simN <= 6) {
+    renderModules(simN);
+    document.querySelectorAll('.sim button').forEach((x) => x.classList.toggle('on', +x.dataset.n === simN));
+  }
 
   // ---------- 滚轮大数字（高度计式）：双层（彩虹垫底 + 白色盖面被 clip 吃掉） ----------
   const DIGITS = 6; // 支持到 999,999（几十万级）；千分位逗号在 k=2 前
@@ -479,7 +511,7 @@
       const prev = el.querySelector('.cell.chasing');
       if (prev) prev.classList.remove('chasing');
       const step = Math.floor(performance.now() / 640) + i * 5;
-      cells[step % CELLS].classList.add('chasing');
+      cells[step % cells.length].classList.add('chasing');
     });
   }
   function driftTick() {
@@ -496,8 +528,7 @@
         const pool = cells.filter((c) => !c.classList.contains('mint'));
         if (pool.length) setCell(pool[Math.floor(Math.random() * pool.length)], WORK_TONES[Math.floor(Math.random() * 4)], false);
       }
-      const w = winOf(modules[+el.dataset.mod]);
-      const left = Math.round((1 - completion) * TOTAL * w.share);
+      const left = Math.round((1 - completion) * TOTAL * modules[+el.dataset.mod].share);
       el.querySelector('.wt-count').textContent = left === 0 ? '✓ 0' : left.toLocaleString('en-US');
       el.classList.toggle('working', completion < 1); // 倒计时中恒亮，不闪（状态点闪烁是噪音）
       el.classList.toggle('done', left === 0);
@@ -511,7 +542,7 @@
       const prev = el.querySelector('.cell.chasing');
       if (prev) prev.classList.remove('chasing');
       [...el.querySelectorAll('.cell')].forEach((c, ci) => {
-        const delay = reduceMotion ? 0 : mi * 60 + (Math.floor(ci / 6) + ci % 6) * 30;
+        const delay = reduceMotion ? 0 : mi * 60 + (Math.floor(ci / gridCols) + ci % gridCols) * 30;
         setTimeout(() => setCell(c, 'mint', true), delay);
       });
     });
