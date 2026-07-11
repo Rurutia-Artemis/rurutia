@@ -88,8 +88,8 @@
   .hint { position: absolute; bottom: 14px; left: 22px; color: var(--faint); font: 10px/1.6 var(--mono); }
 
   /* ===== 观察舱 ===== */
-  .obs { position: relative; display: flex; flex-direction: column; width: 356px; height: 100%; background: var(--window); transition: margin-right 340ms var(--ease-smooth); }
-  .stage.collapsed .obs { margin-right: -356px; }
+  .obs { position: relative; display: flex; flex-direction: column; width: 500px; height: 100%; background: var(--window); transition: margin-right 340ms var(--ease-smooth); }
+  .stage.collapsed .obs { margin-right: -500px; }
 
   .light-track { position: absolute; z-index: 8; top: 0; right: 0; left: 0; height: 3px; overflow: hidden; background: var(--panel); }
   .light-train { position: absolute; top: 0; left: -22%; display: flex; width: 26%; height: 100%; animation: train 8s steps(80) infinite; }
@@ -108,20 +108,20 @@
   .icon-btn:active { transform: scale(.95); }
 
   /* ---- 总进度：滚轮大数字 ---- */
-  .hero { position: relative; padding: 20px 20px 4px; }
+  .hero { position: relative; padding: 26px 22px 8px; }
   .progress-number {
     position: relative;
     display: inline-block;
-    font-size: 60px;
+    font-size: 118px;
     font-weight: 600;
     line-height: 1;
-    letter-spacing: -.04em;
+    letter-spacing: -.05em;
     font-variant-numeric: tabular-nums;
   }
   /* 归零辉光：预烘焙彩色光斑，只动 opacity（问2） */
   .number-bloom {
     position: absolute;
-    inset: -22px -30px;
+    inset: -30px -44px;
     background:
       radial-gradient(ellipse 60% 90% at 22% 55%, rgb(var(--coral-rgb) / .5), transparent 60%),
       radial-gradient(ellipse 55% 85% at 52% 45%, rgb(var(--mint-rgb) / .42), transparent 62%),
@@ -154,28 +154,28 @@
   .reel strong, .sep strong { display: block; height: 1em; line-height: 1; font-weight: 600; }
   .complete .progress-number-inner { animation: settle 520ms var(--ease-out); }
   .progress-number-inner { display: inline-block; }
-  .number-label { margin-left: 10px; color: var(--muted); font: 11px/1 var(--mono); letter-spacing: .08em; }
-  .trend { margin-top: 12px; color: var(--muted); font: 9px/1 var(--mono); }
+  .number-label { margin-left: 14px; color: var(--muted); font: 13px/1 var(--mono); letter-spacing: .08em; }
+  .trend { margin-top: 15px; color: var(--muted); font: 10.5px/1 var(--mono); }
   .trend b { color: var(--mint); font-weight: 500; }
 
   /* ---- 6 模块 ---- */
-  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 14px 10px; }
-  .worktree { position: relative; min-width: 0; padding: 9px 10px 10px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel-2); }
-  .worktree-head { display: flex; align-items: center; gap: 6px; margin-bottom: 9px; }
-  .wt-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--faint); flex: 0 0 auto; }
+  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; padding: 18px 18px 12px; }
+  .worktree { position: relative; min-width: 0; padding: 12px 13px 13px; border: 1px solid var(--line); border-radius: 15px; background: var(--panel-2); }
+  .worktree-head { display: flex; align-items: center; gap: 7px; margin-bottom: 11px; }
+  .wt-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex: 0 0 auto; }
   .worktree.working .wt-dot { background: var(--mint); box-shadow: 0 0 8px var(--mint); animation: breathe 2.4s steps(24) infinite; }
   .wt-pick {
     display: flex; align-items: center; gap: 4px; min-width: 0;
     border: none; background: none; padding: 2px 4px; margin: -2px 0;
-    border-radius: 6px; color: var(--ink); font-size: 9.5px; font-weight: 650; cursor: pointer;
+    border-radius: 6px; color: var(--ink); font-size: 12px; font-weight: 650; cursor: pointer;
     transition: background 160ms ease, transform 140ms var(--ease-out);
   }
   .wt-pick:hover { background: var(--panel-hover); }
   .wt-pick:active { transform: scale(.97); }
-  .wt-pick .chev { color: var(--faint); font-size: 8px; }
-  .wt-count { margin-left: auto; color: var(--muted); font: 8.5px/1 var(--mono); }
+  .wt-pick .chev { color: var(--faint); font-size: 9px; }
+  .wt-count { margin-left: auto; color: var(--muted); font: 11px/1 var(--mono); }
   .worktree.done .wt-count { color: var(--mint); }
-  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
   .cell {
     position: relative;
     aspect-ratio: 1;
@@ -200,9 +200,9 @@
   /* 刚翻态的落定弹跳：一次性、只动 transform */
   .cell.pop { animation: pop 340ms var(--ease-out); }
 
-  .obs-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-top: 1px solid var(--line); color: var(--faint); font: 8px/1.5 var(--mono); }
-  .legend { display: flex; gap: 8px; }
-  .legend i { display: inline-block; width: 6px; height: 6px; margin-right: 3px; border-radius: 2px; background: currentColor; }
+  .obs-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line); color: var(--faint); font: 9.5px/1.5 var(--mono); }
+  .legend { display: flex; gap: 10px; }
+  .legend i { display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 2px; background: currentColor; }
 
   /* ---- 模块换绑选择器：origin-aware，从触发点长出来 ---- */
   .wt-menu {
