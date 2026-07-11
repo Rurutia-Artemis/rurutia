@@ -117,6 +117,7 @@
     line-height: 1;
     letter-spacing: -.05em;
     font-variant-numeric: tabular-nums;
+    transition: font-size 340ms var(--ease-out); /* 位数变化时字号顺滑收放（全部尺寸都是 em，跟着缩放） */
   }
   /* 归零辉光：预烘焙彩色光斑，只动 opacity（问2） */
   .number-bloom {
@@ -155,11 +156,12 @@
   .complete .progress-number-inner { animation: settle 520ms var(--ease-out); }
   .progress-number-inner { display: inline-block; }
   .number-label { margin-left: 14px; color: var(--muted); font: 13px/1 var(--mono); letter-spacing: .08em; }
-  .trend { margin-top: 15px; color: var(--muted); font: 10.5px/1 var(--mono); }
+  .trend { margin-top: 16px; color: var(--muted); font: 14px/1 var(--mono); }
   .trend b { color: var(--mint); font-weight: 500; }
 
   /* ---- 6 模块 ---- */
-  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; padding: 18px 18px 12px; }
+  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; padding: 18px 18px 12px; min-height: 0; overflow-y: auto; }
+  .workflow::-webkit-scrollbar { width: 0; }
   .worktree { position: relative; min-width: 0; padding: 12px 13px 13px; border: 1px solid var(--line); border-radius: 15px; background: var(--panel-2); }
   .worktree-head { display: flex; align-items: center; gap: 7px; margin-bottom: 11px; }
   .wt-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex: 0 0 auto; }
@@ -175,7 +177,7 @@
   .wt-pick .chev { color: var(--faint); font-size: 9px; }
   .wt-count { margin-left: auto; color: var(--muted); font: 11px/1 var(--mono); }
   .worktree.done .wt-count { color: var(--mint); }
-  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
   .cell {
     position: relative;
     aspect-ratio: 1;
@@ -335,7 +337,7 @@
     `<span class="tab ${i === 0 ? 'on' : ''}"><i style="background:var(--${w.tone})"></i>${w.name}</span>`).join('');
 
   // ---------- 模块：默认 1:1 绑 6 个窗口，可各自换绑 ----------
-  const CELLS = 15;
+  const CELLS = 30; // 每模块 6 列 × 5 行
   const modules = WINDOWS.map((w, i) => ({ idx: i, windowId: w.id }));
   const workflow = $('#workflow');
   workflow.innerHTML = modules.map((m) => `
@@ -408,7 +410,7 @@
   });
 
   // ---------- 滚轮大数字（高度计式）：双层（彩虹垫底 + 白色盖面被 clip 吃掉） ----------
-  const DIGITS = 4; // 支持到 9,999
+  const DIGITS = 6; // 支持到 999,999（几十万级）；千分位逗号在 k=2 前
   const odo = $('#odo');
   function buildLayer(cls) {
     const layer = document.createElement('span');
@@ -427,8 +429,12 @@
   const layerWhite = buildLayer('white');
   const hero = $('#hero'), trend = $('#trend'), gripNum = $('#gripNum');
 
+  let curFontSize = 0;
   function paintNumber(v, snap) {
     const safe = Math.max(0, v);
+    // 位数越多字号越收，倒数跨过 10 万 / 1 万门槛时字号顺滑长大（数字越少越有底气）
+    const fs = safe >= 100000 ? 84 : safe >= 10000 ? 102 : 118;
+    if (fs !== curFontSize) { curFontSize = fs; document.querySelector('.progress-number').style.fontSize = fs + 'px'; }
     // 真·里程表：个位连续飞转（速度感）；高位平时坐实、只在低位归整的一小段窗口里短促滚动。
     // 倒数方向：进入数字 D 的瞬间（r≈1，刚从 D+1 跌下来）完成 D+1→D 的滚动，其余时间稳稳显示 D。
     const WINDOWS_K = [1, .3, .15, .15];
@@ -462,7 +468,8 @@
   }
 
   // ---------- 演示引擎（可全停：visibilitychange / 收起 → 成本归零） ----------
-  const TOTAL = 4581;
+  // ?total=234567 可预览上万/几十万的场景（渐变按完成百分比渗入，与量级无关）
+  const TOTAL = Math.min(999999, Math.max(100, parseInt(new URLSearchParams(location.search).get('total'), 10) || 4581));
   let completion = 0, raf = 0, timers = [], t0 = 0, holdUntil = 0;
 
   function chaseTick() {
@@ -504,7 +511,7 @@
       const prev = el.querySelector('.cell.chasing');
       if (prev) prev.classList.remove('chasing');
       [...el.querySelectorAll('.cell')].forEach((c, ci) => {
-        const delay = reduceMotion ? 0 : mi * 60 + (Math.floor(ci / 5) + ci % 5) * 34;
+        const delay = reduceMotion ? 0 : mi * 60 + (Math.floor(ci / 6) + ci % 6) * 30;
         setTimeout(() => setCell(c, 'mint', true), delay);
       });
     });
