@@ -3,21 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>观察舱 · GlintGrid 风格样例（嵌入 Rurubox 右侧）</title>
+<title>观察舱 · 大数字归零 + 数据块动效（GlintGrid 样例 v2）</title>
 <!--
-  样例说明
-  · 视觉语言 1:1 取自 Codex 的 GlintGrid 原型（modular-dock-carnival-lights.html 的 tokens：
-    五色 coral/mango/mint/sky/lilac、panel 层次、SF Mono 小字、light-train 顶部跑马灯、呼吸绿点）。
-  · 左侧是 Rurubox 终端区的「舞台道具」（示意，非真终端）；右侧是要加的「观察舱」——
-    可自由开合：点 ✕ 收成右缘细把手（把手上保留每个终端的状态点），点把手再展开。
-  · 数据全是模拟，但每个字段都对应 Rurubox 里现成的真实数据源：
-      状态点     ← 渲染层 pty:data 输出活跃度（零新增 IPC）
-      前台进程   ← pty:proc（claude / codex / zsh，权威，不用从录像猜）
-      等你回话   ← 输出停息 + 前台仍是 agent（区分「等输入」和「真空闲」）
-      改·N      ← state.changeLog 文件变更归属
-      屏幕尾行   ← xterm buffer 就在本渲染层里，直接读
-  · 模拟剧本：Rurubox(claude) 干活→等你回话→继续；Tests(vitest) 周期性刷测试；
-    Codex 一直等确认；Server 偶尔来一条请求日志；zsh 空闲。
+  样例 v2 —— 按用户指示只保留两个重点（其余全部简化掉）：
+  1. 数据块动效：格子跑马灯（.chasing 顺序点亮，520ms 一步，机制照搬 GlintGrid 原型），
+     格子颜色 = 任务状态（红 discover / 黄 fix / 紫 review / 绿 applied），
+     越接近完成绿格占比越高，归零瞬间全部落绿。
+  2. 大数字：剩余错误数倒数归零。机制 1:1 取自原型——彩虹字打底，白字盖在上面，
+     clip-path 从右往左把白字吃掉（任务越接近完成彩色越多；前 6% 保持纯白）；
+     归零加 .complete：双层辉光 + 彩虹渐变流动。
+  倒计时 20 秒一轮：value = total × (1-p)^1.42（先快后慢，冲线前有仪式感），
+  归零停 4 秒自动重跑，也可点「重播」。右上 ✕ 收成右缘把手，点把手展开。
+  真实版数据源：剩余数 = agent 任务/测试失败数等（事件桥）；格子事件 = 终端输出/工具调用。
 -->
 <style>
   :root {
@@ -55,7 +52,7 @@
     overflow: hidden;
   }
 
-  /* ========== 舞台：模拟 Rurubox 主窗口的终端区 ========== */
+  /* ===== 舞台：模拟 Rurubox 终端区（道具） ===== */
   .stage { display: flex; height: 100vh; }
   .term-zone { position: relative; display: flex; flex: 1; min-width: 0; flex-direction: column; border-right: 1px solid var(--line); background: var(--window); }
   .term-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-bottom: 1px solid var(--line); }
@@ -64,15 +61,8 @@
   .tab.on { border-color: var(--line); color: var(--ink); background: var(--panel-2); }
   .tab i { width: 7px; height: 7px; border-radius: 2px; }
   .spacer { flex: 1; }
-  .obs-toggle {
-    display: flex; align-items: center; gap: 8px;
-    height: 30px; padding: 0 12px;
-    border: 1px solid var(--line); border-radius: 9px;
-    background: var(--panel-2); color: var(--ink);
-    font-size: 11px; font-weight: 600; cursor: pointer;
-    transition: transform 140ms var(--ease-out), background 180ms ease, border-color 180ms ease;
-  }
-  .obs-toggle:hover { border-color: var(--line-2); background: var(--panel-hover); }
+  .obs-toggle { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); color: var(--ink); font-size: 11px; font-weight: 600; cursor: pointer; transition: transform 140ms var(--ease-out), background 180ms ease; }
+  .obs-toggle:hover { background: var(--panel-hover); }
   .obs-toggle:active { transform: scale(.97); }
   .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 9px var(--mint); animation: breathe 2.4s steps(24) infinite; }
   .fake-term { flex: 1; padding: 18px 22px; overflow: hidden; font: 12px/1.9 var(--mono); color: #b9c4d4; opacity: .8; }
@@ -81,15 +71,9 @@
   .fake-term .g { color: var(--mint); }
   .hint { position: absolute; bottom: 14px; left: 22px; color: var(--faint); font: 10px/1.6 var(--mono); }
 
-  /* ========== 观察舱本体 ========== */
-  .obs {
-    position: relative;
-    display: flex; flex-direction: column;
-    width: 332px; height: 100%;
-    background: var(--window);
-    transition: margin-right 340ms var(--ease-smooth);
-  }
-  .stage.collapsed .obs { margin-right: -332px; }
+  /* ===== 观察舱 ===== */
+  .obs { position: relative; display: flex; flex-direction: column; width: 344px; height: 100%; background: var(--window); transition: margin-right 340ms var(--ease-smooth); }
+  .stage.collapsed .obs { margin-right: -344px; }
 
   .light-track { position: absolute; z-index: 8; top: 0; right: 0; left: 0; height: 3px; overflow: hidden; background: var(--panel); }
   .light-train { position: absolute; top: 0; left: -22%; display: flex; width: 26%; height: 100%; animation: train 8s steps(80) infinite; }
@@ -102,74 +86,83 @@
 
   .obs-head { display: flex; align-items: center; gap: 10px; height: 52px; padding: 3px 12px 0 16px; border-bottom: 1px solid var(--line); }
   .eyebrow { color: var(--muted); font: 9px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
-  .obs-head time { margin-left: auto; color: var(--faint); font: 9px/1 var(--mono); }
-  .icon-btn { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--muted); cursor: pointer; transition: transform 140ms var(--ease-out), background 180ms ease; }
+  .obs-head .spacer { flex: 1; }
+  .icon-btn { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 11px; transition: transform 140ms var(--ease-out), background 180ms ease; }
   .icon-btn:hover { background: var(--panel-hover); color: var(--ink); }
   .icon-btn:active { transform: scale(.95); }
 
-  .tally { display: flex; gap: 14px; padding: 11px 16px; border-bottom: 1px solid var(--line); font: 9px/1 var(--mono); color: var(--muted); }
-  .tally b { font-weight: 500; }
-  .tally .w b { color: var(--mint); }
-  .tally .a b { color: var(--mango); }
-  .tally .i b { color: var(--faint); }
-
-  .cards { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 7px; }
-  .cards::-webkit-scrollbar { width: 0; }
-
-  .card {
-    border: 1px solid var(--line); border-radius: 13px;
-    background: var(--panel-2);
-    padding: 10px 11px 9px;
-    cursor: pointer;
-    transition: transform 140ms var(--ease-out), border-color 200ms ease, background 200ms ease;
+  /* ---- 重点 2：大数字（机制照搬原型） ---- */
+  .hero { padding: 22px 20px 6px; }
+  .context { display: flex; align-items: center; gap: 9px; color: var(--muted); font: 9px/1 var(--mono); }
+  .active-pill { padding: 5px 7px; border-radius: 6px; color: var(--coral); background: rgb(var(--coral-rgb) / .11); }
+  .progress-number {
+    position: relative;
+    display: inline-block;
+    margin-top: 14px;
+    font-size: 62px;
+    font-weight: 600;
+    letter-spacing: -.072em;
+    line-height: .86;
+    font-variant-numeric: tabular-nums;
+    transition: filter 600ms ease;
   }
-  .card:hover { background: var(--panel-hover); }
-  .card:active { transform: scale(.985); }
-  .card.on { border-color: var(--line-2); background: var(--panel); }
-  .card.waiting { border-color: rgb(var(--mango-rgb) / .55); box-shadow: 0 0 0 1px rgb(var(--mango-rgb) / .18), 0 0 22px rgb(var(--mango-rgb) / .10); }
+  .progress-number strong { display: block; font: inherit; letter-spacing: inherit; line-height: inherit; white-space: nowrap; }
+  .progress-number .rainbow {
+    color: transparent;
+    background: linear-gradient(100deg, var(--coral) 0%, var(--mango) 20%, var(--mint) 40%, var(--sky) 60%, var(--lilac) 80%, var(--coral) 100%);
+    background-size: 64px 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .progress-number .white {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    color: var(--ink);
+    clip-path: inset(0 0 0 0);
+    will-change: clip-path;
+  }
+  .progress-number.complete { filter: drop-shadow(0 0 12px rgb(var(--sky-rgb) / .46)) drop-shadow(0 0 24px rgb(var(--coral-rgb) / .28)); }
+  .progress-number.complete .rainbow { animation: number-flow 2.4s steps(20) infinite; }
+  .number-label { margin-left: 12px; color: var(--muted); font: 12px/1 var(--mono); letter-spacing: .08em; }
+  .trend { margin-top: 13px; color: var(--muted); font: 9px/1 var(--mono); }
+  .trend b { color: var(--mint); font-weight: 500; }
 
-  .card-top { display: grid; grid-template-columns: 30px 1fr auto; gap: 9px; align-items: center; }
-  .term-icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; color: rgb(var(--tone)); background: rgb(var(--tone) / .13); font: 650 9px/1 var(--mono); }
-  .card-top b { display: block; font-size: 11px; font-weight: 600; }
-  .card-top small { display: block; margin-top: 3px; overflow: hidden; color: var(--muted); font: 8px/1 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
-  .state-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
-  .state { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
-  .state.working { background: var(--mint); box-shadow: 0 0 9px var(--mint); animation: breathe 2.4s steps(24) infinite; }
-  .state.waiting { background: var(--mango); box-shadow: 0 0 9px var(--mango); }
-  .state.exited { background: var(--coral); }
-  .state-label { font: 8px/1 var(--mono); color: var(--faint); }
-  .state-label.working { color: var(--mint); }
-  .state-label.waiting { color: var(--mango); }
+  /* ---- 重点 1：数据块（格子跑马灯） ---- */
+  .flow-title { display: flex; align-items: center; justify-content: space-between; margin: 20px 20px 9px; }
+  .legend { display: flex; gap: 10px; color: var(--muted); font: 8px/1 var(--mono); }
+  .legend i { display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 2px; background: currentColor; }
+  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 0 16px 16px; }
+  .worktree { min-width: 0; padding: 11px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-2); }
+  .worktree-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .worktree-head b { font-size: 9px; font-weight: 650; }
+  .worktree-head small { color: var(--muted); font: 8px/1 var(--mono); }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .cell {
+    aspect-ratio: 1;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--panel);
+    transform: translateZ(0);
+    transition: transform 180ms var(--ease-out), box-shadow 180ms ease, background 320ms ease, border-color 320ms ease;
+  }
+  .cell.coral { color: var(--coral); border-color: rgb(var(--coral-rgb) / .78); background: rgb(var(--coral-rgb) / .70); }
+  .cell.mango { color: var(--mango); border-color: rgb(var(--mango-rgb) / .78); background: rgb(var(--mango-rgb) / .69); }
+  .cell.mint  { color: var(--mint);  border-color: rgb(var(--mint-rgb) / .78);  background: rgb(var(--mint-rgb) / .67); }
+  .cell.sky   { color: var(--sky);   border-color: rgb(var(--sky-rgb) / .78);   background: rgb(var(--sky-rgb) / .68); }
+  .cell.lilac { color: var(--lilac); border-color: rgb(var(--lilac-rgb) / .78); background: rgb(var(--lilac-rgb) / .69); }
+  .cell.chasing { outline: 2px solid currentColor; outline-offset: 1px; transform: translateY(-2px) scale(1.06); }
 
-  .screen { margin-top: 9px; padding: 7px 9px; border-radius: 8px; background: rgba(0,0,0,.24); border: 1px solid rgba(235,240,248,.06); min-height: 46px; }
-  .screen p { margin: 0; overflow: hidden; font: 8.5px/1.75 var(--mono); color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
-  .screen p:last-child { color: var(--ink); }
-  .screen p .cur { display: inline-block; width: 6px; height: 9px; margin-left: 2px; background: var(--mint); vertical-align: -1px; animation: breathe 1.2s steps(2) infinite; }
+  .obs-foot { margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--line); color: var(--faint); font: 8px/1.5 var(--mono); }
+  .obs-foot .observe { color: var(--mango); }
 
-  .card-meta { display: flex; gap: 10px; align-items: center; margin-top: 8px; color: var(--faint); font: 8px/1 var(--mono); }
-  .chip { padding: 3px 6px; border-radius: 5px; font: 8px/1 var(--mono); }
-  .chip.files { color: var(--sky); background: rgb(var(--sky-rgb) / .12); }
-  .chip.reply { color: var(--mango); background: rgb(var(--mango-rgb) / .14); animation: breathe 2s steps(20) infinite; }
-  .card-meta time { margin-left: auto; }
-
-  .feed { border-top: 1px solid var(--line); }
-  .feed-head { display: flex; align-items: center; justify-content: space-between; height: 34px; padding: 0 16px 0 16px; }
-  .feed-head b { font-size: 9px; font-weight: 650; }
-  .feed-head span { color: var(--muted); font: 8px/1 var(--mono); }
-  .feed-rows { padding: 0 12px 8px; }
-  .feed-row { display: grid; grid-template-columns: 42px 14px 1fr auto; gap: 7px; align-items: center; min-height: 26px; border-bottom: 1px solid var(--line); }
-  .feed-row:last-child { border: 0; }
-  .feed-row time { color: var(--faint); font: 8px/1 var(--mono); }
-  .feed-row i { width: 7px; height: 7px; border-radius: 2px; justify-self: center; }
-  .feed-row p { overflow: hidden; margin: 0; font: 8px/1.3 var(--mono); color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
-  .feed-row em { font: 8px/1 var(--mono); font-style: normal; }
-
-  /* ========== 收起态：右缘细把手 ========== */
+  /* ===== 收起态把手 ===== */
   .grip {
     position: fixed; z-index: 30; top: 50%; right: 0;
     display: flex; flex-direction: column; align-items: center; gap: 9px;
-    padding: 13px 0 12px;
-    width: 26px; transform: translateY(-50%) translateX(100%);
+    width: 26px; padding: 13px 0 12px;
+    transform: translateY(-50%) translateX(100%);
     border: 1px solid var(--line-2); border-right: none;
     border-radius: 12px 0 0 12px;
     background: var(--window);
@@ -177,23 +170,25 @@
     cursor: pointer;
     transition: transform 340ms var(--ease-smooth);
   }
-  .stage.collapsed ~ .grip, .stage.collapsed + .grip { transform: translateY(-50%) translateX(0); }
-  .grip .state { width: 7px; height: 7px; }
-  .grip-label { margin-top: 3px; color: var(--faint); font: 9px/1.1 var(--mono); writing-mode: vertical-rl; letter-spacing: .18em; }
+  .stage.collapsed + .grip { transform: translateY(-50%) translateX(0); }
+  .grip-num { color: var(--ink); font: 600 9px/1 var(--mono); writing-mode: vertical-rl; }
+  .grip-num.zero { color: var(--mint); }
+  .grip .live-dot { animation-duration: 2.4s; }
+  .grip-label { margin-top: 2px; color: var(--faint); font: 9px/1.1 var(--mono); writing-mode: vertical-rl; letter-spacing: .18em; }
 
   @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
   @keyframes train { to { left: 100%; } }
+  @keyframes number-flow { to { background-position: 64px 0; } }
 </style>
 </head>
 <body>
   <div class="stage" id="stage">
-    <!-- 舞台道具：模拟现在的终端区 -->
+    <!-- 舞台道具：现在的终端区 -->
     <section class="term-zone">
       <header class="term-head">
         <nav class="tabs">
           <span class="tab on"><i style="background:var(--mango)"></i>Rurubox</span>
           <span class="tab"><i style="background:var(--mint)"></i>Tests</span>
-          <span class="tab"><i style="background:var(--sky)"></i>Server</span>
           <span class="tab"><i style="background:var(--lilac)"></i>Codex</span>
           <span class="tab"><i style="background:var(--coral)"></i>zsh</span>
         </nav>
@@ -203,171 +198,159 @@
       <div class="fake-term">
         <div class="dim">~/Documents/RuruCode/Rurubox · claude</div>
         <br>
-        <div><span class="p">✻</span> Reading electron/main.js…</div>
-        <div><span class="g">⏺</span> Edit(public/app.js) · +18 -4</div>
-        <div class="dim">  ⎿ 已应用：终端工具条折叠补丁</div>
-        <div><span class="g">⏺</span> Bash(npm test) · 21 passed</div>
-        <div><span class="p">✻</span> Thinking…</div>
+        <div><span class="p">✻</span> Fixing type errors…</div>
+        <div><span class="g">⏺</span> Edit(src/parser.ts) · +12 -7</div>
+        <div><span class="g">⏺</span> Bash(npm test) · rerunning…</div>
         <br>
         <div class="dim">❯ █</div>
       </div>
-      <div class="hint">← 这半边是舞台道具（示意现在的终端区）；右边才是要加的「观察舱」。点右上角「观察舱」按钮开合。</div>
+      <div class="hint">← 舞台道具（示意终端区）。右侧为观察舱：盯住大数字归零和格子流转。</div>
     </section>
 
-    <!-- 观察舱：要新加的右侧显示区域 -->
+    <!-- 观察舱：只保留两个重点 -->
     <aside class="obs" id="obs">
       <div class="light-track"><div class="light-train"><i></i><i></i><i></i><i></i><i></i></div></div>
       <header class="obs-head">
         <span class="live-dot"></span>
         <span class="eyebrow">Live · 终端工作状态</span>
-        <time id="clock" class="mono">00:00:00</time>
-        <button class="icon-btn" id="close" title="收起（保留右缘状态把手）">✕</button>
+        <span class="spacer"></span>
+        <button class="icon-btn" id="replay" title="重播归零演示">↺</button>
+        <button class="icon-btn" id="close" title="收起（右缘保留把手）">✕</button>
       </header>
-      <div class="tally" id="tally"></div>
-      <div class="cards" id="cards"></div>
-      <div class="feed">
-        <div class="feed-head"><b>Recent activity</b><span>streaming</span></div>
-        <div class="feed-rows" id="feed"></div>
+
+      <!-- 重点 2：大数字 -->
+      <div class="hero">
+        <div class="context"><span class="active-pill">ACTIVE</span><span id="ctx">Rurubox / Build / fix-type-errors</span></div>
+        <div>
+          <span class="progress-number" id="progressNumber">
+            <strong class="rainbow" id="counterRainbow">4,581</strong>
+            <strong class="white" id="counterWhite">4,581</strong>
+          </span>
+          <span class="number-label">issues left</span>
+        </div>
+        <div class="trend" id="trend"><b>↓ 0</b> resolved in this session · live</div>
       </div>
+
+      <!-- 重点 1：数据块 -->
+      <div class="flow-title">
+        <span class="eyebrow">Live allocation · 4 terminals</span>
+      </div>
+      <div class="flow-title" style="margin-top:-4px">
+        <span class="legend">
+          <span style="color:var(--coral)"><i></i>discover</span>
+          <span style="color:var(--mango)"><i></i>fix</span>
+          <span style="color:var(--lilac)"><i></i>review</span>
+          <span style="color:var(--mint)"><i></i>applied</span>
+        </span>
+      </div>
+      <div class="workflow" id="workflow"></div>
+
+      <div class="obs-foot"><span class="observe">●</span> 只观察进度，不读取输入 · 不发送命令，不接管终端</div>
     </aside>
   </div>
 
-  <!-- 收起态把手：状态点全景仍在 -->
-  <div class="grip" id="grip" title="展开观察舱"></div>
+  <div class="grip" id="grip" title="展开观察舱">
+    <span class="live-dot"></span>
+    <span class="grip-num" id="gripNum">4,581</span>
+    <span class="grip-label">观察舱</span>
+  </div>
 
 <script>
 (function () {
   'use strict';
   const $ = (s) => document.querySelector(s);
-  const stage = $('#stage'), cardsEl = $('#cards'), tallyEl = $('#tally'), feedEl = $('#feed'), gripEl = $('#grip');
+  const stage = $('#stage'), workflow = $('#workflow');
+  const progressNumber = $('#progressNumber'), counterRainbow = $('#counterRainbow'), counterWhite = $('#counterWhite');
+  const trend = $('#trend'), gripNum = $('#gripNum');
 
-  // ---------- 模拟数据（真实版每个字段都有现成数据源，见文件头注释） ----------
-  const TABS = [
-    { id: 't1', abbr: 'RU', tone: '--mango-rgb', name: 'Rurubox', agent: 'Claude Code', cwd: '~/RuruCode/Rurubox',
-      state: 'working', files: 12, started: -42 * 60,
-      corpus: ['✻ Reading electron/main.js…', '⏺ Edit(public/app.js) · +18 -4', '⏺ Bash(npm test)', '✓ 21 tests passed', '⏺ Write(shot-patch.js)', '✻ Thinking…', '⎿ 已应用：工具条折叠补丁', '⏺ Grep(term-actions)'] },
-    { id: 't2', abbr: 'TS', tone: '--mint-rgb', name: 'Tests', agent: 'vitest --watch', cwd: '~/RuruCode/app',
-      state: 'working', files: 0, started: -18 * 60,
-      corpus: ['RERUN src/workflow.js', '✓ terminal.spec.ts (12)', '✓ observer.spec.ts (8)', 'Tests 84 passed | 2 skipped', 'watching for file changes…'] },
-    { id: 't3', abbr: 'SV', tone: '--sky-rgb', name: 'Server', agent: 'localhost:4317', cwd: '~/RuruCode/app',
-      state: 'idle', files: 0, started: -95 * 60,
-      corpus: ['GET /api/state 200 4ms', 'GET /api/thumb 200 12ms', 'POST /api/events 202 2ms'] },
-    { id: 't4', abbr: 'CX', tone: '--lilac-rgb', name: 'Codex', agent: 'Codex', cwd: '~/RuruCode/cardestiny',
-      state: 'waiting', files: 3, started: -12 * 60,
-      corpus: ['› proposed patch: mobile/src/pricing.ts', 'apply changes? [y/N]'] },
-    { id: 't5', abbr: '>_', tone: '--coral-rgb', name: 'zsh', agent: 'zsh', cwd: '~/Documents',
-      state: 'idle', files: 0, started: -130 * 60,
-      corpus: ['❯'] },
+  // ---------- 数据块：每个终端一块 5×4 格 ----------
+  const BLOCKS = [
+    { name: 'rurubox', agent: 'claude' },
+    { name: 'tests', agent: 'vitest' },
+    { name: 'codex', agent: 'codex' },
+    { name: 'server', agent: 'http' },
   ];
-  const STATE_TEXT = { working: '工作中', waiting: '等你回话', idle: '空闲', exited: '已退出' };
-  const now = () => Date.now();
-  const t0 = now();
-  TABS.forEach((t) => { t.lines = t.corpus.slice(0, 3); t.lastOut = now() + t.started * 0; t.started = now() + t.started * 1000; });
-  let active = 't1';
+  const TONES = ['coral', 'mango', 'lilac', 'sky'];
+  workflow.innerHTML = BLOCKS.map((b) => `
+    <div class="worktree">
+      <div class="worktree-head"><b>${b.name}</b><small>${b.agent}</small></div>
+      <div class="grid">${'<i class="cell"></i>'.repeat(20)}</div>
+    </div>`).join('');
+  const cells = [...document.querySelectorAll('.cell')];
+  // 初始铺一层任务色（与原型同款五色随机，但留少量空格）
+  cells.forEach((c, i) => { if (i % 7 !== 3) c.classList.add(TONES[(i * 13 + 5) % TONES.length]); });
 
-  // ---------- 渲染 ----------
-  function fmtElapsed(ms) {
-    const s = Math.max(0, Math.floor(ms / 1000));
-    const h = String(Math.floor(s / 3600)).padStart(2, '0');
-    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-    return `${h}:${m}:${String(s % 60).padStart(2, '0')}`;
+  // 跑马灯：520ms 顺序点亮（照搬原型）
+  let chase = 0, previousChase = null;
+  setInterval(() => {
+    if (previousChase) previousChase.classList.remove('chasing');
+    const cell = cells[chase++ % cells.length];
+    cell.classList.add('chasing');
+    previousChase = cell;
+  }, 520);
+
+  // 格子状态流转：完成度越高，翻绿概率越大；归零全绿
+  const CELL_STATES = ['coral', 'mango', 'lilac', 'sky', 'mint'];
+  function setCell(cell, tone) {
+    cell.classList.remove(...CELL_STATES);
+    if (tone) cell.classList.add(tone);
   }
-  function render() {
-    cardsEl.innerHTML = TABS.map((t) => `
-      <div class="card ${t.id === active ? 'on' : ''} ${t.state === 'waiting' ? 'waiting' : ''}" data-id="${t.id}">
-        <div class="card-top">
-          <span class="term-icon" style="--tone:var(${t.tone})">${t.abbr}</span>
-          <span><b>${t.name}</b><small>${t.agent} · ${t.cwd}</small></span>
-          <span class="state-wrap">
-            <span class="state ${t.state}"></span>
-            <span class="state-label ${t.state}">${STATE_TEXT[t.state]}</span>
-          </span>
-        </div>
-        <div class="screen">${t.lines.map((l, i) =>
-          `<p>${escapeHtml(l)}${i === t.lines.length - 1 && t.state === 'working' ? '<span class="cur"></span>' : ''}</p>`).join('')}</div>
-        <div class="card-meta">
-          ${t.files ? `<span class="chip files">改·${t.files}</span>` : ''}
-          ${t.state === 'waiting' ? '<span class="chip reply">待回复</span>' : ''}
-          <time>${fmtElapsed(now() - t.started)}</time>
-        </div>
-      </div>`).join('');
-    cardsEl.querySelectorAll('.card').forEach((c) => { c.onclick = () => { active = c.dataset.id; render(); }; });
-
-    const w = TABS.filter((t) => t.state === 'working').length;
-    const a = TABS.filter((t) => t.state === 'waiting').length;
-    const i = TABS.filter((t) => t.state === 'idle' || t.state === 'exited').length;
-    tallyEl.innerHTML = `<span class="w"><b>${w}</b> 工作中</span><span class="a"><b>${a}</b> 等回话</span><span class="i"><b>${i}</b> 空闲</span>`;
-
-    gripEl.innerHTML = TABS.map((t) => `<span class="state ${t.state}" title="${t.name} · ${STATE_TEXT[t.state]}"></span>`).join('') +
-      '<span class="grip-label">观察舱</span>';
-  }
-  function escapeHtml(s) { return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-
-  // ---------- 活动流水 ----------
-  const FEED_SEED = [
-    ['RU', '--mango-rgb', 'Edit(public/app.js) +18 -4', 'applied', '--mint-rgb'],
-    ['CX', '--lilac-rgb', 'proposed patch: pricing.ts', 'review', '--lilac-rgb'],
-    ['TS', '--mint-rgb', '84 passed | 2 skipped', 'pass', '--mint-rgb'],
-  ];
-  const feed = [];
-  function pushFeed(abbr, tone, msg, tag, tagTone) {
-    feed.unshift({ time: new Date().toLocaleTimeString('en-GB', { hour12: false }), abbr, tone, msg, tag, tagTone });
-    if (feed.length > 4) feed.pop();
-    feedEl.innerHTML = feed.map((f) => `
-      <div class="feed-row">
-        <time>${f.time}</time>
-        <i style="background:rgb(var(${f.tone}))"></i>
-        <p>${f.abbr}: ${escapeHtml(f.msg)}</p>
-        <em style="color:rgb(var(${f.tagTone}))">${f.tag}</em>
-      </div>`).join('');
-  }
-  FEED_SEED.forEach((f, i) => setTimeout(() => pushFeed(...f), i * 160));
-
-  // ---------- 模拟剧本 ----------
-  function streamLine(t, line) {
-    t.lines = t.lines.concat(line).slice(-3);
-    t.lastOut = now();
-  }
-  let claudePhase = 0;
-  setInterval(() => { // Claude：干活 ↔ 等回话
-    const t = TABS[0];
-    claudePhase = (claudePhase + 1) % 14;
-    if (claudePhase < 10) {
-      t.state = 'working';
-      streamLine(t, t.corpus[claudePhase % t.corpus.length]);
-      if (claudePhase % 4 === 0) { t.files += 1; pushFeed('RU', '--mango-rgb', t.corpus[claudePhase % t.corpus.length], 'applied', '--mint-rgb'); }
-    } else if (claudePhase === 10) {
-      t.state = 'waiting';
-      streamLine(t, '⏸ 方案已给出，等你拍板 ❯');
-      pushFeed('RU', '--mango-rgb', '停在提示符，等待回复', 'waiting', '--mango-rgb');
+  let completion = 0;
+  setInterval(() => {
+    if (completion >= 1) return; // 已归零：格子封盘保持全绿，等下一轮重跑
+    const n = 1 + Math.floor(Math.random() * 3);
+    for (let k = 0; k < n; k++) {
+      const cell = cells[Math.floor(Math.random() * cells.length)];
+      if (cell.classList.contains('mint') && completion < 1) continue; // 已落绿的不回头
+      const goMint = Math.random() < Math.pow(completion, 1.6) + .08;
+      setCell(cell, goMint ? 'mint' : CELL_STATES[Math.floor(Math.random() * 4)]);
     }
-    render();
-  }, 1700);
-  setInterval(() => { // vitest：周期性刷
-    const t = TABS[1];
-    streamLine(t, t.corpus[Math.floor(Math.random() * t.corpus.length)]);
-    render();
-  }, 2600);
-  setInterval(() => { // server：偶发请求，短暂点亮再回落
-    const t = TABS[2];
-    t.state = 'working';
-    streamLine(t, t.corpus[Math.floor(Math.random() * t.corpus.length)]);
-    render();
-    setTimeout(() => { t.state = 'idle'; render(); }, 2200);
-  }, 7000);
-  setInterval(render, 1000); // 时长每秒走
+  }, 640);
 
-  const clock = $('#clock');
-  setInterval(() => { clock.textContent = fmtElapsed(now() - t0 + 42 * 60 * 1000); }, 1000);
+  // ---------- 大数字：白 → 彩虹 → 归零发光（机制 1:1 取自原型） ----------
+  const totalIssues = 4581;
+  function renderIssueProgress(value) {
+    const safeValue = Math.max(0, Math.round(value));
+    const text = safeValue.toLocaleString('en-US');
+    completion = 1 - safeValue / totalIssues;
+    // 前 6% 保持纯白，然后彩色从右往左渗入（clip 白层）
+    const colorProgress = Math.pow(Math.max(0, (completion - .06) / .94), 1.18);
+    counterRainbow.textContent = text;
+    counterWhite.textContent = text;
+    counterWhite.style.clipPath = `inset(0 ${colorProgress * 100}% 0 0)`;
+    progressNumber.classList.toggle('complete', safeValue === 0);
+    trend.innerHTML = safeValue === 0
+      ? '<b>✓ 全部解决</b> · ' + totalIssues.toLocaleString('en-US') + ' fixed'
+      : `<b>↓ ${(totalIssues - safeValue).toLocaleString('en-US')}</b> resolved in this session · live`;
+    gripNum.textContent = text;
+    gripNum.classList.toggle('zero', safeValue === 0);
+    if (safeValue === 0) cells.forEach((c) => setCell(c, 'mint')); // 归零：格子全部落绿
+  }
+
+  // 演示循环：20 秒从 4,581 倒数到 0（先快后慢，冲线有仪式感），归零停 4 秒重跑
+  let timer = null;
+  function runIssueDemo() {
+    clearInterval(timer);
+    const duration = 20000;
+    const started = performance.now();
+    // 重新铺一层任务色
+    cells.forEach((c, i) => { setCell(c, i % 7 !== 3 ? TONES[(i * 13 + 5) % TONES.length] : null); });
+    timer = setInterval(() => {
+      const progress = Math.min(1, (performance.now() - started) / duration);
+      renderIssueProgress(totalIssues * Math.pow(1 - progress, 1.42));
+      if (progress === 1) { clearInterval(timer); setTimeout(runIssueDemo, 4000); }
+    }, 100);
+    renderIssueProgress(totalIssues);
+  }
+  $('#replay').onclick = runIssueDemo;
+  runIssueDemo();
 
   // ---------- 开合 ----------
-  const setCollapsed = (on) => { stage.classList.toggle('collapsed', on); };
+  const setCollapsed = (on) => stage.classList.toggle('collapsed', on);
   $('#close').onclick = () => setCollapsed(true);
   $('#toggle').onclick = () => setCollapsed(!stage.classList.contains('collapsed'));
-  gripEl.onclick = () => setCollapsed(false);
-  if (location.search.includes('collapsed')) setCollapsed(true); // 截图核对收起态用
-
-  render();
+  $('#grip').onclick = () => setCollapsed(false);
+  if (location.search.includes('collapsed')) setCollapsed(true);
 })();
 </script>
 </body>
