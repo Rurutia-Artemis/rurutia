@@ -47,6 +47,31 @@
   var closeBtn = document.getElementById('term-close');
   if (closeBtn) actions.insertBefore(moreBtn, closeBtn); else actions.appendChild(moreBtn);
 
+  // ---------- 新功能升级为一等按钮：截图直通 / 观察舱（插在 ⋯ 前，一样参与显/隐筛选） ----------
+  function makeBtn(id, title, svg) {
+    var b = document.createElement('button');
+    b.id = id; b.title = title; b.innerHTML = svg;
+    actions.insertBefore(b, moreBtn);
+    return b;
+  }
+  if (window.fanboxShot && window.fanboxShot.capture) {
+    var shotBtn = makeBtn('rb-btn-shot', '截个图直通终端（右键：快捷键设置）',
+      '<svg class="term-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 7V5.5A2.5 2.5 0 0 1 5.5 3H7M17 3h1.5A2.5 2.5 0 0 1 21 5.5V7M21 17v1.5a2.5 2.5 0 0 1-2.5 2.5H17M7 21H5.5A2.5 2.5 0 0 1 3 18.5V17"/><circle cx="12" cy="12" r="3.4"/></svg>');
+    shotBtn.onclick = function () { window.fanboxShot.capture(); };
+    shotBtn.oncontextmenu = function (ev) { ev.preventDefault(); if (window.rbShotSettings) window.rbShotSettings(); };
+    FOLDABLE.push({ id: 'rb-btn-shot', label: '截图直通' });
+    DEFAULT_PINS.push('rb-btn-shot');
+  }
+  if (window.rbObserver) {
+    var obsBtn = makeBtn('rb-btn-obs', '观察舱：终端工作状态面板',
+      '<svg class="term-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="3.2"/><line x1="14.5" y1="4" x2="14.5" y2="20"/></svg>');
+    obsBtn.onclick = function () { window.rbObserver.toggle(); };
+    obsBtn.classList.toggle('on', !!(window.rbObserver.isOpen && window.rbObserver.isOpen()));
+    document.addEventListener('rb-obs-open', function (e) { obsBtn.classList.toggle('on', !!(e && e.detail)); });
+    FOLDABLE.push({ id: 'rb-btn-obs', label: '观察舱' });
+    DEFAULT_PINS.push('rb-btn-obs');
+  }
+
   function applyPins() {
     var pins = getPins();
     var foldedCount = 0;
@@ -105,12 +130,6 @@
       rows += '<button class="rb-tm-row" data-for="' + f.id + '"><span class="rb-tm-ic' + (on ? ' on' : '') + '">' + cloneIcon(real) + '</span><span class="rb-tm-lb">' + f.label + '</span></button>';
     });
     var extra = '';
-    if (window.rbObserver) {
-      extra += '<button class="rb-tm-row" data-act="obs"><span class="rb-tm-ic">◫</span><span class="rb-tm-lb">观察舱（终端工作状态）</span></button>';
-    }
-    if (window.fanboxShot && window.fanboxShot.capture) {
-      extra += '<button class="rb-tm-row" data-act="shot"><span class="rb-tm-ic">✂</span><span class="rb-tm-lb">截个图（直通终端）</span></button>';
-    }
     if (window.rbShotSettings) {
       extra += '<button class="rb-tm-row" data-act="hotkey"><span class="rb-tm-ic">⌘</span><span class="rb-tm-lb">截图快捷键…</span></button>';
     }
@@ -125,7 +144,6 @@
       row.onclick = function () {
         var act = row.dataset.act, id = row.dataset.for;
         closeMenu();
-        if (act === 'obs') { window.rbObserver.toggle(); return; }
         if (act === 'shot') { window.fanboxShot.capture(); return; }
         if (act === 'hotkey') { window.rbShotSettings(); return; }
         if (act === 'custom') { openCustomize(); return; }
@@ -160,7 +178,7 @@
     ov.innerHTML = '<div class="input-dialog">' +
       '<div class="input-title">自定义终端工具条</div>' +
       '<div class="rb-tc-list">' +
-      FOLDABLE.map(function (f) {
+      FOLDABLE.filter(function (f) { return document.getElementById(f.id); }).map(function (f) {
         return '<label class="rb-tc-row"><input type="checkbox" data-id="' + f.id + '"' + (pins.indexOf(f.id) !== -1 ? ' checked' : '') + '><span>' + f.label + '</span></label>';
       }).join('') +
       '</div>' +

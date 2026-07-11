@@ -165,6 +165,7 @@
   function setOpen(on) {
     app.classList.toggle('rb-obs-open', !!on);
     try { localStorage.setItem(OPEN_KEY, on ? '1' : '0'); } catch (e) { /* */ }
+    try { document.dispatchEvent(new CustomEvent('rb-obs-open', { detail: !!on })); } catch (e) { /* 工具条按钮高亮同步 */ }
     if (on) { startAll(); } else { stopAll(); }
     // 面板推开/收回改变主区宽度：终端网格要 refit（过渡中补一次，结束再一次）
     var refit = function () { try { if (typeof term !== 'undefined' && term.fitActive) term.fitActive(); } catch (e) { /* */ } };
