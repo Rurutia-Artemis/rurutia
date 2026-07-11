@@ -21,6 +21,8 @@
 | `public/pv-patch.js` | 独立预览窗渲染层双身份：主窗把「点开可读文件」默认改弹独立窗（⌥点击反向、↗ 按钮右键切默认）；`?pv=` 时本页进纯预览模式（#preview 铺满、⌘W 关窗） |
 | `public/toolbar-patch.js` | 终端工具条折叠：自选常驻按钮（localStorage `rb_toolbar_pins`），其余原地隐藏 + ⋯ 溢出菜单代理行；含「自定义工具条…/截图快捷键…/截个图」入口 |
 | `public/assets/agents/grok.svg` | Grok CLI 图标（X 风格单色，currentColor 跟皮肤） |
+| `public/observer-patch.js` | 观察舱：右侧终端工作状态面板（任务归零大数字 + 活动格子 + 状态点，数量自适应布局，皮肤变量全接管；⋯ 菜单开合，关闭零成本） |
+| `design-demos/观察舱-glintgrid-样例.html` | 观察舱视觉定稿样例（GlintGrid 风格，模拟数据，`?total= / ?n= / #half / #zero` 预览钩子） |
 | `public/vendor/fonts/maple/*.woff2` | Maple Mono CN 字体（中文+日文假名，4 字重，约 22MB） |
 | `public/vendor/icons/` | 早期位图图标（现已改用内联 SVG，可保留或删除） |
 | `public/logo.png` / `public/favicon.png` | 侧栏 logo / 网页图标（明日香线稿，纯白底） |

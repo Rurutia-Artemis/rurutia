@@ -105,6 +105,9 @@
       rows += '<button class="rb-tm-row" data-for="' + f.id + '"><span class="rb-tm-ic' + (on ? ' on' : '') + '">' + cloneIcon(real) + '</span><span class="rb-tm-lb">' + f.label + '</span></button>';
     });
     var extra = '';
+    if (window.rbObserver) {
+      extra += '<button class="rb-tm-row" data-act="obs"><span class="rb-tm-ic">◫</span><span class="rb-tm-lb">观察舱（终端工作状态）</span></button>';
+    }
     if (window.fanboxShot && window.fanboxShot.capture) {
       extra += '<button class="rb-tm-row" data-act="shot"><span class="rb-tm-ic">✂</span><span class="rb-tm-lb">截个图（直通终端）</span></button>';
     }
@@ -122,6 +125,7 @@
       row.onclick = function () {
         var act = row.dataset.act, id = row.dataset.for;
         closeMenu();
+        if (act === 'obs') { window.rbObserver.toggle(); return; }
         if (act === 'shot') { window.fanboxShot.capture(); return; }
         if (act === 'hotkey') { window.rbShotSettings(); return; }
         if (act === 'custom') { openCustomize(); return; }
