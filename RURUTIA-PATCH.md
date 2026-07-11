@@ -15,6 +15,11 @@
 | `public/ui-patch.css` | 第一层 UI 视觉改造：现代化变量契约、分段/按钮/侧栏/搜索/进度条重绘、终端外壳、Maple 字体 `@font-face` + 字体变量覆盖、拖拽区、用量警告条样式、终端图标尺寸等。**靠后加载覆盖，不改原 CSS** |
 | `public/soft-patch.css` | 第二层「柔和座舱」视觉：圆角/柔光/仪表化用量/文件卡片/终端圆角卡 + 头部圆弧、顶部整条可拖拽留白 + 交通灯避让、终端标签色脊、滚动条重做（轨道缩进避开圆角）、全局强制 Maple Mono、拖入收藏/Agent 排序落点高亮、Agent 更新时间右对齐。纯覆盖，可整删回退 |
 | `public/themes-patch.js` | 18 套「色所」配色皮肤 + 色卡选择器 + 主题切换猴子补丁（默认**像素光**）。自注入，不改 app.js 主题逻辑 |
+| `electron/shot-hotkey.js` | 截图直通车·热键版主进程：全局快捷键（可设、≤2 组）→ `screencapture -i` 落盘 userData/shots → 推 `shot:insert` → 48h 定期清理；IPC `shot:keys-get/set`、`shot:capture` |
+| `public/shot-patch.js` | 截图直通车渲染层：`shot:insert` → `term.insertPath()` 自动插进当前终端 + 弹直通卡；快捷键录入面板 `window.rbShotSettings()` |
+| `electron/pv-window.js` | 独立预览窗主进程：IPC `pv:open` → 弹/复用普通 BrowserWindow 加载 `?pv=<路径>`，`--rurutia-pv` 启动参数，位置大小记忆 |
+| `public/pv-patch.js` | 独立预览窗渲染层双身份：主窗把「点开可读文件」默认改弹独立窗（⌥点击反向、↗ 按钮右键切默认）；`?pv=` 时本页进纯预览模式（#preview 铺满、⌘W 关窗） |
+| `public/toolbar-patch.js` | 终端工具条折叠：自选常驻按钮（localStorage `rb_toolbar_pins`），其余原地隐藏 + ⋯ 溢出菜单代理行；含「自定义工具条…/截图快捷键…/截个图」入口 |
 | `public/vendor/fonts/maple/*.woff2` | Maple Mono CN 字体（中文+日文假名，4 字重，约 22MB） |
 | `public/vendor/icons/` | 早期位图图标（现已改用内联 SVG，可保留或删除） |
 | `public/logo.png` / `public/favicon.png` | 侧栏 logo / 网页图标（明日香线稿，纯白底） |
@@ -24,10 +29,11 @@
 
 | 文件 | 改了什么 | 冲突风险 |
 |---|---|---|
-| `public/index.html` | `<title>`、favicon/preload/ui-patch.css/themes-patch.js 引用、侧栏品牌块换 logo+改名、快速入口/Agent 分区加 `+` 按钮、终端 10 个动作按钮换内联 SVG | 中 |
+| `public/index.html` | `<title>`、favicon/preload/ui-patch.css/themes-patch.js 引用、侧栏品牌块换 logo+改名、快速入口/Agent 分区加 `+` 按钮、终端 10 个动作按钮换内联 SVG；**本轮新增**：尾部 +3 行补丁 script（shot-patch / toolbar-patch / pv-patch） | 中 |
 | `public/app.js` | 用量面板（官方区恒显+原因+重试+≥85% 警告条+桌面通知+45s 刷新）、快速入口/Agent 增删 UI、`SVG.folder` 形状、`syncMute` 铃铛改 SVG；**本轮新增**：`tintTheme` 终端背景跟随 `--bg`、`startTabDrag` 终端标签指针弹性拖拽、`makeDropZone` 拖目录进收藏/快速入口、`makeSortable`+`applyAgentOrder` Agent 列表内拖动排序（localStorage 持久化） | 中 |
 | `server.js` | `/api/roots` 与 `/api/agent-projects` 加 POST 增删 + 持久化（config.json 的 quickRoots/agentHidden/agentPinned）、`claudeOfficialLimits` 返回原因对象、`agentUsage` claudeOut 逻辑；**本轮新增**：`claudeOfficialLimits` 加 10 分钟缓存 + `rate_limit_error` 时沿用上次缓存（修复 Claude 用量「无数据」根因） | 中 |
-| `electron/main.js` | `app.setName`、菜单「关于 Rurutia」 | 低 |
+| `electron/main.js` | `app.setName`、菜单「关于 Rurutia」；**本轮新增**：whenReady 里 2 行 require 接线 shot-hotkey / pv-window | 低 |
+| `electron/preload.js` | **本轮新增**：顶部 `--rurutia-pv` 早退（预览窗零桥跑 web 版）；`fanboxShot` 加 onInsert/capture/getKeys/setKeys；`fanboxWin` 加 openPv | 低 |
 | `package.json` | productName / dmg 标题 / description 改 Rurutia | 低 |
 | `build/icon*` | 应用图标（二进制） | 低 |
 

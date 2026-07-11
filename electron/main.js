@@ -156,6 +156,9 @@ app.whenReady().then(() => {
   // 临时调试：dev 实例强制抢到最前，避免和正式版搞混
   setTimeout(() => { try { app.focus({ steal: true }); if (win && !win.isDestroyed()) { win.show(); win.focus(); win.setAlwaysOnTop(true); setTimeout(() => win.setAlwaysOnTop(false), 1500); } } catch { /* */ } }, 1200);
   startShotWatch();
+  // Rurutia：截图直通车热键（⌘⇧2 可自定义，截完自动插进终端）+ 独立预览窗口
+  require('./shot-hotkey').init(() => win);
+  require('./pv-window').init(() => global.__rurutiaPort || PORT);
   // 启动 6 秒后查一次新版本（不挡启动）；长开会话每 2 小时再查；
   // 窗口重新聚焦也顺手查（30 分钟节流）——否则发版当天老 app 要等满周期才知道有新版
   setTimeout(checkUpdate, 6000);

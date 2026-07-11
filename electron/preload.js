@@ -5,6 +5,13 @@
  */
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
+// Rurutia：独立预览窗（--rurutia-pv）按 web 版跑——零桥即全功能降级预览/编辑，
+// pty/微信/录像等桥一律不暴露，绝不跟主窗抢终端数据路由。
+if (process.argv.includes('--rurutia-pv')) {
+  contextBridge.exposeInMainWorld('fanboxEnv', { isDesktopApp: false, isPv: true, platform: process.platform });
+  return;
+}
+
 contextBridge.exposeInMainWorld('fanboxPty', {
   spawn: (opts) => ipcRenderer.invoke('pty:spawn', opts),
   input: (id, data) => ipcRenderer.send('pty:input', { id, data }),
@@ -56,6 +63,11 @@ contextBridge.exposeInMainWorld('fanboxDrop', {
 contextBridge.exposeInMainWorld('fanboxShot', {
   // 系统截屏落盘事件（截图直通车）
   onNew: (cb) => { const h = (e, m) => cb(m); ipcRenderer.on('shot:new', h); return () => ipcRenderer.removeListener('shot:new', h); },
+  // Rurutia 热键截图：落盘完成 → 自动插进当前终端；快捷键可设（最多两组）
+  onInsert: (cb) => { const h = (e, m) => cb(m); ipcRenderer.on('shot:insert', h); return () => ipcRenderer.removeListener('shot:insert', h); },
+  capture: () => ipcRenderer.invoke('shot:capture'),
+  getKeys: () => ipcRenderer.invoke('shot:keys-get'),
+  setKeys: (keys) => ipcRenderer.invoke('shot:keys-set', { keys }),
 });
 
 contextBridge.exposeInMainWorld('fanboxUpdate', {
@@ -69,6 +81,7 @@ contextBridge.exposeInMainWorld('fanboxUpdate', {
 contextBridge.exposeInMainWorld('fanboxWin', {
   focus: () => ipcRenderer.invoke('win:focus'), // 点通知拉回前台
   trafficLights: (show) => ipcRenderer.invoke('win:traffic', { show }), // 全屏预览时藏/显左上角系统按钮
+  openPv: (p) => ipcRenderer.invoke('pv:open', { path: p }), // Rurutia：在独立预览窗打开文件
 });
 
 contextBridge.exposeInMainWorld('fanboxEnv', {
