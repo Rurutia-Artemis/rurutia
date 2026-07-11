@@ -2619,6 +2619,7 @@ const AGENT_REGISTRY = [
   // claude 带 dark-ansi 主题：让 Claude Code 的界面色走终端 ANSI 调色板，跟着皮肤/自选终端色变
   { id: 'claude', label: 'Claude Code', cmd: 'claude --settings \'{"theme":"dark-ansi"}\' --dangerously-skip-permissions', bin: 'claude', install: 'npm install -g @anthropic-ai/claude-code' },
   { id: 'codex', label: 'Codex', cmd: 'codex', bin: 'codex', install: 'npm install -g @openai/codex' },
+  { id: 'grok', label: 'Grok CLI', cmd: 'grok', bin: 'grok', install: 'curl -fsSL https://x.ai/cli/install.sh | bash' },
   { id: 'hermes', label: 'Hermes Agent', cmd: 'hermes', bin: 'hermes', install: 'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash' },
   { id: 'openclaw', label: 'OpenClaw', cmd: 'openclaw', bin: 'openclaw', install: 'npm install -g openclaw' },
   { id: 'kimi', label: 'Kimi Code', cmd: 'kimi', bin: 'kimi', install: 'curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash' },

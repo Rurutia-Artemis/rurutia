@@ -20,6 +20,7 @@
 | `electron/pv-window.js` | 独立预览窗主进程：IPC `pv:open` → 弹/复用普通 BrowserWindow 加载 `?pv=<路径>`，`--rurutia-pv` 启动参数，位置大小记忆 |
 | `public/pv-patch.js` | 独立预览窗渲染层双身份：主窗把「点开可读文件」默认改弹独立窗（⌥点击反向、↗ 按钮右键切默认）；`?pv=` 时本页进纯预览模式（#preview 铺满、⌘W 关窗） |
 | `public/toolbar-patch.js` | 终端工具条折叠：自选常驻按钮（localStorage `rb_toolbar_pins`），其余原地隐藏 + ⋯ 溢出菜单代理行；含「自定义工具条…/截图快捷键…/截个图」入口 |
+| `public/assets/agents/grok.svg` | Grok CLI 图标（X 风格单色，currentColor 跟皮肤） |
 | `public/vendor/fonts/maple/*.woff2` | Maple Mono CN 字体（中文+日文假名，4 字重，约 22MB） |
 | `public/vendor/icons/` | 早期位图图标（现已改用内联 SVG，可保留或删除） |
 | `public/logo.png` / `public/favicon.png` | 侧栏 logo / 网页图标（明日香线稿，纯白底） |
