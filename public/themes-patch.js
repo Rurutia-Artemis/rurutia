@@ -317,15 +317,17 @@
   }
 
   /* ---------- CC 用户消息块背景：SGR 流改写 ----------
-   * Claude Code（dark-ansi）把「用户消息回显」的背景绑在 ANSI brightBlack（发 SGR 100），
-   * 文字用 white/brightWhite——这是按「stock 终端 brightBlack=深灰」的假设设计的浅字深底。
-   * 而 v2 调色板为了让框线发光，把 brightBlack 调成了亮的强调色（前景用途），结果整段
-   * 消息成了大亮砖，浅字还被 xterm 的 minimumContrastRatio 强行压黑，非常违和。
-   * 槽位一色两用（框线前景 + 消息背景）在 16 色调色板层面无解，这里在数据进 xterm 前
-   * 做一层改写：只把「当背景用的 slot 8」（SGR 100 / 48;5;8）换成按当前终端底推导的
-   * 真彩面板色（暗底提亮一档、浅底压深一档，与皮肤 bg-3 同律，含项目淡染/自选背景）。
-   * 前景用途的 brightBlack（90 / 38;5;8）一概不动，框线发光保留；CC 自己的 white/
-   * brightWhite 前景在这块面板上天然可读（浅色皮肤这两槽本就反转成深色），无需碰字色。 */
+   * Claude Code 把「用户消息回显 / 输入框」画成一整块底色 + 反色文字，走的是 ANSI 槽位：
+   *   · 老版本：底 = brightBlack（SGR 100 / 48;5;8），字 = white/brightWhite；
+   *   · 现版本：底 = white（SGR 47 / 48;5;7），字 = black（SGR 30）——「stock 深终端里
+   *     white=浅灰」的假设下是浅底深字，本该清爽。
+   * 但我们的调色板为了「框线/亮字」发光，把 brightBlack 掺了强调色、又在浅色皮肤把 white
+   * 反转成深色（否则浅底上的亮字隐形）——于是 CC 那块「底」在浅皮肤上成了深板砖，压在暖底
+   * 页面上非常突兀，黑字还被 xterm 的 minimumContrastRatio 强行提亮。槽位一色两用（亮字前景 +
+   * 消息背景）在 16 色层面无解，这里在数据进 xterm 前做一层改写：把「当背景用的 slot 7 / slot 8」
+   *（SGR 47 / 100 / 48;5;7 / 48;5;8）换成按当前终端底推导的真彩面板色（暗底提亮一档、浅底压深
+   * 一档，与皮肤 bg-3 同律，含项目淡染/自选背景）。前景用途的同槽（30 / 90 / 38;5;7 / 38;5;8）
+   * 一概不动，亮字/框线发光保留；面板色与底同律，黑/白字在其上天然可读，无需碰字色。 */
   var ccPanelCache = {};
   function ccPanelSgr(xt) {
     try {
@@ -339,18 +341,18 @@
       return (ccPanelCache[bg] = '48;2;' + c.r + ';' + c.g + ';' + c.b);
     } catch (e) { return null; }
   }
-  // 逐 token 走一遍 SGR 参数：把背景用的 slot 8 换成面板色；38;2/38;5 按语法整组跳过，
-  // 免得把真彩分量里的「100」误当背景码。残缺序列返回 null（原样放行，不硬猜）。
+  // 逐 token 走一遍 SGR 参数：把背景用的 slot 7 / slot 8 换成面板色；38;2/38;5 按语法整组跳过，
+  // 免得把真彩分量里的「47/100」误当背景码。残缺序列返回 null（原样放行，不硬猜）。
   function rewriteSgrParams(params, panel) {
     var toks = params.split(';'), out = [], changed = false, i, t, n;
     for (i = 0; i < toks.length; i++) {
       t = toks[i];
-      if (t === '100' || t === '48:5:8') { out.push(panel); changed = true; continue; }
+      if (t === '47' || t === '100' || t === '48:5:7' || t === '48:5:8') { out.push(panel); changed = true; continue; }
       if (t === '48' || t === '38') {
         n = toks[i + 1];
         if (n === '5') {
           if (i + 2 >= toks.length) return null;
-          if (t === '48' && toks[i + 2] === '8') { out.push(panel); changed = true; }
+          if (t === '48' && (toks[i + 2] === '7' || toks[i + 2] === '8')) { out.push(panel); changed = true; }
           else out.push(t, n, toks[i + 2]);
           i += 2; continue;
         }
@@ -379,7 +381,7 @@
     var panel = ccPanelSgr(xt);
     if (!panel) return s;
     return s.replace(/\x1b\[([0-9;:]*)m/g, function (m, params) {
-      if (params.indexOf('100') === -1 && params.indexOf('48') === -1) return m;
+      if (params.indexOf('47') === -1 && params.indexOf('100') === -1 && params.indexOf('48') === -1) return m;
       var re = rewriteSgrParams(params, panel);
       return re === null ? m : '\x1b[' + re + 'm';
     });

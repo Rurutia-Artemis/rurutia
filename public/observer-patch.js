@@ -27,6 +27,7 @@
 (function () {
   'use strict';
   var DEMO = /rbobs=demo/.test(location.search);
+  var WORKDEMO = DEMO && /[?&]work=1/.test(location.search); // 无任务·纯工作态演示（无头验收用）
   if (!window.fanboxPty && !DEMO) return;
   if (/[?&]pv=/.test(location.search)) return; // 独立预览窗里不装
 
@@ -70,6 +71,11 @@
     '  radial-gradient(ellipse 55% 85% at 52% 45%, color-mix(in srgb, var(--ok) 40%, transparent), transparent 62%),',
     '  radial-gradient(ellipse 55% 90% at 82% 55%, color-mix(in srgb, var(--accent) 46%, transparent), transparent 60%); }',
     '.ro-hero.complete .ro-bloom { opacity: .75; animation: ro-bloom 3.2s ease-in-out .9s infinite; }',
+    // 工作态：大数字转绿 + 柔和呼吸 + 绿色辉光（只切 opacity/静态 text-shadow，不连续动 shadow）
+    '.ro-hero.busy .ro-layer.white { color: var(--ok); }',
+    '.ro-hero.busy .ro-num { text-shadow: 0 0 22px color-mix(in srgb, var(--ok) 42%, transparent); }',
+    '.ro-hero.busy .ro-num-inner { animation: ro-livepulse 2.6s ease-in-out infinite; }',
+    '.ro-hero.busy .ro-bloom { opacity: .5; background: radial-gradient(ellipse 66% 92% at 50% 52%, color-mix(in srgb, var(--ok) 52%, transparent), transparent 66%); animation: ro-bloom 3.2s ease-in-out infinite; }',
     '.ro-num { position: relative; display: inline-block; font-size: 92px; font-weight: 600; line-height: 1; letter-spacing: -.05em; font-variant-numeric: tabular-nums; transition: font-size 340ms cubic-bezier(.23,1,.32,1); }',
     '.ro-num-inner { display: inline-block; }',
     '.ro-hero.complete .ro-num-inner { animation: ro-settle 520ms cubic-bezier(.23,1,.32,1); }',
@@ -108,6 +114,8 @@
     '.ro-cnt { margin-left: auto; color: var(--text-dim); font: 13px/1 var(--font-mono, monospace); flex: 0 0 auto; }',
     '.ro-mod.done .ro-cnt { color: var(--ok); }',
     '.ro-mod.waiting { border-color: color-mix(in srgb, var(--yellow) 55%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--yellow) 18%, transparent), 0 0 20px color-mix(in srgb, var(--yellow) 10%, transparent); }',
+    '.ro-mod.working { border-color: color-mix(in srgb, var(--ok) 52%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ok) 18%, transparent), 0 0 22px color-mix(in srgb, var(--ok) 12%, transparent); }',
+    '.ro-mod.working .ro-cnt { color: var(--ok); }',
     '.ro-grid { display: grid; gap: 6px; }',
     '.ro-cell { aspect-ratio: 1; border: 1px solid var(--border); border-radius: 5px; background: var(--bg); transform: translateZ(0); transition: transform 200ms cubic-bezier(.23,1,.32,1), background-color 320ms ease, border-color 320ms ease, box-shadow 320ms ease; }',
     ['err', 'yellow', 'accent', 'ok', 'info'].map(function (t) {
@@ -134,7 +142,8 @@
     '@keyframes ro-bloom { 0%,100% { opacity: .75; } 50% { opacity: .5; } }',
     '@keyframes ro-settle { 0% { transform: scale(1.035); } 100% { transform: scale(1); } }',
     '@keyframes ro-pop { 0% { transform: scale(.82); } 62% { transform: scale(1.10); } 100% { transform: scale(1); } }',
-    '@media (prefers-reduced-motion: reduce) { .ro-train, .ro-dot, .ro-st, .ro-cell.pop, .ro-hero.complete .ro-num-inner { animation: none !important; } #rb-obs, #app { transition-duration: 1ms; } }',
+    '@keyframes ro-livepulse { 0%,100% { opacity: 1; } 50% { opacity: .74; } }',
+    '@media (prefers-reduced-motion: reduce) { .ro-train, .ro-dot, .ro-st, .ro-cell.pop, .ro-hero.complete .ro-num-inner, .ro-hero.busy .ro-num-inner, .ro-hero.busy .ro-bloom { animation: none !important; } #rb-obs, #app { transition-duration: 1ms; } }',
   ].join('\n');
   document.head.appendChild(st);
 
@@ -327,22 +336,36 @@
   }
 
   // ---------- 状态（工作中 / 等回话 / 空闲） ----------
+  // 「正在工作」的实时聚合：几个终端在吐字 + 它们的名字，喂给大数字工作态（paintIdle）
+  var workingNow = 0, workingNames = [], lastTaskOpen = null;
+  var escName = function (s) { return String(s == null ? '' : s).replace(/[<>&]/g, ''); };
+  function demoStatus(i) { return ['working', 'working', 'waiting', 'idle', 'working', 'idle'][i] || 'idle'; }
   function statusTick() {
     var now = Date.now();
+    var ss = sessionsNow();
+    var wc = 0, wnames = [];
     mods.forEach(function (m) {
       var a = actOf(m.sid);
       var stEl = m.el.querySelector('.ro-st');
       var working = now - a.last < 4000;
       var agent = AGENT_BINS.indexOf(String(a.proc).toLowerCase()) !== -1;
       var cls = working ? 'working' : (agent ? 'waiting' : 'idle');
-      if (DEMO) cls = ['working', 'working', 'waiting', 'idle', 'working', 'idle'][mods.indexOf(m)] || 'idle';
+      if (DEMO) cls = demoStatus(mods.indexOf(m));
       stEl.className = 'ro-st ' + cls;
       stEl.title = cls === 'working' ? '工作中' : cls === 'waiting' ? (a.proc + ' 在等你回话') : '空闲';
       m.el.classList.toggle('waiting', cls === 'waiting');
+      m.el.classList.toggle('working', cls === 'working'); // 卡片整块发绿光 = 存在感
+      if (cls === 'working') { wc++; var s = ss.find(function (x) { return x.id === m.sid; }); wnames.push(s ? nameOf(s) : ''); }
       var cnt = m.el.querySelector('.ro-cnt');
-      cnt.textContent = a.open == null ? '—' : (a.open === 0 && a.done > 0 ? '✓ 0' : String(a.open));
+      // 没任务可数时，计数槽也别摆死「—」：干活的亮个 ⚡，闲的收成小圆点
+      cnt.textContent = a.open == null
+        ? (cls === 'working' ? '⚡' : '·')
+        : (a.open === 0 && a.done > 0 ? '✓ 0' : String(a.open));
       m.el.classList.toggle('done', a.open === 0 && a.done > 0);
     });
+    workingNow = wc; workingNames = wnames;
+    // 无任务态：每秒把「正在工作」刷新，不必等 8s 的任务轮询才有反应
+    if (lastTaskOpen == null) paintIdle();
   }
   function procTick() {
     if (DEMO || !window.fanboxPty || !window.fanboxPty.proc) return;
@@ -364,6 +387,7 @@
     return api('/api/list?path=' + encodeURIComponent(p)).then(function (d) { return (d && d.entries) || []; }).catch(function () { return []; });
   }
   async function tasksTick() {
+    if (WORKDEMO) { paintTasks(null, 0); return; } // 纯工作态：无任务，全靠 paintIdle
     if (DEMO) { demoTaskTick(); return; }
     try {
       var now = Date.now();
@@ -437,7 +461,10 @@
   var layerRainbow = buildLayer('rainbow');
   var layerWhite = buildLayer('white');
   var numEl = aside.querySelector('.ro-num');
-  function paintTasks(open, done) {
+  var labelEl = aside.querySelector('.ro-label');
+  var bloomEl = aside.querySelector('.ro-bloom');
+  // 只驱动大数字滚轮（任务态 / 工作态共用），配色与文案各自定
+  function renderNumber(open) {
     var n = Math.max(0, Math.min(999999, open == null ? 0 : open));
     var fs = n >= 100000 ? 66 : n >= 10000 ? 80 : 92;
     numEl.style.fontSize = fs + 'px';
@@ -451,18 +478,39 @@
       var sep = layer.querySelector('.ro-sep');
       if (sep) sep.classList.toggle('off', n < 1000);
     });
+    return n;
+  }
+  // 工作态：没有 agent 任务可数时，大数字 = 正在吐字的终端数，标签换「正在工作」，绿字呼吸——
+  // 让「CC 一干活就有存在感」，而不是永远杵着个死气沉沉的 0。
+  function paintIdle() {
+    var w = workingNow;
+    renderNumber(w);
+    labelEl.textContent = w > 0 ? '正在工作' : '未完成任务';
+    hero.classList.remove('complete');
+    hero.classList.toggle('busy', w > 0);
+    layerWhite.style.clipPath = 'inset(0 0 0 0)'; // 工作态不走彩色渗入，纯绿层盖满
+    bloomEl.style.opacity = '';
+    var names = workingNames.slice(0, 3).map(escName).filter(Boolean).join('、');
+    trendEl.innerHTML = w > 0
+      ? '<b>⚡ ' + w + ' 个终端</b> 正在工作' + (names ? ' · ' + names : '') + ' · live'
+      : '还没检测到 agent 任务 · 终端里的 Claude Code 建了任务就会出现';
+  }
+  function paintTasks(open, done) {
+    lastTaskOpen = open;
+    if (open == null) { paintIdle(); return; } // 没任务可数 → 交给工作态
+    labelEl.textContent = '未完成任务';
+    hero.classList.remove('busy');
+    var n = renderNumber(open);
     // 彩色渗入比例 = 已完成占比（前 6% 保持纯白）
     var totalAll = n + done;
     var completion = totalAll > 0 ? done / totalAll : 0;
     var colorProgress = Math.pow(Math.max(0, (completion - .06) / .94), 1.18);
     layerWhite.style.clipPath = 'inset(0 ' + (colorProgress * 100).toFixed(2) + '% 0 0)';
-    aside.querySelector('.ro-bloom').style.opacity = '';
+    bloomEl.style.opacity = '';
     var zeroWin = n === 0 && done > 0;
-    if (!zeroWin) aside.querySelector('.ro-bloom').style.opacity = (colorProgress * .25).toFixed(3);
+    if (!zeroWin) bloomEl.style.opacity = (colorProgress * .25).toFixed(3);
     hero.classList.toggle('complete', zeroWin);
-    trendEl.innerHTML = open == null && done === 0
-      ? '还没检测到 agent 任务 · 终端里的 Claude Code 建了任务就会出现'
-      : (zeroWin ? '<b>✓ 全部解决</b> · ' + done + ' 项完成' : '<b>↓ ' + done + '</b> 已完成 · live');
+    trendEl.innerHTML = zeroWin ? '<b>✓ 全部解决</b> · ' + done + ' 项完成' : '<b>↓ ' + done + '</b> 已完成 · live';
     if (zeroWin && prevTotal > 0 && !celebrated) { celebrated = true; cascade(); }
     if (n > 0) celebrated = false;
     prevTotal = n;
