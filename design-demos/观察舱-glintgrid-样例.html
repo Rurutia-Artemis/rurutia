@@ -3,18 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>观察舱 · 大数字归零 + 数据块动效（GlintGrid 样例 v2）</title>
+<title>观察舱 · v3 —— 6 模块自选窗口 + 总数归零 + 冷静灵动</title>
 <!--
-  样例 v2 —— 按用户指示只保留两个重点（其余全部简化掉）：
-  1. 数据块动效：格子跑马灯（.chasing 顺序点亮，520ms 一步，机制照搬 GlintGrid 原型），
-     格子颜色 = 任务状态（红 discover / 黄 fix / 紫 review / 绿 applied），
-     越接近完成绿格占比越高，归零瞬间全部落绿。
-  2. 大数字：剩余错误数倒数归零。机制 1:1 取自原型——彩虹字打底，白字盖在上面，
-     clip-path 从右往左把白字吃掉（任务越接近完成彩色越多；前 6% 保持纯白）；
-     归零加 .complete：双层辉光 + 彩虹渐变流动。
-  倒计时 20 秒一轮：value = total × (1-p)^1.42（先快后慢，冲线前有仪式感），
-  归零停 4 秒自动重跑，也可点「重播」。右上 ✕ 收成右缘把手，点把手展开。
-  真实版数据源：剩余数 = agent 任务/测试失败数等（事件桥）；格子事件 = 终端输出/工具调用。
+  v3 设计要点（按用户三问给的答案，全部落在代码里）：
+
+  【结构】顶部 = 总未完成数（白→彩→归零发光）；下方 = 6 个模块（2×3），
+        每个模块可点头部换绑任意一个终端窗口（origin-aware 弹出选择器）。
+
+  【问1 低资源 + 灵动】
+   · 所有持续动效只碰 transform / opacity（合成器层，不触发 layout/paint）；
+   · 跑马灯用 steps() —— 帧数少、机械感反而是 GlintGrid 的签名；
+   · 每模块只有 1 个巡场高亮（全场 6 个），格子翻色是「事件」（transition），不是循环；
+   · 灵动来自节奏与错拍（6 个模块相位错开、翻绿带 stagger），不是更多动画；
+   · 面板收起 / 窗口隐藏（visibilitychange）→ 所有定时器与 rAF 全停，成本归零。
+
+  【问2 光效】
+   · 光 = 两层：1px 高饱和「灯管芯」描边 + 大而软的预烘焙辉光（径向渐变伪元素），
+     只动 opacity，从不连续动画 box-shadow（那是重绘黑洞）；
+   · mix-blend-mode: screen 让光在深底上像真光一样叠加；
+   · 光只给三种时刻：巡场格、刚翻态的格、归零 —— 稀缺才好看。
+
+  【问3 大数字动感】
+   · 高度计式滚轮（odometer）：每一位是竖排 0-9 的滚条，transform 连续滚动——
+     低位飞速掠过、高位缓慢爬行，速度层次天然读作「工作正在进行」；
+   · 白→彩仍用原型的 clip-path 右侧渗入 + 彩色区渐变缓慢流动（变幻感）；
+   · 归零：滚轮减速停稳 → 轻微落定回弹 → 整字辉光 + 渐变流动 + 格子对角瀑布翻绿。
+
+  prefers-reduced-motion：跑马灯/呼吸/滚动全部降级为直切。
 -->
 <style>
   :root {
@@ -37,6 +52,7 @@
     --ease-out: cubic-bezier(.23, 1, .32, 1);
     --ease-smooth: cubic-bezier(.77, 0, .175, 1);
     --mono: "SF Mono", "Maple Mono CN", Menlo, monospace;
+    --dw: .60em; /* 滚轮单个数位宽 */
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -52,16 +68,16 @@
     overflow: hidden;
   }
 
-  /* ===== 舞台：模拟 Rurubox 终端区（道具） ===== */
+  /* ===== 舞台：模拟终端区（道具） ===== */
   .stage { display: flex; height: 100vh; }
   .term-zone { position: relative; display: flex; flex: 1; min-width: 0; flex-direction: column; border-right: 1px solid var(--line); background: var(--window); }
   .term-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-bottom: 1px solid var(--line); }
-  .tabs { display: flex; gap: 6px; }
-  .tab { display: flex; align-items: center; gap: 7px; padding: 6px 11px; border: 1px solid transparent; border-radius: 9px; color: var(--muted); font-size: 11px; cursor: default; }
+  .tabs { display: flex; gap: 5px; }
+  .tab { display: flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid transparent; border-radius: 9px; color: var(--muted); font-size: 10.5px; cursor: default; }
   .tab.on { border-color: var(--line); color: var(--ink); background: var(--panel-2); }
-  .tab i { width: 7px; height: 7px; border-radius: 2px; }
+  .tab i { width: 6px; height: 6px; border-radius: 2px; }
   .spacer { flex: 1; }
-  .obs-toggle { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); color: var(--ink); font-size: 11px; font-weight: 600; cursor: pointer; transition: transform 140ms var(--ease-out), background 180ms ease; }
+  .obs-toggle { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); color: var(--ink); font-size: 11px; font-weight: 600; cursor: pointer; transition: transform 140ms var(--ease-out), background 180ms ease, border-color 180ms ease; }
   .obs-toggle:hover { background: var(--panel-hover); }
   .obs-toggle:active { transform: scale(.97); }
   .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 9px var(--mint); animation: breathe 2.4s steps(24) infinite; }
@@ -72,8 +88,8 @@
   .hint { position: absolute; bottom: 14px; left: 22px; color: var(--faint); font: 10px/1.6 var(--mono); }
 
   /* ===== 观察舱 ===== */
-  .obs { position: relative; display: flex; flex-direction: column; width: 344px; height: 100%; background: var(--window); transition: margin-right 340ms var(--ease-smooth); }
-  .stage.collapsed .obs { margin-right: -344px; }
+  .obs { position: relative; display: flex; flex-direction: column; width: 356px; height: 100%; background: var(--window); transition: margin-right 340ms var(--ease-smooth); }
+  .stage.collapsed .obs { margin-right: -356px; }
 
   .light-track { position: absolute; z-index: 8; top: 0; right: 0; left: 0; height: 3px; overflow: hidden; background: var(--panel); }
   .light-train { position: absolute; top: 0; left: -22%; display: flex; width: 26%; height: 100%; animation: train 8s steps(80) infinite; }
@@ -87,75 +103,123 @@
   .obs-head { display: flex; align-items: center; gap: 10px; height: 52px; padding: 3px 12px 0 16px; border-bottom: 1px solid var(--line); }
   .eyebrow { color: var(--muted); font: 9px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
   .obs-head .spacer { flex: 1; }
-  .icon-btn { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 11px; transition: transform 140ms var(--ease-out), background 180ms ease; }
+  .icon-btn { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 11px; transition: transform 140ms var(--ease-out), background 180ms ease, color 180ms ease; }
   .icon-btn:hover { background: var(--panel-hover); color: var(--ink); }
   .icon-btn:active { transform: scale(.95); }
 
-  /* ---- 重点 2：大数字（机制照搬原型） ---- */
-  .hero { padding: 22px 20px 6px; }
-  .context { display: flex; align-items: center; gap: 9px; color: var(--muted); font: 9px/1 var(--mono); }
-  .active-pill { padding: 5px 7px; border-radius: 6px; color: var(--coral); background: rgb(var(--coral-rgb) / .11); }
+  /* ---- 总进度：滚轮大数字 ---- */
+  .hero { position: relative; padding: 20px 20px 4px; }
   .progress-number {
     position: relative;
     display: inline-block;
-    margin-top: 14px;
-    font-size: 62px;
+    font-size: 60px;
     font-weight: 600;
-    letter-spacing: -.072em;
-    line-height: .86;
+    line-height: 1;
+    letter-spacing: -.04em;
     font-variant-numeric: tabular-nums;
-    transition: filter 600ms ease;
   }
-  .progress-number strong { display: block; font: inherit; letter-spacing: inherit; line-height: inherit; white-space: nowrap; }
-  .progress-number .rainbow {
+  /* 归零辉光：预烘焙彩色光斑，只动 opacity（问2） */
+  .number-bloom {
+    position: absolute;
+    inset: -22px -30px;
+    background:
+      radial-gradient(ellipse 60% 90% at 22% 55%, rgb(var(--coral-rgb) / .5), transparent 60%),
+      radial-gradient(ellipse 55% 85% at 52% 45%, rgb(var(--mint-rgb) / .42), transparent 62%),
+      radial-gradient(ellipse 55% 90% at 82% 55%, rgb(var(--lilac-rgb) / .5), transparent 60%);
+    filter: blur(16px);
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 900ms ease;
+    pointer-events: none;
+  }
+  .complete .number-bloom { opacity: .8; animation: bloom-breathe 3.2s ease-in-out .9s infinite; }
+  .odo { position: relative; display: inline-flex; }
+  .odo-layer { display: inline-flex; height: 1em; overflow: hidden; }
+  .odo-layer.white { position: absolute; inset: 0; color: var(--ink); clip-path: inset(0 0 0 0); will-change: clip-path; }
+  .odo-layer.rainbow strong {
     color: transparent;
     background: linear-gradient(100deg, var(--coral) 0%, var(--mango) 20%, var(--mint) 40%, var(--sky) 60%, var(--lilac) 80%, var(--coral) 100%);
     background-size: 64px 100%;
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    animation: number-flow 5.6s linear infinite; /* 彩色区缓慢变幻（问3），linear 恒速 */
   }
-  .progress-number .white {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    color: var(--ink);
-    clip-path: inset(0 0 0 0);
-    will-change: clip-path;
-  }
-  .progress-number.complete { filter: drop-shadow(0 0 12px rgb(var(--sky-rgb) / .46)) drop-shadow(0 0 24px rgb(var(--coral-rgb) / .28)); }
-  .progress-number.complete .rainbow { animation: number-flow 2.4s steps(20) infinite; }
-  .number-label { margin-left: 12px; color: var(--muted); font: 12px/1 var(--mono); letter-spacing: .08em; }
-  .trend { margin-top: 13px; color: var(--muted); font: 9px/1 var(--mono); }
+  .complete .odo-layer.rainbow strong { animation-duration: 2.4s; }
+  .digit { display: inline-block; vertical-align: top; width: var(--dw); height: 1em; overflow: hidden; transition: width 300ms var(--ease-out), opacity 300ms ease; }
+  .digit.off { width: 0; opacity: 0; }
+  .sep { display: inline-block; vertical-align: top; transition: width 300ms var(--ease-out), opacity 300ms ease; width: .30em; }
+  .sep.off { width: 0; opacity: 0; }
+  .reel { display: block; will-change: transform; }
+  .reel strong, .sep strong { display: block; height: 1em; line-height: 1; font-weight: 600; }
+  .complete .progress-number-inner { animation: settle 520ms var(--ease-out); }
+  .progress-number-inner { display: inline-block; }
+  .number-label { margin-left: 10px; color: var(--muted); font: 11px/1 var(--mono); letter-spacing: .08em; }
+  .trend { margin-top: 12px; color: var(--muted); font: 9px/1 var(--mono); }
   .trend b { color: var(--mint); font-weight: 500; }
 
-  /* ---- 重点 1：数据块（格子跑马灯） ---- */
-  .flow-title { display: flex; align-items: center; justify-content: space-between; margin: 20px 20px 9px; }
-  .legend { display: flex; gap: 10px; color: var(--muted); font: 8px/1 var(--mono); }
-  .legend i { display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 2px; background: currentColor; }
-  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 0 16px 16px; }
-  .worktree { min-width: 0; padding: 11px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-2); }
-  .worktree-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-  .worktree-head b { font-size: 9px; font-weight: 650; }
-  .worktree-head small { color: var(--muted); font: 8px/1 var(--mono); }
-  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  /* ---- 6 模块 ---- */
+  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 14px 10px; }
+  .worktree { position: relative; min-width: 0; padding: 9px 10px 10px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel-2); }
+  .worktree-head { display: flex; align-items: center; gap: 6px; margin-bottom: 9px; }
+  .wt-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--faint); flex: 0 0 auto; }
+  .worktree.working .wt-dot { background: var(--mint); box-shadow: 0 0 8px var(--mint); animation: breathe 2.4s steps(24) infinite; }
+  .wt-pick {
+    display: flex; align-items: center; gap: 4px; min-width: 0;
+    border: none; background: none; padding: 2px 4px; margin: -2px 0;
+    border-radius: 6px; color: var(--ink); font-size: 9.5px; font-weight: 650; cursor: pointer;
+    transition: background 160ms ease, transform 140ms var(--ease-out);
+  }
+  .wt-pick:hover { background: var(--panel-hover); }
+  .wt-pick:active { transform: scale(.97); }
+  .wt-pick .chev { color: var(--faint); font-size: 8px; }
+  .wt-count { margin-left: auto; color: var(--muted); font: 8.5px/1 var(--mono); }
+  .worktree.done .wt-count { color: var(--mint); }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
   .cell {
+    position: relative;
     aspect-ratio: 1;
     border: 1px solid var(--line);
     border-radius: 5px;
     background: var(--panel);
     transform: translateZ(0);
-    transition: transform 180ms var(--ease-out), box-shadow 180ms ease, background 320ms ease, border-color 320ms ease;
+    transition: transform 200ms var(--ease-out), background-color 320ms ease, border-color 320ms ease, box-shadow 320ms ease;
   }
   .cell.coral { color: var(--coral); border-color: rgb(var(--coral-rgb) / .78); background: rgb(var(--coral-rgb) / .70); }
   .cell.mango { color: var(--mango); border-color: rgb(var(--mango-rgb) / .78); background: rgb(var(--mango-rgb) / .69); }
   .cell.mint  { color: var(--mint);  border-color: rgb(var(--mint-rgb) / .78);  background: rgb(var(--mint-rgb) / .67); }
   .cell.sky   { color: var(--sky);   border-color: rgb(var(--sky-rgb) / .78);   background: rgb(var(--sky-rgb) / .68); }
   .cell.lilac { color: var(--lilac); border-color: rgb(var(--lilac-rgb) / .78); background: rgb(var(--lilac-rgb) / .69); }
-  .cell.chasing { outline: 2px solid currentColor; outline-offset: 1px; transform: translateY(-2px) scale(1.06); }
+  /* 巡场高亮：灯管芯描边 + 抬起；辉光是「切换出现」而非连续动画（问2） */
+  .cell.chasing {
+    outline: 1px solid currentColor;
+    outline-offset: 1px;
+    transform: translateY(-2px) scale(1.08);
+    box-shadow: 0 0 12px -1px currentColor;
+  }
+  /* 刚翻态的落定弹跳：一次性、只动 transform */
+  .cell.pop { animation: pop 340ms var(--ease-out); }
 
-  .obs-foot { margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--line); color: var(--faint); font: 8px/1.5 var(--mono); }
-  .obs-foot .observe { color: var(--mango); }
+  .obs-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-top: 1px solid var(--line); color: var(--faint); font: 8px/1.5 var(--mono); }
+  .legend { display: flex; gap: 8px; }
+  .legend i { display: inline-block; width: 6px; height: 6px; margin-right: 3px; border-radius: 2px; background: currentColor; }
+
+  /* ---- 模块换绑选择器：origin-aware，从触发点长出来 ---- */
+  .wt-menu {
+    position: fixed; z-index: 40;
+    min-width: 148px; padding: 5px;
+    border: 1px solid var(--line-2); border-radius: 11px;
+    background: var(--window);
+    box-shadow: 0 18px 60px rgba(0,0,0,.4);
+    transform-origin: top left;
+    transform: scale(.97); opacity: 0;
+    transition: transform 150ms var(--ease-out), opacity 150ms var(--ease-out);
+  }
+  .wt-menu.open { transform: scale(1); opacity: 1; }
+  .wt-menu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border: none; border-radius: 7px; background: none; color: var(--ink); font-size: 10px; text-align: left; cursor: pointer; transition: background 140ms ease; }
+  .wt-menu button:hover { background: var(--panel-hover); }
+  .wt-menu button .sq { width: 8px; height: 8px; border-radius: 2px; }
+  .wt-menu button .now { margin-left: auto; color: var(--mint); font: 8px/1 var(--mono); }
 
   /* ===== 收起态把手 ===== */
   .grip {
@@ -173,25 +237,26 @@
   .stage.collapsed + .grip { transform: translateY(-50%) translateX(0); }
   .grip-num { color: var(--ink); font: 600 9px/1 var(--mono); writing-mode: vertical-rl; }
   .grip-num.zero { color: var(--mint); }
-  .grip .live-dot { animation-duration: 2.4s; }
   .grip-label { margin-top: 2px; color: var(--faint); font: 9px/1.1 var(--mono); writing-mode: vertical-rl; letter-spacing: .18em; }
 
   @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
   @keyframes train { to { left: 100%; } }
   @keyframes number-flow { to { background-position: 64px 0; } }
+  @keyframes bloom-breathe { 0%,100% { opacity: .8; } 50% { opacity: .55; } }
+  @keyframes settle { 0% { transform: scale(1.035); } 100% { transform: scale(1); } }
+  @keyframes pop { 0% { transform: scale(.82); } 62% { transform: scale(1.10); } 100% { transform: scale(1); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .light-train, .live-dot, .wt-dot, .cell.pop, .complete .progress-number-inner { animation: none !important; }
+    .cell, .obs { transition-duration: 1ms; }
+  }
 </style>
 </head>
 <body>
   <div class="stage" id="stage">
-    <!-- 舞台道具：现在的终端区 -->
     <section class="term-zone">
       <header class="term-head">
-        <nav class="tabs">
-          <span class="tab on"><i style="background:var(--mango)"></i>Rurubox</span>
-          <span class="tab"><i style="background:var(--mint)"></i>Tests</span>
-          <span class="tab"><i style="background:var(--lilac)"></i>Codex</span>
-          <span class="tab"><i style="background:var(--coral)"></i>zsh</span>
-        </nav>
+        <nav class="tabs" id="tabs"></nav>
         <span class="spacer"></span>
         <button class="obs-toggle" id="toggle"><span class="live-dot"></span>观察舱</button>
       </header>
@@ -204,10 +269,9 @@
         <br>
         <div class="dim">❯ █</div>
       </div>
-      <div class="hint">← 舞台道具（示意终端区）。右侧为观察舱：盯住大数字归零和格子流转。</div>
+      <div class="hint">← 舞台道具（示意终端区）。右侧观察舱：6 模块可各自换绑窗口（点模块名）。</div>
     </section>
 
-    <!-- 观察舱：只保留两个重点 -->
     <aside class="obs" id="obs">
       <div class="light-track"><div class="light-train"><i></i><i></i><i></i><i></i><i></i></div></div>
       <header class="obs-head">
@@ -218,40 +282,37 @@
         <button class="icon-btn" id="close" title="收起（右缘保留把手）">✕</button>
       </header>
 
-      <!-- 重点 2：大数字 -->
-      <div class="hero">
-        <div class="context"><span class="active-pill">ACTIVE</span><span id="ctx">Rurubox / Build / fix-type-errors</span></div>
-        <div>
-          <span class="progress-number" id="progressNumber">
-            <strong class="rainbow" id="counterRainbow">4,581</strong>
-            <strong class="white" id="counterWhite">4,581</strong>
+      <!-- 总进度 -->
+      <div class="hero" id="hero">
+        <span class="number-bloom"></span>
+        <span class="progress-number-inner">
+          <span class="progress-number">
+            <span class="odo" id="odo"></span>
           </span>
-          <span class="number-label">issues left</span>
-        </div>
-        <div class="trend" id="trend"><b>↓ 0</b> resolved in this session · live</div>
+          <span class="number-label">未完成任务</span>
+        </span>
+        <div class="trend" id="trend"></div>
       </div>
 
-      <!-- 重点 1：数据块 -->
-      <div class="flow-title">
-        <span class="eyebrow">Live allocation · 4 terminals</span>
-      </div>
-      <div class="flow-title" style="margin-top:-4px">
+      <!-- 6 模块 -->
+      <div class="workflow" id="workflow"></div>
+
+      <footer class="obs-foot">
         <span class="legend">
           <span style="color:var(--coral)"><i></i>discover</span>
           <span style="color:var(--mango)"><i></i>fix</span>
           <span style="color:var(--lilac)"><i></i>review</span>
           <span style="color:var(--mint)"><i></i>applied</span>
         </span>
-      </div>
-      <div class="workflow" id="workflow"></div>
-
-      <div class="obs-foot"><span class="observe">●</span> 只观察进度，不读取输入 · 不发送命令，不接管终端</div>
+        <span class="spacer"></span>
+        <span>只观察 · 不接管</span>
+      </footer>
     </aside>
   </div>
 
   <div class="grip" id="grip" title="展开观察舱">
     <span class="live-dot"></span>
-    <span class="grip-num" id="gripNum">4,581</span>
+    <span class="grip-num" id="gripNum"></span>
     <span class="grip-label">观察舱</span>
   </div>
 
@@ -259,98 +320,236 @@
 (function () {
   'use strict';
   const $ = (s) => document.querySelector(s);
-  const stage = $('#stage'), workflow = $('#workflow');
-  const progressNumber = $('#progressNumber'), counterRainbow = $('#counterRainbow'), counterWhite = $('#counterWhite');
-  const trend = $('#trend'), gripNum = $('#gripNum');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // ---------- 数据块：每个终端一块 5×4 格 ----------
-  const BLOCKS = [
-    { name: 'rurubox', agent: 'claude' },
-    { name: 'tests', agent: 'vitest' },
-    { name: 'codex', agent: 'codex' },
-    { name: 'server', agent: 'http' },
+  // ---------- 6 个终端窗口（真实版来自 term.sessions） ----------
+  const WINDOWS = [
+    { id: 'rurubox', name: 'Rurubox', agent: 'claude', tone: 'mango', share: .30 },
+    { id: 'build',   name: 'Build',   agent: 'claude', tone: 'coral', share: .22 },
+    { id: 'tests',   name: 'Tests',   agent: 'vitest', tone: 'mint',  share: .18 },
+    { id: 'server',  name: 'Server',  agent: 'http',   tone: 'sky',   share: .12 },
+    { id: 'codex',   name: 'Codex',   agent: 'codex',  tone: 'lilac', share: .12 },
+    { id: 'zsh',     name: 'zsh',     agent: 'shell',  tone: 'sky',   share: .06 },
   ];
-  const TONES = ['coral', 'mango', 'lilac', 'sky'];
-  workflow.innerHTML = BLOCKS.map((b) => `
-    <div class="worktree">
-      <div class="worktree-head"><b>${b.name}</b><small>${b.agent}</small></div>
-      <div class="grid">${'<i class="cell"></i>'.repeat(20)}</div>
+  $('#tabs').innerHTML = WINDOWS.map((w, i) =>
+    `<span class="tab ${i === 0 ? 'on' : ''}"><i style="background:var(--${w.tone})"></i>${w.name}</span>`).join('');
+
+  // ---------- 模块：默认 1:1 绑 6 个窗口，可各自换绑 ----------
+  const CELLS = 15;
+  const modules = WINDOWS.map((w, i) => ({ idx: i, windowId: w.id }));
+  const workflow = $('#workflow');
+  workflow.innerHTML = modules.map((m) => `
+    <div class="worktree" data-mod="${m.idx}">
+      <div class="worktree-head">
+        <span class="wt-dot"></span>
+        <button class="wt-pick" title="选择这个模块显示哪个窗口"><span class="wt-name"></span><span class="chev">▾</span></button>
+        <span class="wt-count"></span>
+      </div>
+      <div class="grid">${'<i class="cell"></i>'.repeat(CELLS)}</div>
     </div>`).join('');
-  const cells = [...document.querySelectorAll('.cell')];
-  // 初始铺一层任务色（与原型同款五色随机，但留少量空格）
-  cells.forEach((c, i) => { if (i % 7 !== 3) c.classList.add(TONES[(i * 13 + 5) % TONES.length]); });
+  const modEls = [...workflow.children];
+  const winOf = (m) => WINDOWS.find((w) => w.id === m.windowId);
 
-  // 跑马灯：520ms 顺序点亮（照搬原型）
-  let chase = 0, previousChase = null;
-  setInterval(() => {
-    if (previousChase) previousChase.classList.remove('chasing');
-    const cell = cells[chase++ % cells.length];
-    cell.classList.add('chasing');
-    previousChase = cell;
-  }, 520);
-
-  // 格子状态流转：完成度越高，翻绿概率越大；归零全绿
-  const CELL_STATES = ['coral', 'mango', 'lilac', 'sky', 'mint'];
-  function setCell(cell, tone) {
-    cell.classList.remove(...CELL_STATES);
+  const WORK_TONES = ['coral', 'mango', 'lilac', 'sky'];
+  const CELL_STATES = [...WORK_TONES, 'mint'];
+  function setCell(cell, tone, pop) {
+    cell.classList.remove(...CELL_STATES, 'pop');
     if (tone) cell.classList.add(tone);
-  }
-  let completion = 0;
-  setInterval(() => {
-    if (completion >= 1) return; // 已归零：格子封盘保持全绿，等下一轮重跑
-    const n = 1 + Math.floor(Math.random() * 3);
-    for (let k = 0; k < n; k++) {
-      const cell = cells[Math.floor(Math.random() * cells.length)];
-      if (cell.classList.contains('mint') && completion < 1) continue; // 已落绿的不回头
-      const goMint = Math.random() < Math.pow(completion, 1.6) + .08;
-      setCell(cell, goMint ? 'mint' : CELL_STATES[Math.floor(Math.random() * 4)]);
+    if (pop && !reduceMotion) {
+      void cell.offsetWidth; // 重启一次性 pop 动画
+      cell.classList.add('pop');
     }
-  }, 640);
+  }
+  function seedModule(el) {
+    [...el.querySelectorAll('.cell')].forEach((c, i) => {
+      setCell(c, i % 6 === 4 ? null : WORK_TONES[(i * 13 + el.dataset.mod * 7 + 5) % WORK_TONES.length]);
+    });
+  }
+  function renderModuleHead(el, m) {
+    const w = winOf(m);
+    el.querySelector('.wt-name').textContent = w.name;
+    el.querySelector('.wt-dot').style.background = '';
+  }
+  modEls.forEach((el, i) => { renderModuleHead(el, modules[i]); seedModule(el); });
 
-  // ---------- 大数字：白 → 彩虹 → 归零发光（机制 1:1 取自原型） ----------
-  const totalIssues = 4581;
-  function renderIssueProgress(value) {
-    const safeValue = Math.max(0, Math.round(value));
-    const text = safeValue.toLocaleString('en-US');
-    completion = 1 - safeValue / totalIssues;
-    // 前 6% 保持纯白，然后彩色从右往左渗入（clip 白层）
+  // ---------- 换绑选择器（origin-aware，从模块名长出来） ----------
+  let menu = null;
+  function closeMenu() {
+    if (!menu) return;
+    const m = menu; menu = null;
+    m.classList.remove('open');
+    setTimeout(() => m.remove(), 160);
+    document.removeEventListener('mousedown', onOut, true);
+  }
+  function onOut(ev) { if (menu && !menu.contains(ev.target)) closeMenu(); }
+  modEls.forEach((el, i) => {
+    el.querySelector('.wt-pick').onclick = (ev) => {
+      ev.stopPropagation();
+      if (menu) { closeMenu(); return; }
+      menu = document.createElement('div');
+      menu.className = 'wt-menu';
+      menu.innerHTML = WINDOWS.map((w) =>
+        `<button data-w="${w.id}"><span class="sq" style="background:var(--${w.tone})"></span>${w.name} · ${w.agent}${modules[i].windowId === w.id ? '<span class="now">当前</span>' : ''}</button>`).join('');
+      document.body.appendChild(menu);
+      const r = ev.currentTarget.getBoundingClientRect();
+      menu.style.left = Math.min(innerWidth - 160, r.left) + 'px';
+      menu.style.top = (r.bottom + 5) + 'px';
+      requestAnimationFrame(() => menu && menu.classList.add('open'));
+      menu.querySelectorAll('button').forEach((b) => {
+        b.onclick = () => {
+          modules[i].windowId = b.dataset.w;
+          renderModuleHead(modEls[i], modules[i]);
+          seedModule(modEls[i]);
+          closeMenu();
+        };
+      });
+      document.addEventListener('mousedown', onOut, true);
+    };
+  });
+
+  // ---------- 滚轮大数字（高度计式）：双层（彩虹垫底 + 白色盖面被 clip 吃掉） ----------
+  const DIGITS = 4; // 支持到 9,999
+  const odo = $('#odo');
+  function buildLayer(cls) {
+    const layer = document.createElement('span');
+    layer.className = 'odo-layer ' + cls;
+    for (let k = DIGITS - 1; k >= 0; k--) {
+      if (k === 2) { const s = document.createElement('span'); s.className = 'sep'; s.innerHTML = '<strong>,</strong>'; layer.appendChild(s); }
+      const d = document.createElement('span');
+      d.className = 'digit'; d.dataset.k = k;
+      d.innerHTML = '<span class="reel">' + Array.from({ length: 11 }, (_, n) => `<strong>${n % 10}</strong>`).join('') + '</span>';
+      layer.appendChild(d);
+    }
+    odo.appendChild(layer);
+    return layer;
+  }
+  const layerRainbow = buildLayer('rainbow');
+  const layerWhite = buildLayer('white');
+  const hero = $('#hero'), trend = $('#trend'), gripNum = $('#gripNum');
+
+  function paintNumber(v, snap) {
+    const safe = Math.max(0, v);
+    // 真·里程表：个位连续飞转（速度感）；高位平时坐实、只在低位归整的一小段窗口里短促滚动。
+    // 倒数方向：进入数字 D 的瞬间（r≈1，刚从 D+1 跌下来）完成 D+1→D 的滚动，其余时间稳稳显示 D。
+    const WINDOWS_K = [1, .3, .15, .15];
+    [layerRainbow, layerWhite].forEach((layer) => {
+      layer.querySelectorAll('.digit').forEach((d) => {
+        const k = +d.dataset.k;
+        const u = safe / Math.pow(10, k);
+        const D = Math.floor(u) % 10;
+        const r = u - Math.floor(u);
+        const W = WINDOWS_K[k] || .15;
+        const pos = (reduceMotion || snap) ? D : D + Math.max(0, 1 - (1 - r) / W);
+        d.querySelector('.reel').style.transform = `translateY(${(-pos).toFixed(3)}em)`;
+        d.classList.toggle('off', safe < Math.pow(10, k) && k > 0);
+      });
+      const sep = layer.querySelector('.sep');
+      if (sep) sep.classList.toggle('off', safe < 1000);
+    });
+    // 白→彩：前 6% 纯白，然后从右往左渗入（原型公式）
+    const completion = 1 - safe / TOTAL;
     const colorProgress = Math.pow(Math.max(0, (completion - .06) / .94), 1.18);
-    counterRainbow.textContent = text;
-    counterWhite.textContent = text;
-    counterWhite.style.clipPath = `inset(0 ${colorProgress * 100}% 0 0)`;
-    progressNumber.classList.toggle('complete', safeValue === 0);
-    trend.innerHTML = safeValue === 0
-      ? '<b>✓ 全部解决</b> · ' + totalIssues.toLocaleString('en-US') + ' fixed'
-      : `<b>↓ ${(totalIssues - safeValue).toLocaleString('en-US')}</b> resolved in this session · live`;
-    gripNum.textContent = text;
-    gripNum.classList.toggle('zero', safeValue === 0);
-    if (safeValue === 0) cells.forEach((c) => setCell(c, 'mint')); // 归零：格子全部落绿
+    layerWhite.style.clipPath = `inset(0 ${(colorProgress * 100).toFixed(2)}% 0 0)`;
+    $('.number-bloom').style.opacity = safe === 0 ? '' : (colorProgress * .28).toFixed(3);
+    hero.classList.toggle('complete', safe === 0);
+    const n = Math.round(safe);
+    trend.innerHTML = n === 0
+      ? `<b>✓ 全部解决</b> · ${TOTAL.toLocaleString('en-US')} fixed`
+      : `<b>↓ ${(TOTAL - n).toLocaleString('en-US')}</b> 本轮已解决 · live`;
+    gripNum.textContent = n.toLocaleString('en-US');
+    gripNum.classList.toggle('zero', n === 0);
+    return completion;
   }
 
-  // 演示循环：20 秒从 4,581 倒数到 0（先快后慢，冲线有仪式感），归零停 4 秒重跑
-  let timer = null;
-  function runIssueDemo() {
-    clearInterval(timer);
-    const duration = 20000;
-    const started = performance.now();
-    // 重新铺一层任务色
-    cells.forEach((c, i) => { setCell(c, i % 7 !== 3 ? TONES[(i * 13 + 5) % TONES.length] : null); });
-    timer = setInterval(() => {
-      const progress = Math.min(1, (performance.now() - started) / duration);
-      renderIssueProgress(totalIssues * Math.pow(1 - progress, 1.42));
-      if (progress === 1) { clearInterval(timer); setTimeout(runIssueDemo, 4000); }
-    }, 100);
-    renderIssueProgress(totalIssues);
+  // ---------- 演示引擎（可全停：visibilitychange / 收起 → 成本归零） ----------
+  const TOTAL = 4581;
+  let completion = 0, raf = 0, timers = [], t0 = 0, holdUntil = 0;
+
+  function chaseTick() {
+    // 每模块 1 个巡场高亮，相位错开（灵动=错拍，不是更多动画）
+    modEls.forEach((el, i) => {
+      const cells = el.querySelectorAll('.cell');
+      const prev = el.querySelector('.cell.chasing');
+      if (prev) prev.classList.remove('chasing');
+      const step = Math.floor(performance.now() / 640) + i * 5;
+      cells[step % CELLS].classList.add('chasing');
+    });
   }
-  $('#replay').onclick = runIssueDemo;
-  runIssueDemo();
+  function driftTick() {
+    // 事件式翻色：完成度越高翻绿概率越高；每次只动 1-2 格
+    modEls.forEach((el) => {
+      if (Math.random() > .4) return;
+      const cells = [...el.querySelectorAll('.cell')];
+      const targetMint = Math.round(completion * cells.length);
+      const mints = cells.filter((c) => c.classList.contains('mint')).length;
+      if (mints < targetMint) {
+        const pool = cells.filter((c) => !c.classList.contains('mint') && c.className !== 'cell');
+        if (pool.length) setCell(pool[Math.floor(Math.random() * pool.length)], 'mint', true);
+      } else if (completion < .97 && Math.random() < .5) {
+        const pool = cells.filter((c) => !c.classList.contains('mint'));
+        if (pool.length) setCell(pool[Math.floor(Math.random() * pool.length)], WORK_TONES[Math.floor(Math.random() * 4)], false);
+      }
+      const w = winOf(modules[+el.dataset.mod]);
+      const left = Math.round((1 - completion) * TOTAL * w.share);
+      el.querySelector('.wt-count').textContent = left === 0 ? '✓ 0' : left.toLocaleString('en-US');
+      el.classList.toggle('working', completion < 1); // 倒计时中恒亮，不闪（状态点闪烁是噪音）
+      el.classList.toggle('done', left === 0);
+    });
+  }
+  function cascade() {
+    // 归零仪式：对角瀑布翻绿（stagger 30ms 量级），一次性
+    modEls.forEach((el, mi) => {
+      el.classList.remove('working'); el.classList.add('done');
+      el.querySelector('.wt-count').textContent = '✓ 0';
+      const prev = el.querySelector('.cell.chasing');
+      if (prev) prev.classList.remove('chasing');
+      [...el.querySelectorAll('.cell')].forEach((c, ci) => {
+        const delay = reduceMotion ? 0 : mi * 60 + (Math.floor(ci / 5) + ci % 5) * 34;
+        setTimeout(() => setCell(c, 'mint', true), delay);
+      });
+    });
+  }
+
+  const DURATION = 20000, HOLD = 4200;
+  let held = false;
+  function frame(now) {
+    if (now >= holdUntil) {
+      if (held) { held = false; modEls.forEach(seedModule); } // 新一轮开跑：重铺任务色
+      const p = Math.min(1, (now - t0) / DURATION);
+      const v = TOTAL * Math.pow(1 - p, 1.42);
+      completion = paintNumber(v);
+      if (p === 1) { cascade(); holdUntil = now + HOLD; t0 = now + HOLD; held = true; }
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  function start() {
+    if (raf) return;
+    t0 = performance.now(); holdUntil = 0;
+    modEls.forEach(seedModule);
+    timers = [setInterval(chaseTick, 640), setInterval(driftTick, 820)];
+    raf = requestAnimationFrame(frame);
+  }
+  function stop() {
+    timers.forEach(clearInterval); timers = [];
+    cancelAnimationFrame(raf); raf = 0;
+  }
+  function restart() { stop(); start(); }
+  $('#replay').onclick = restart;
+
+  // 成本归零纪律：不可见就全停
+  document.addEventListener('visibilitychange', () => { document.hidden ? stop() : start(); });
 
   // ---------- 开合 ----------
-  const setCollapsed = (on) => stage.classList.toggle('collapsed', on);
+  const stage = $('#stage');
+  const setCollapsed = (on) => { stage.classList.toggle('collapsed', on); on ? stop() : start(); };
   $('#close').onclick = () => setCollapsed(true);
   $('#toggle').onclick = () => setCollapsed(!stage.classList.contains('collapsed'));
   $('#grip').onclick = () => setCollapsed(false);
-  if (location.search.includes('collapsed')) setCollapsed(true);
+  if (location.search.includes('collapsed')) setCollapsed(true); else start();
+  paintNumber(TOTAL);
+  // 状态预览钩子（对齐原型）：#zero 直接看归零庆祝态，#half 看半程彩色渗入
+  if (location.hash === '#zero') { stop(); completion = paintNumber(0); cascade(); }
+  else if (location.hash === '#half') { stop(); completion = paintNumber(Math.round(TOTAL / 2), true); for (let i = 0; i < 40; i++) driftTick(); }
 })();
 </script>
 </body>
