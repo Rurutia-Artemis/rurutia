@@ -10,9 +10,15 @@
  *     模块头可点名换绑任意 tab；点模块图标即切到那个终端。
  *   · 格子 = 该终端的实时输出事件（fanboxPty.onData 旁听），按内容轻量分类：
  *     错误(err) / 警告(yellow) / 成功(ok) / 思考(accent) / 一般输出(info)。
- *   · 大数字 = 打开终端对应 Claude Code 会话的未完成任务数（~/.claude/tasks/<会话>/<n>.json，
- *     会话↔终端靠 ~/.claude/projects/<目录名>/<会话>.jsonl 的 cwd 对应），
- *     彩色渗入比例 = 已完成/总任务；全部归零（且确有任务完成）→ 庆祝：辉光 + 格子瀑布翻绿。
+ *   · 大数字 = 倒数模型（永远在倒数，不再往上滚；总量可以是估的，归零必须是真的）：
+ *     1) 有 CC 任务清单 → 「未完成任务」真任务数（~/.claude/tasks/<会话>/<n>.json，会话↔终端靠
+ *        ~/.claude/projects/<目录名>/<会话>.jsonl 的 cwd 对应），完成一项减一项，最准；
+ *     2) 没清单但有终端在干活 → 「预计剩余」：每回合（开始吐字 → 安静 6.5s 收工）按该终端
+ *        历史产出估一个总量（EMA，按项目存 localStorage，越用越准），真实输出字节驱动往下减
+ *        （64 字节 = 1 单位），快见底渐近减速吊在个位数，agent 真停下瞬间归零；
+ *     3) 全安静 → 0 待命。彩色渗入比例 = 完成度（两种倒数同一套视觉语言）；
+ *     归零 → 庆祝：辉光 + 格子瀑布翻绿。子任务完成 / 单终端收工 → 模块卡片绿光脉冲 + 波浪闪。
+ *     工作态不垫常驻绿底（用户定案：绿色辉光只属于归零庆祝；浅色皮肤 bloom 整体停用防色斑）。
  *
  * 资源纪律（用户点名要求最低占用）：
  *   · 持续动效只碰 transform/opacity；辉光是预烘焙渐变的 opacity 切换，绝不连续动画 box-shadow；
@@ -28,6 +34,7 @@
   'use strict';
   var DEMO = /rbobs=demo/.test(location.search);
   var WORKDEMO = DEMO && /[?&]work=1/.test(location.search); // 无任务·纯工作态演示（无头验收用）
+  var DEMOWIN = (function () { var m = /[?&]win=(\d+)/.exec(location.search); return m ? Math.max(1, Math.min(6, +m[1])) : 0; })(); // ?win=N：演示窗口数模拟（验收布局用）
   if (!window.fanboxPty && !DEMO) return;
   if (/[?&]pv=/.test(location.search)) return; // 独立预览窗里不装
 
@@ -71,11 +78,10 @@
     '  radial-gradient(ellipse 55% 85% at 52% 45%, color-mix(in srgb, var(--ok) 40%, transparent), transparent 62%),',
     '  radial-gradient(ellipse 55% 90% at 82% 55%, color-mix(in srgb, var(--accent) 46%, transparent), transparent 60%); }',
     '.ro-hero.complete .ro-bloom { opacity: .75; animation: ro-bloom 3.2s ease-in-out .9s infinite; }',
-    // 工作态：大数字转绿 + 柔和呼吸 + 绿色辉光（只切 opacity/静态 text-shadow，不连续动 shadow）
-    '.ro-hero.busy .ro-layer.white { color: var(--ok); }',
-    '.ro-hero.busy .ro-num { text-shadow: 0 0 22px color-mix(in srgb, var(--ok) 42%, transparent); }',
+    // 辉光是深色 UI 的语言：screen 混合在浅底上会洗出一块可见色斑（用户截图定案）→ 浅色皮肤整体停用
+    'html[data-mode="light"] #rb-obs .ro-bloom { display: none; }',
+    // 工作态：数字只轻呼吸表示活着（用户定案：不垫绿底不变绿字，绿色辉光只属于归零庆祝）
     '.ro-hero.busy .ro-num-inner { animation: ro-livepulse 2.6s ease-in-out infinite; }',
-    '.ro-hero.busy .ro-bloom { opacity: .5; background: radial-gradient(ellipse 66% 92% at 50% 52%, color-mix(in srgb, var(--ok) 52%, transparent), transparent 66%); animation: ro-bloom 3.2s ease-in-out infinite; }',
     '.ro-num { position: relative; display: inline-block; font-size: 92px; font-weight: 600; line-height: 1; letter-spacing: -.05em; font-variant-numeric: tabular-nums; transition: font-size 340ms cubic-bezier(.23,1,.32,1); }',
     '.ro-num-inner { display: inline-block; }',
     '.ro-hero.complete .ro-num-inner { animation: ro-settle 520ms cubic-bezier(.23,1,.32,1); }',
@@ -120,10 +126,16 @@
     '.ro-cell { aspect-ratio: 1; border: 1px solid var(--border); border-radius: 5px; background: var(--bg); transform: translateZ(0); transition: transform 200ms cubic-bezier(.23,1,.32,1), background-color 320ms ease, border-color 320ms ease, box-shadow 320ms ease; }',
     ['err', 'yellow', 'accent', 'ok', 'info'].map(function (t) {
       var v = 'var(--' + t + ')';
-      return '.ro-cell.' + t + ' { color: ' + v + '; border-color: color-mix(in srgb, ' + v + ' 78%, transparent); background: color-mix(in srgb, ' + v + ' 66%, transparent); }';
+      return '.ro-cell.' + t + ' { color: ' + v + '; border-color: color-mix(in srgb, ' + v + ' 78%, transparent); background: color-mix(in srgb, ' + v + ' 66%, transparent); }\n' +
+        // 浅色皮肤：66% 透明度蒙在米底上会被稀释成粉彩（用户对比截图定案）→ 实心糖果 chip
+        'html[data-mode="light"] .ro-cell.' + t + ' { border-color: ' + v + '; background: color-mix(in srgb, ' + v + ' 90%, transparent); }';
     }).join('\n'),
     '.ro-cell.chasing { outline: 1px solid currentColor; outline-offset: 1px; transform: translateY(-2px) scale(1.08); box-shadow: 0 0 12px -1px currentColor; }',
     '.ro-cell.pop { animation: ro-pop 340ms cubic-bezier(.23,1,.32,1); }',
+    // 模块庆祝（子任务完成 / 单终端收工）：全一次性动画，播完自己消失，无常驻开销
+    '.ro-mod.celebrate { animation: ro-modwin 900ms cubic-bezier(.23,1,.32,1); }',
+    '.ro-cell.win { animation: ro-cellwin 620ms cubic-bezier(.23,1,.32,1); }',
+    '.ro-cnt.winpop { animation: ro-pop 340ms cubic-bezier(.23,1,.32,1); }',
     '.ro-empty { grid-column: 1 / -1; padding: 30px 10px; color: var(--text-faint); font: 12px/1.8 var(--font-mono, monospace); text-align: center; }',
     '.ro-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; flex: 0 0 auto; padding: 11px 16px; border-top: 1px solid var(--border); color: var(--text-faint); font: 9.5px/1.5 var(--font-mono, monospace); }',
     '.ro-legend { display: flex; gap: 9px; }',
@@ -143,7 +155,9 @@
     '@keyframes ro-settle { 0% { transform: scale(1.035); } 100% { transform: scale(1); } }',
     '@keyframes ro-pop { 0% { transform: scale(.82); } 62% { transform: scale(1.10); } 100% { transform: scale(1); } }',
     '@keyframes ro-livepulse { 0%,100% { opacity: 1; } 50% { opacity: .74; } }',
-    '@media (prefers-reduced-motion: reduce) { .ro-train, .ro-dot, .ro-st, .ro-cell.pop, .ro-hero.complete .ro-num-inner, .ro-hero.busy .ro-num-inner, .ro-hero.busy .ro-bloom { animation: none !important; } #rb-obs, #app { transition-duration: 1ms; } }',
+    '@keyframes ro-modwin { 0% { box-shadow: 0 0 0 0 transparent; } 30% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 26%, transparent), 0 0 30px color-mix(in srgb, var(--ok) 30%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }',
+    '@keyframes ro-cellwin { 40% { transform: translateY(-2px) scale(1.16); background-color: color-mix(in srgb, var(--ok) 74%, transparent); border-color: var(--ok); } }',
+    '@media (prefers-reduced-motion: reduce) { .ro-train, .ro-dot, .ro-st, .ro-cell.pop, .ro-cell.win, .ro-mod.celebrate, .ro-cnt.winpop, .ro-hero.complete .ro-num-inner, .ro-hero.busy .ro-num-inner { animation: none !important; } #rb-obs, #app { transition-duration: 1ms; } }',
   ].join('\n');
   document.head.appendChild(st);
 
@@ -190,7 +204,7 @@
     { id: 'd5', title: 'Codex', cwd: '/tmp/Codex' }, { id: 'd6', title: 'zsh', cwd: '/tmp/zsh' },
   ] : null;
   function sessionsNow() {
-    if (DEMO) return demoSessions;
+    if (DEMO) return DEMOWIN ? demoSessions.slice(0, DEMOWIN) : demoSessions;
     try { return (typeof term !== 'undefined' && term.sessions) ? term.sessions.filter(function (s) { return !s.dead; }) : []; } catch (e) { return []; }
   }
   var baseName = function (p) { return String(p || '').replace(/\/$/, '').split('/').pop() || 'shell'; };
@@ -202,20 +216,22 @@
   }
 
   // ---------- 活动旁听（面板关着时只记时间戳） ----------
-  var act = {}; // sid -> { last, pend:[], proc, cells:[], ptr, open:任务数, done:任务数 }
-  function actOf(sid) { return act[sid] || (act[sid] = { last: 0, pend: [], proc: '', cells: null, ptr: 0, open: null, done: 0 }); }
+  // turn = 当前回合 { spentB:产出字节, spent:单位, est:估算总量, t0 }；ema = 该终端历史每回合产出（校准估算）
+  var act = {}; // sid -> { last, pend:[], proc, cells:[], ptr, open:任务数, done:任务数, turn, ema, emaKey }
+  function actOf(sid) { return act[sid] || (act[sid] = { last: 0, pend: [], proc: '', cells: null, ptr: 0, open: null, done: 0, turn: null, ema: 0, emaKey: '', demoHold: 0 }); }
   function classify(chunk) {
     var s = String(chunk).slice(0, 400);
     if (/error|failed|✗|✘|exception|fatal/i.test(s)) return 'err';
     if (/warn/i.test(s)) return 'yellow';
-    if (/✓|✔|passed|success|committed| done/i.test(s)) return 'ok';
-    if (/✻|thinking|esc to interrupt/i.test(s)) return 'accent';
+    if (/✓|✔|⏺|passed|success|committed| done/i.test(s)) return 'ok'; // ⏺ = CC 完成一个动作
+    if (/✻|✽|✢|✳|thinking|esc to interrupt/i.test(s)) return 'accent'; // CC 思考转轮的各种帧
     return 'info';
   }
   if (!DEMO && window.fanboxPty && window.fanboxPty.onData) {
     window.fanboxPty.onData(function (m) {
       var a = actOf(m.id);
       a.last = Date.now();
+      if (a.turn) a.turn.spentB += (m.data && m.data.length) || 0; // 回合产出计量：一次加法，面板关着也不算负担
       if (!isOpen() || document.hidden) return;
       if (a.pend.length < 4) a.pend.push(classify(m.data));
     });
@@ -226,7 +242,7 @@
   var mods = []; // { sid, el, cells:[], cols }
   var lastKey = '';
   function layoutFor(n) {
-    return n === 1 ? { one: true, cols: 6, rows: 4 } : n === 2 ? { one: true, cols: 8, rows: 3 } : { one: false, cols: 6, rows: 5 };
+    return n === 1 ? { one: true, cols: 6, rows: 4 } : n === 2 ? { one: true, cols: 8, rows: 5 } : { one: false, cols: 6, rows: 5 };
   }
   function pickSessions() {
     var ss = sessionsNow();
@@ -309,21 +325,47 @@
     if (force || key !== lastKey) { lastKey = key; rebuildModules(); }
   }
 
-  // ---------- 格子事件消化 + 巡场 ----------
+  // ---------- 格子事件消化 + 进度翻绿 + 巡场 ----------
+  var DEMO_TONES = ['info', 'info', 'info', 'info', 'ok', 'ok', 'accent', 'accent', 'yellow', 'err']; // 权重贴近真实终端
+  function paintCell(m, a, i, tone) {
+    a.cells[i] = tone;
+    var c = m.cellEls[i];
+    if (!c) return;
+    c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'pop');
+    c.classList.add(tone);
+    if (!reduceMotion) { void c.offsetWidth; c.classList.add('pop'); }
+  }
   function drainTick() {
-    mods.forEach(function (m) {
+    var now = Date.now();
+    mods.forEach(function (m, idx) {
       var a = actOf(m.sid);
       var tone = a.pend.shift();
-      if (DEMO) tone = Math.random() < .55 ? ['info', 'ok', 'accent', 'yellow', 'err'][Math.floor(Math.random() * 5)] : null;
-      if (!tone) return;
-      var i = a.ptr % a.cells.length;
-      a.cells[i] = tone; a.ptr++;
-      var c = m.cellEls[i];
-      if (!c) return;
-      c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'pop');
-      c.classList.add(tone);
-      if (!reduceMotion) { void c.offsetWidth; c.classList.add('pop'); }
+      // 演示：只有真在干活的窗口才吐事件（等回话/空闲/收工静默期都安静），别再全场乱闪
+      if (DEMO) {
+        var live = demoStatus(idx) === 'working' && !(a.demoHold && now < a.demoHold);
+        tone = live && Math.random() < .8 ? DEMO_TONES[Math.floor(Math.random() * DEMO_TONES.length)] : null;
+      }
+      if (tone) { paintCell(m, a, a.ptr % a.cells.length, tone); a.ptr++; }
+      greenTick(m, a);
     });
+  }
+  // 上下互动：格子的绿色占比跟着完成度走——大数字每往下减一截，就有最老的格子被「确认完成」
+  // 翻绿（每拍最多一格 = 波浪感）。任务模式按 已完成/总任务，回合模式按估算完成度；收工时板子
+  // 自然已近全绿，庆祝闪一波收尾，新回合的事件再逐渐把它覆盖掉。
+  function greenTick(m, a) {
+    var p = null;
+    if (a.open != null && a.open + a.done > 0) p = a.done / (a.open + a.done);
+    else if (a.turn && a.turn.spent >= TURN_MIN) p = Math.min(1, 1 - turnRemaining(a.turn) / a.turn.est);
+    if (p == null) return;
+    var landed = Math.min(a.ptr, a.cells.length);
+    if (!landed) return;
+    var target = Math.round(p * landed), greens = 0, oldest = -1;
+    for (var k = 0; k < landed; k++) {
+      var i = ((a.ptr - landed + k) % a.cells.length + a.cells.length) % a.cells.length;
+      if (a.cells[i] === 'ok') greens++;
+      else if (oldest < 0) oldest = i;
+    }
+    if (greens < target && oldest >= 0) paintCell(m, a, oldest, 'ok');
   }
   function chaseTick() {
     mods.forEach(function (m, i) {
@@ -335,22 +377,61 @@
     });
   }
 
-  // ---------- 状态（工作中 / 等回话 / 空闲） ----------
-  // 「正在工作」的实时聚合：几个终端在吐字 + 它们的名字，喂给大数字工作态（paintIdle）
-  var workingNow = 0, workingNames = [], lastTaskOpen = null;
+  // ---------- 状态（工作中 / 等回话 / 空闲）+ 回合机（通用「预计剩余」倒数） ----------
+  // 回合 = 一次连续干活：开始吐字起回合，安静 QUIET_MS 判收工。总量按该终端历史产出估（EMA，
+  // 按项目目录存 localStorage，越用越准），产出字节驱动往下减——总量是估的，归零是真的。
+  var UNIT = 64;            // 64 字节输出 = 1 单位工作量
+  var TURN_MIN = 40;        // 一回合至少 40 单位（约 2.5KB）才算数：快问快答不起倒数、不庆祝
+  var QUIET_MS = 6500;      // 安静这么久 = 这回合真干完了
+  var DEFAULT_EST = 1800;   // 该项目没有历史时的首轮估算
+  var EMA_KEY = 'rb_obs_ema';
+  var emaStore = (function () { try { return JSON.parse(localStorage.getItem(EMA_KEY) || '{}'); } catch (e) { return {}; } })();
+  var workingNow = 0, workingNames = [], lastTaskOpen = null, zeroFlashUntil = 0;
   var escName = function (s) { return String(s == null ? '' : s).replace(/[<>&]/g, ''); };
   function demoStatus(i) { return ['working', 'working', 'waiting', 'idle', 'working', 'idle'][i] || 'idle'; }
+  function visibleTurns() {
+    var list = [];
+    mods.forEach(function (m) { var a = actOf(m.sid); if (a.turn && a.turn.spent >= TURN_MIN) list.push(a.turn); });
+    return list;
+  }
   function statusTick() {
     var now = Date.now();
     var ss = sessionsNow();
-    var wc = 0, wnames = [];
-    mods.forEach(function (m) {
+    var wc = 0, wnames = [], endedWork = false;
+    mods.forEach(function (m, idx) {
       var a = actOf(m.sid);
+      // 演示节奏：working 模块持续喂活动，跑满估算量就静默收工，静默期过了再开下一轮（走同一台回合机）
+      if (DEMO && demoStatus(idx) === 'working') {
+        if (a.demoHold && now < a.demoHold) { /* 收工静默期 */ }
+        else if (a.turn && a.turn.spent >= a.turn.est) { a.demoHold = now + 9000; }
+        else { a.last = now; if (a.turn) a.turn.spentB += 9600; } // 每秒 150 单位：千位数量级 + 十几秒一轮，贴近真实观感
+      }
       var stEl = m.el.querySelector('.ro-st');
       var working = now - a.last < 4000;
       var agent = AGENT_BINS.indexOf(String(a.proc).toLowerCase()) !== -1;
       var cls = working ? 'working' : (agent ? 'waiting' : 'idle');
-      if (DEMO) cls = demoStatus(mods.indexOf(m));
+      if (DEMO) cls = (a.demoHold && now < a.demoHold) ? 'idle' : demoStatus(idx);
+      // —— 回合机 ——
+      if (working && !a.turn) {
+        if (!a.ema && !a.emaKey) {
+          var sx = ss.find(function (x) { return x.id === m.sid; });
+          a.emaKey = mungeCwd((sx && (sx.cwd || sx.startDir)) || '');
+          a.ema = emaStore[a.emaKey] || 0;
+        }
+        a.turn = { spentB: 0, spent: 0, t0: now, est: a.ema || (DEMO ? 2400 : DEFAULT_EST) };
+      }
+      if (a.turn) {
+        a.turn.spent = Math.round(a.turn.spentB / UNIT);
+        if (now - a.last > QUIET_MS) {
+          var t = a.turn; a.turn = null;
+          if (t.spent >= TURN_MIN) { // 够格的一轮：校准估算 + 这块模块自己庆祝
+            a.ema = Math.max(TURN_MIN, a.ema ? Math.round(a.ema * .6 + t.spent * .4) : t.spent);
+            if (!DEMO && a.emaKey) { emaStore[a.emaKey] = a.ema; try { localStorage.setItem(EMA_KEY, JSON.stringify(emaStore)); } catch (e) { /* */ } }
+            endedWork = true;
+            celebrateModule(m);
+          }
+        }
+      }
       stEl.className = 'ro-st ' + cls;
       stEl.title = cls === 'working' ? '工作中' : cls === 'waiting' ? (a.proc + ' 在等你回话') : '空闲';
       m.el.classList.toggle('waiting', cls === 'waiting');
@@ -364,7 +445,9 @@
       m.el.classList.toggle('done', a.open === 0 && a.done > 0);
     });
     workingNow = wc; workingNames = wnames;
-    // 无任务态：每秒把「正在工作」刷新，不必等 8s 的任务轮询才有反应
+    // 最后一台干活的终端收工 → 大数字归零庆祝一小会儿
+    if (endedWork && !visibleTurns().length) zeroFlashUntil = now + 4200;
+    // 无任务态：每秒刷新（倒数/收工/待命），不必等 8s 的任务轮询才有反应
     if (lastTaskOpen == null) paintIdle();
   }
   function procTick() {
@@ -387,7 +470,7 @@
     return api('/api/list?path=' + encodeURIComponent(p)).then(function (d) { return (d && d.entries) || []; }).catch(function () { return []; });
   }
   async function tasksTick() {
-    if (WORKDEMO) { paintTasks(null, 0); return; } // 纯工作态：无任务，全靠 paintIdle
+    if (WORKDEMO) { paintTasks(null, 0); return; } // 无任务清单：演示「预计剩余」回合倒数（起估→倒数→收工庆祝→静默→下一轮）
     if (DEMO) { demoTaskTick(); return; }
     try {
       var now = Date.now();
@@ -409,7 +492,7 @@
             .map(function (e) { return e.name.replace(/\.jsonl$/, ''); });
           pc = projCache[dirName] = { sids: sids, t: now };
         }
-        var open = null, done = 0, reads = 0;
+        var open = null, done = 0, reads = 0, justDone = false;
         for (var si = 0; si < pc.sids.length; si++) {
           var sid = pc.sids[si];
           if (!taskDirSet.set.has(sid)) continue;
@@ -426,6 +509,7 @@
                 var j = JSON.parse((d && d.content) || '{}');
                 if (j && j.status) { if (j.status === 'completed') one.done = 1; else one.open = 1; }
               } catch (e) { /* 非任务 json，忽略 */ }
+              if (fc && fc.open === 1 && one.done === 1) justDone = true; // 亲眼看到一个子任务翻绿
               fc = fileCache[f.path] = one;
             }
             open = (open || 0) + fc.open; done += fc.done;
@@ -434,6 +518,7 @@
         var a = actOf(m.sid);
         a.open = open; a.done = done;
         if (open != null) { totals.open += open; totals.done += done; }
+        if (justDone) celebrateModule(m); // 子任务完成 → 这块模块自己先庆祝一下
       }
       var any = mods.some(function (mm) { return actOf(mm.sid).open != null; });
       paintTasks(any ? totals.open : null, totals.done);
@@ -480,32 +565,60 @@
     });
     return n;
   }
-  // 工作态：没有 agent 任务可数时，大数字 = 正在吐字的终端数，标签换「正在工作」，绿字呼吸——
-  // 让「CC 一干活就有存在感」，而不是永远杵着个死气沉沉的 0。
+  // 彩色渗入：白层按完成度从右往左揭开露出彩虹（前 6% 保持纯白），两种倒数共用
+  function seepColor(completion) {
+    var colorProgress = Math.pow(Math.max(0, (completion - .06) / .94), 1.18);
+    layerWhite.style.clipPath = 'inset(0 ' + (colorProgress * 100).toFixed(2) + '% 0 0)';
+    return colorProgress;
+  }
+  // 回合剩余量：正常线性往下减；进了收尾段（最后 12%）改渐近减速——每多干一个收尾段的量
+  // 就折半，吊在 1 不落地。est 是估的，什么时候真归零由回合机说了算（agent 真停 = 真 0）。
+  function turnRemaining(t) {
+    var tail = Math.max(24, Math.round(t.est * .12));
+    var raw = t.est - t.spent;
+    if (raw > tail) return raw;
+    return Math.max(1, Math.round(tail * Math.pow(.5, (t.spent - (t.est - tail)) / tail)));
+  }
+  // 没有任务清单时的大数字：有回合在跑 → 「预计剩余」倒数；刚全部收工 → 归零庆祝一小会儿；全安静 → 0 待命
   function paintIdle() {
-    var w = workingNow;
-    renderNumber(w);
-    labelEl.textContent = w > 0 ? '正在工作' : '未完成任务';
-    hero.classList.remove('complete');
-    hero.classList.toggle('busy', w > 0);
-    layerWhite.style.clipPath = 'inset(0 0 0 0)'; // 工作态不走彩色渗入，纯绿层盖满
-    bloomEl.style.opacity = '';
+    var now = Date.now();
+    var turns = visibleTurns();
     var names = workingNames.slice(0, 3).map(escName).filter(Boolean).join('、');
-    trendEl.innerHTML = w > 0
-      ? '<b>⚡ ' + w + ' 个终端</b> 正在工作' + (names ? ' · ' + names : '') + ' · live'
-      : '还没检测到 agent 任务 · 终端里的 Claude Code 建了任务就会出现';
+    labelEl.textContent = '预计剩余';
+    bloomEl.style.opacity = '';
+    if (turns.length) {
+      var rem = 0, est = 0;
+      turns.forEach(function (t) { rem += turnRemaining(t); est += Math.max(t.est, t.spent); });
+      hero.classList.remove('complete');
+      hero.classList.add('busy');
+      renderNumber(rem);
+      seepColor(est > 0 ? 1 - rem / est : 0);
+      // 终端数取「在吐字的」和「回合还开着的」较大者：agent 静默跑长命令时不至于报 0 自相矛盾
+      trendEl.innerHTML = '<b>⚡ ' + Math.max(workingNow, turns.length) + ' 个终端</b> 正在工作' + (names ? ' · ' + names : '') + ' · live';
+    } else if (now < zeroFlashUntil) {
+      hero.classList.remove('busy');
+      hero.classList.add('complete');
+      renderNumber(0);
+      layerWhite.style.clipPath = 'inset(0 100% 0 0)'; // 满彩虹
+      trendEl.innerHTML = '<b>✓ 本轮收工</b> · 干完了';
+    } else {
+      hero.classList.remove('busy', 'complete');
+      renderNumber(0);
+      layerWhite.style.clipPath = 'inset(0 0 0 0)';
+      trendEl.innerHTML = workingNow > 0
+        ? '<b>⚡ ' + workingNow + ' 个终端</b> 正在工作' + (names ? ' · ' + names : '') + ' · 热身中'
+        : '终端安静 · agent 一开工这里就开始倒数';
+    }
   }
   function paintTasks(open, done) {
     lastTaskOpen = open;
-    if (open == null) { paintIdle(); return; } // 没任务可数 → 交给工作态
+    if (open == null) { paintIdle(); return; } // 没任务清单 → 交给回合倒数
     labelEl.textContent = '未完成任务';
     hero.classList.remove('busy');
     var n = renderNumber(open);
-    // 彩色渗入比例 = 已完成占比（前 6% 保持纯白）
+    // 彩色渗入比例 = 已完成占比
     var totalAll = n + done;
-    var completion = totalAll > 0 ? done / totalAll : 0;
-    var colorProgress = Math.pow(Math.max(0, (completion - .06) / .94), 1.18);
-    layerWhite.style.clipPath = 'inset(0 ' + (colorProgress * 100).toFixed(2) + '% 0 0)';
+    var colorProgress = seepColor(totalAll > 0 ? done / totalAll : 0);
     bloomEl.style.opacity = '';
     var zeroWin = n === 0 && done > 0;
     if (!zeroWin) bloomEl.style.opacity = (colorProgress * .25).toFixed(3);
@@ -526,6 +639,18 @@
           actOf(m.sid).cells[ci] = 'ok';
         }, delay);
       });
+    });
+  }
+  // 单模块庆祝（某个子任务翻 completed / 某终端一回合收工）：卡片绿光脉冲 + 格子对角波浪闪 +
+  // 计数弹跳。全是一次性动画，闪完格子颜色原样保留（跟 cascade 的「全翻绿定格」区分开）。
+  function celebrateModule(m) {
+    if (!m || !m.el || reduceMotion) return;
+    m.el.classList.remove('celebrate'); void m.el.offsetWidth; m.el.classList.add('celebrate');
+    var cnt = m.el.querySelector('.ro-cnt');
+    if (cnt) { cnt.classList.remove('winpop'); void cnt.offsetWidth; cnt.classList.add('winpop'); }
+    m.cellEls.forEach(function (c, ci) {
+      var delay = (Math.floor(ci / m.cols) + ci % m.cols) * 26;
+      setTimeout(function () { c.classList.remove('win'); void c.offsetWidth; c.classList.add('win'); }, delay);
     });
   }
 
