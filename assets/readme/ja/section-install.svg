@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="150" viewBox="0 0 1200 150" role="img" aria-labelledby="t">
+  <title id="t">インストール</title>
+  <rect x="2" y="2" width="1196" height="146" rx="22" fill="#1B0F1A" stroke="#332740" stroke-width="1.5"/>
+  <text x="56" y="40" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" letter-spacing="2.5" fill="#8F82A0">02 · INSTALL</text>
+  <rect x="56" y="54" width="52" height="5" rx="2.5" fill="#3DDC84"/>
+  <text x="56" y="114" font-family="system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', sans-serif" font-weight="780" font-size="42" fill="#ECE6F2">インストール</text>
+  <text x="1150" y="122" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-weight="700" font-size="104" fill="#ECE6F2" fill-opacity=".07">02</text>
+  <g><path d="M 866 56 v 26 m 0 0 l -9 -9 m 9 9 l 9 -9" stroke="#3DDC84" stroke-width="3" fill="none" stroke-linecap="round"/><rect x="846" y="92" width="40" height="34" rx="9" fill="#241831" stroke="#332740"/><rect x="900" y="74" width="76" height="24" rx="12" fill="#241831" stroke="#332740"/><text x="938" y="91" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#3DDC84">✓</text></g>
+</svg>

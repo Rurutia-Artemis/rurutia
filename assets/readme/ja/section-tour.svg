@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="150" viewBox="0 0 1200 150" role="img" aria-labelledby="t">
+  <title id="t">30秒でわかる</title>
+  <rect x="2" y="2" width="1196" height="146" rx="22" fill="#1B0F1A" stroke="#332740" stroke-width="1.5"/>
+  <text x="56" y="40" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" letter-spacing="2.5" fill="#8F82A0">01 · 30-SECOND TOUR</text>
+  <rect x="56" y="54" width="52" height="5" rx="2.5" fill="#21E6C1"/>
+  <text x="56" y="114" font-family="system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', sans-serif" font-weight="780" font-size="42" fill="#ECE6F2">30秒でわかる</text>
+  <text x="1150" y="122" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-weight="700" font-size="104" fill="#ECE6F2" fill-opacity=".07">01</text>
+  <g><rect x="836" y="52" width="70" height="26" rx="13" fill="#241831" stroke="#332740"/><text x="871" y="70" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#21E6C1">⌘K</text><rect x="836" y="90" width="44" height="32" rx="7" fill="#241831" stroke="#332740"/><rect x="888" y="90" width="44" height="32" rx="7" fill="#241831" stroke="#332740"/><circle cx="925" cy="96" r="4" fill="#21E6C1"/></g>
+</svg>

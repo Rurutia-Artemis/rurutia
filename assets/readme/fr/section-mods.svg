@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="150" viewBox="0 0 1200 150" role="img" aria-labelledby="t">
+  <title id="t">Ce que Rurutia change</title>
+  <rect x="2" y="2" width="1196" height="146" rx="22" fill="#1B0F1A" stroke="#332740" stroke-width="1.5"/>
+  <text x="56" y="40" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" letter-spacing="2.5" fill="#8F82A0">04 · WHAT RURUTIA CHANGES</text>
+  <rect x="56" y="54" width="52" height="5" rx="2.5" fill="#FF3D8B"/>
+  <text x="56" y="114" font-family="system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', sans-serif" font-weight="780" font-size="42" fill="#ECE6F2">Ce que Rurutia change</text>
+  <text x="1150" y="122" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-weight="700" font-size="104" fill="#ECE6F2" fill-opacity=".07">04</text>
+  <g><rect x="826" y="60" width="40" height="15" rx="7.5" fill="#FF3D8B"/><rect x="874" y="60" width="40" height="15" rx="7.5" fill="#21E6C1"/><rect x="922" y="60" width="40" height="15" rx="7.5" fill="#FFE03D"/><rect x="826" y="86" width="136" height="6" rx="3" fill="#241831"/><circle cx="912" cy="89" r="9" fill="#1B0F1A" stroke="#FF3D8B" stroke-width="3"/></g>
+</svg>

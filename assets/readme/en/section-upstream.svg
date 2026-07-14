@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="150" viewBox="0 0 1200 150" role="img" aria-labelledby="t">
+  <title id="t">Full FanBox capabilities</title>
+  <rect x="2" y="2" width="1196" height="146" rx="22" fill="#1B0F1A" stroke="#332740" stroke-width="1.5"/>
+  <text x="56" y="40" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" letter-spacing="2.5" fill="#8F82A0">05 · UPSTREAM · ALL KEPT</text>
+  <rect x="56" y="54" width="52" height="5" rx="2.5" fill="#8B5CFF"/>
+  <text x="56" y="114" font-family="system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', sans-serif" font-weight="780" font-size="42" fill="#ECE6F2">Full FanBox capabilities</text>
+  <text x="1150" y="122" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-weight="700" font-size="104" fill="#ECE6F2" fill-opacity=".07">05</text>
+  <g fill="#8B5CFF"><circle cx="836" cy="62" r="5" fill-opacity="0.35"/><circle cx="862" cy="62" r="5" fill-opacity="0.51"/><circle cx="888" cy="62" r="5" fill-opacity="0.6699999999999999"/><circle cx="914" cy="62" r="5" fill-opacity="0.35"/><circle cx="940" cy="62" r="5" fill-opacity="0.51"/><circle cx="966" cy="62" r="5" fill-opacity="0.6699999999999999"/><circle cx="836" cy="86" r="5" fill-opacity="0.51"/><circle cx="862" cy="86" r="5" fill-opacity="0.6699999999999999"/><circle cx="888" cy="86" r="5" fill-opacity="0.35"/><circle cx="914" cy="86" r="5" fill-opacity="0.51"/><circle cx="940" cy="86" r="5" fill-opacity="0.6699999999999999"/><circle cx="966" cy="86" r="5" fill-opacity="0.35"/><circle cx="836" cy="110" r="5" fill-opacity="0.6699999999999999"/><circle cx="862" cy="110" r="5" fill-opacity="0.35"/><circle cx="888" cy="110" r="5" fill-opacity="0.51"/><circle cx="914" cy="110" r="5" fill-opacity="0.6699999999999999"/><circle cx="940" cy="110" r="5" fill-opacity="0.35"/><circle cx="966" cy="110" r="5" fill-opacity="0.51"/></g>
+</svg>

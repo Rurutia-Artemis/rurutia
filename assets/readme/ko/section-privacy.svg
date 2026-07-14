@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="150" viewBox="0 0 1200 150" role="img" aria-labelledby="t">
+  <title id="t">프라이버시 &amp; 보안</title>
+  <rect x="2" y="2" width="1196" height="146" rx="22" fill="#1B0F1A" stroke="#332740" stroke-width="1.5"/>
+  <text x="56" y="40" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" letter-spacing="2.5" fill="#8F82A0">07 · PRIVACY &amp; SECURITY</text>
+  <rect x="56" y="54" width="52" height="5" rx="2.5" fill="#00B8A0"/>
+  <text x="56" y="114" font-family="system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', sans-serif" font-weight="780" font-size="42" fill="#ECE6F2">프라이버시 &amp; 보안</text>
+  <text x="1150" y="122" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-weight="700" font-size="104" fill="#ECE6F2" fill-opacity=".07">07</text>
+  <g><path d="M 872 54 l 26 10 v 22 c 0 16 -11 26 -26 32 c -15 -6 -26 -16 -26 -32 v -22 z" fill="#241831" stroke="#00B8A0" stroke-width="2.5"/><path d="M 862 84 l 8 8 l 14 -16" stroke="#00B8A0" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="920" y="90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#8F82A0">127.0.0.1</text></g>
+</svg>

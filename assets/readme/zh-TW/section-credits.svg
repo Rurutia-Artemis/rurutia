@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="150" viewBox="0 0 1200 150" role="img" aria-labelledby="t">
+  <title id="t">致謝與授權</title>
+  <rect x="2" y="2" width="1196" height="146" rx="22" fill="#1B0F1A" stroke="#332740" stroke-width="1.5"/>
+  <text x="56" y="40" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" letter-spacing="2.5" fill="#8F82A0">09 · CREDITS &amp; LICENSE</text>
+  <rect x="56" y="54" width="52" height="5" rx="2.5" fill="#FF6B35"/>
+  <text x="56" y="114" font-family="system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', sans-serif" font-weight="780" font-size="42" fill="#ECE6F2">致謝與授權</text>
+  <text x="1150" y="122" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-weight="700" font-size="104" fill="#ECE6F2" fill-opacity=".07">09</text>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace"><text x="850" y="96" font-size="42" fill="#FF6B35">♥</text><rect x="900" y="66" width="64" height="26" rx="13" fill="#241831" stroke="#332740"/><text x="932" y="84" text-anchor="middle" font-size="13" fill="#8F82A0">MIT</text></g>
+</svg>

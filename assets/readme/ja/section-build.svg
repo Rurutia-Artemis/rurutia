@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="150" viewBox="0 0 1200 150" role="img" aria-labelledby="t">
+  <title id="t">ソースからビルド</title>
+  <rect x="2" y="2" width="1196" height="146" rx="22" fill="#1B0F1A" stroke="#332740" stroke-width="1.5"/>
+  <text x="56" y="40" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" letter-spacing="2.5" fill="#8F82A0">06 · BUILD FROM SOURCE</text>
+  <rect x="56" y="54" width="52" height="5" rx="2.5" fill="#FF8F1F"/>
+  <text x="56" y="114" font-family="system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', sans-serif" font-weight="780" font-size="42" fill="#ECE6F2">ソースからビルド</text>
+  <text x="1150" y="122" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-weight="700" font-size="104" fill="#ECE6F2" fill-opacity=".07">06</text>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace"><rect x="812" y="58" width="224" height="40" rx="10" fill="#241831" stroke="#332740"/><text x="828" y="84" font-size="15" fill="#FF8F1F">$</text><text x="844" y="84" font-size="15" fill="#ECE6F2">npm run rebuild</text><rect x="990" y="70" width="9" height="17" fill="#FF8F1F"/></g>
+</svg>
