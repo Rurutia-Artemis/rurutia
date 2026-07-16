@@ -1921,7 +1921,8 @@ async function obsCodexToday() {
 }
 
 async function obsTokens() {
-  if (obsTokensCache.data && Date.now() - obsTokensCache.at < 10000) return obsTokensCache.data;
+  // 缓存 4s < 前端 5s 轮询：每次轮询基本都拿到新鲜数据，多窗口仍共享一次扫描
+  if (obsTokensCache.data && Date.now() - obsTokensCache.at < 4000) return obsTokensCache.data;
   const [cc, cx] = await Promise.all([
     obsClaudeToday().catch(() => ({ total: 0, perCwd: {} })),
     obsCodexToday().catch(() => ({ total: 0, perCwd: {}, sessions: [] })),

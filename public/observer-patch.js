@@ -5,7 +5,7 @@
  * 视觉定稿见 design-demos/观察舱-token里程-样例.html（极光版 + 三种读数模式）。
  *
  * 数据三路（全部只读「运行本 App 的用户」自己的家目录，谁装谁读谁的）：
- *   · 大数字 = 今日全机消耗（/api/obs-tokens，12s 轮询）：
+ *   · 大数字 = 今日全机消耗（/api/obs-tokens，5s 轮询）：
  *     Claude Code 读 ~/.claude/projects/**.jsonl 的 usage（真 token 含 cache），
  *     Codex 读 ~/.codex/sessions/** rollout 的 total_token_usage 快照按天求增量；
  *     两次轮询之间用 rAF 把显示值匀速滚向目标——滚轮一直在转，追上即停（零常驻开销）。
@@ -14,9 +14,9 @@
  *     自动冒出一张带「外部」章的卡（如单开的 Codex 客户端），安静后自动收走。
  *   · 格子 = 该终端实时输出事件（fanboxPty.onData 旁听分类），与 v2.11 相同。
  *
- * 色阶天梯（今日口径，用户定案）：点火 <1M 素白 → 蓝移 1M（--info）→ 鎏金 1B（--yellow）
- *   → 棱镜 3B（五色流光）。跨阶一次性闪光；环境极光跟着色阶换色。
- *   仓位卡也按「该项目今日消耗」换里程边框（1M 蓝 / 1B 金 / 3B 彩虹渐变）。
+ * 色阶天梯（今日口径，用户定案，v2.12.1 降档）：点火 <1M 素白 → 蓝移 1M（--info）
+ *   → 鎏金 500M（--yellow）→ 棱镜 1B（五色流光）。跨阶一次性闪光；环境极光跟着色阶换色。
+ *   仓位卡也按「该项目今日消耗」换里程边框（1M 蓝 / 500M 金 / 1B 彩虹渐变）。
  *
  * 读数三模式（rb_obs_nummode，切换器在精确行右侧）：
  *   简写 = 三位有效数字+单位恒定超大；K = 只除 1000 其余位全滚；全显 = 记分牌两行堆叠。
@@ -42,7 +42,7 @@
   var PANEL_W = 380;
   var OPEN_KEY = 'rb_obs_open';
   var MODE_KEY = 'rb_obs_nummode';
-  var POLL_MS = 12000;
+  var POLL_MS = 5000;
   var reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var AGENT_BINS = ['claude', 'codex', 'grok', 'hermes', 'openclaw', 'kimi', 'opencode', 'pi', 'codebuddy', 'qodercli'];
 
@@ -110,6 +110,9 @@
     '.ro-bigwrap { display: inline-block; }',
     '.rb-big { display: inline-flex; align-items: baseline; font-family: var(--rb-num); font-weight: 600; font-size: 132px; line-height: 1; font-variant-numeric: tabular-nums;',
     '  transition: font-size 320ms cubic-bezier(.23,1,.32,1), filter 600ms ease; }',
+    // 强制数字字体：soft-patch 有 body * { font-family: Maple !important } 全局兜底，
+    // 会把大数字碾成 Maple（圆体+巨逗号）。这里用 #id+class 更高特异性的 !important 抢回来。
+    '#rb-obs .rb-big, #rb-obs .rb-big *, #rb-obs .ro-subnum, #rb-obs .ro-subnum * { font-family: var(--rb-num) !important; }',
     '#rb-obs.t1 .rb-big, #rb-obs.t2 .rb-big { filter: drop-shadow(0 0 16px color-mix(in srgb, var(--rbg) 38%, transparent)); }',
     '#rb-obs.t3 .rb-big { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--yellow) 30%, transparent)) drop-shadow(0 0 22px color-mix(in srgb, var(--info) 30%, transparent)); }',
     'html[data-mode="light"] #rb-obs .rb-big { filter: none; }',
@@ -133,13 +136,14 @@
     '.rb-reel { display: block; will-change: transform; }',
     '.rb-reel b, .rb-sep b, .rb-pt b { display: block; height: 1em; line-height: 1; font-weight: 600; text-align: center; color: var(--text); }',
     // 色阶配色：t0 素色 → t1 蓝移 → t2 鎏金 → t3 棱镜（渐变文字缓慢流动，只作用于大字）
-    '#rb-obs.t1 .rb-big .rb-reel b, #rb-obs.t1 .rb-big .rb-pt b, #rb-obs.t2 .rb-big .rb-reel b, #rb-obs.t2 .rb-big .rb-pt b, #rb-obs.t3 .rb-big .rb-reel b, #rb-obs.t3 .rb-big .rb-pt b {',
+    // 千分位逗号（.rb-sep）与数字/小数点一起吃渐变——白逗号夹在渐变数字里太跳（用户报的 bug）
+    '#rb-obs.t1 .rb-big .rb-reel b, #rb-obs.t1 .rb-big .rb-pt b, #rb-obs.t1 .rb-big .rb-sep b, #rb-obs.t2 .rb-big .rb-reel b, #rb-obs.t2 .rb-big .rb-pt b, #rb-obs.t2 .rb-big .rb-sep b, #rb-obs.t3 .rb-big .rb-reel b, #rb-obs.t3 .rb-big .rb-pt b, #rb-obs.t3 .rb-big .rb-sep b {',
     '  color: transparent; background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-size: 64px 100%; animation: ro-flow 5.6s linear infinite; }',
-    '#rb-obs.t1 .rb-big .rb-reel b, #rb-obs.t1 .rb-big .rb-pt b { background-image: linear-gradient(100deg, color-mix(in srgb, var(--info) 55%, #fff) 0%, var(--info) 32%, color-mix(in srgb, var(--info) 72%, #003) 60%, var(--info) 82%, color-mix(in srgb, var(--info) 55%, #fff) 100%); }',
-    '#rb-obs.t2 .rb-big .rb-reel b, #rb-obs.t2 .rb-big .rb-pt b { background-image: linear-gradient(100deg, color-mix(in srgb, var(--yellow) 55%, #fff) 0%, var(--yellow) 34%, color-mix(in srgb, var(--yellow) 70%, #530) 62%, var(--yellow) 82%, color-mix(in srgb, var(--yellow) 55%, #fff) 100%); }',
-    '#rb-obs.t3 .rb-big .rb-reel b, #rb-obs.t3 .rb-big .rb-pt b { background-image: linear-gradient(100deg, var(--err) 0%, var(--yellow) 22%, var(--ok) 44%, var(--info) 64%, var(--accent) 84%, var(--err) 100%); }',
-    'html[data-mode="light"] #rb-obs.t1 .rb-big .rb-reel b, html[data-mode="light"] #rb-obs.t1 .rb-big .rb-pt b { background-image: linear-gradient(100deg, var(--info) 0%, color-mix(in srgb, var(--info) 70%, #003) 50%, var(--info) 100%); }',
-    'html[data-mode="light"] #rb-obs.t2 .rb-big .rb-reel b, html[data-mode="light"] #rb-obs.t2 .rb-big .rb-pt b { background-image: linear-gradient(100deg, var(--yellow) 0%, color-mix(in srgb, var(--yellow) 70%, #530) 50%, var(--yellow) 100%); }',
+    '#rb-obs.t1 .rb-big .rb-reel b, #rb-obs.t1 .rb-big .rb-pt b, #rb-obs.t1 .rb-big .rb-sep b { background-image: linear-gradient(100deg, color-mix(in srgb, var(--info) 55%, #fff) 0%, var(--info) 32%, color-mix(in srgb, var(--info) 72%, #003) 60%, var(--info) 82%, color-mix(in srgb, var(--info) 55%, #fff) 100%); }',
+    '#rb-obs.t2 .rb-big .rb-reel b, #rb-obs.t2 .rb-big .rb-pt b, #rb-obs.t2 .rb-big .rb-sep b { background-image: linear-gradient(100deg, color-mix(in srgb, var(--yellow) 55%, #fff) 0%, var(--yellow) 34%, color-mix(in srgb, var(--yellow) 70%, #530) 62%, var(--yellow) 82%, color-mix(in srgb, var(--yellow) 55%, #fff) 100%); }',
+    '#rb-obs.t3 .rb-big .rb-reel b, #rb-obs.t3 .rb-big .rb-pt b, #rb-obs.t3 .rb-big .rb-sep b { background-image: linear-gradient(100deg, var(--err) 0%, var(--yellow) 22%, var(--ok) 44%, var(--info) 64%, var(--accent) 84%, var(--err) 100%); }',
+    'html[data-mode="light"] #rb-obs.t1 .rb-big .rb-reel b, html[data-mode="light"] #rb-obs.t1 .rb-big .rb-pt b, html[data-mode="light"] #rb-obs.t1 .rb-big .rb-sep b { background-image: linear-gradient(100deg, var(--info) 0%, color-mix(in srgb, var(--info) 70%, #003) 50%, var(--info) 100%); }',
+    'html[data-mode="light"] #rb-obs.t2 .rb-big .rb-reel b, html[data-mode="light"] #rb-obs.t2 .rb-big .rb-pt b, html[data-mode="light"] #rb-obs.t2 .rb-big .rb-sep b { background-image: linear-gradient(100deg, var(--yellow) 0%, color-mix(in srgb, var(--yellow) 70%, #530) 50%, var(--yellow) 100%); }',
     // 精确行 + 模式切换
     '.ro-subrow { display: flex; align-items: center; gap: 8px; margin: 9px 0 0; }',
     '.ro-subcap { color: var(--text-faint); font: 9px/1 var(--font-mono, monospace); letter-spacing: .14em; }',
@@ -285,8 +289,8 @@
     '<div class="ro-flow"></div>' +
     '<footer class="ro-foot"><span class="ro-ladder">' +
     '<span style="color:var(--info)"><i style="background:var(--info)"></i>1M 蓝移</span>' +
-    '<span style="color:var(--yellow)"><i style="background:var(--yellow)"></i>1B 鎏金</span>' +
-    '<span style="color:var(--accent)"><i style="background:linear-gradient(135deg,var(--err),var(--yellow),var(--ok),var(--info),var(--accent))"></i>3B 棱镜</span>' +
+    '<span style="color:var(--yellow)"><i style="background:var(--yellow)"></i>500M 鎏金</span>' +
+    '<span style="color:var(--accent)"><i style="background:linear-gradient(135deg,var(--err),var(--yellow),var(--ok),var(--info),var(--accent))"></i>1B 棱镜</span>' +
     '</span><span class="sp"></span><span>只观察 · 不接管</span></footer>';
   app.appendChild(aside);
   var flow = aside.querySelector('.ro-flow');
@@ -499,15 +503,15 @@
   });
   applyMode();
 
-  // ---------- 色阶天梯（今日口径）：1M 蓝 → 1B 金 → 3B 彩虹 ----------
+  // ---------- 色阶天梯（今日口径）：1M 蓝 → 500M 金 → 1B 彩虹 ----------
   var TIERS = [
     { at: 0, cls: 't0', name: '点火', next: 1e6, nextLabel: '1M' },
-    { at: 1e6, cls: 't1', name: '蓝移 1M', next: 1e9, nextLabel: '1B' },
-    { at: 1e9, cls: 't2', name: '鎏金 1B', next: 3e9, nextLabel: '3B' },
-    { at: 3e9, cls: 't3', name: '棱镜 3B', next: null, nextLabel: 'MAX' },
+    { at: 1e6, cls: 't1', name: '蓝移 1M', next: 5e8, nextLabel: '500M' },
+    { at: 5e8, cls: 't2', name: '鎏金 500M', next: 1e9, nextLabel: '1B' },
+    { at: 1e9, cls: 't3', name: '棱镜 1B', next: null, nextLabel: 'MAX' },
   ];
   var tierOf = function (v) { var t = TIERS[0]; for (var i = 0; i < TIERS.length; i++) { if (v >= TIERS[i].at) t = TIERS[i]; } return t; };
-  var msOf = function (v) { return v >= 3e9 ? 'm3' : v >= 1e9 ? 'm2' : v >= 1e6 ? 'm1' : ''; };
+  var msOf = function (v) { return v >= 1e9 ? 'm3' : v >= 5e8 ? 'm2' : v >= 1e6 ? 'm1' : ''; };
   var curTier = null;
   function paintTier(v, silent) {
     var t = tierOf(v);
