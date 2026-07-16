@@ -390,7 +390,7 @@
     }
     return list;
   }
-  function paintParts(list, v) {
+  function paintParts(list, v, s) {
     var safe = Math.max(0, v);
     for (var i = 0; i < list.length; i++) {
       var p = list[i];
@@ -400,6 +400,7 @@
       var r = u - Math.floor(u);
       var W = WINDOWS_K[p.k] || .09;
       var pos = reduceMotion ? D : D + Math.max(0, 1 - (1 - r) / W);
+      if (s) pos += (D - pos) * s; // 落位（s→1 回正到整数位）：静止的轮子不许悬在两个数字中间
       p.reel.style.transform = 'translateY(' + (-pos).toFixed(3) + 'em)';
       p.el.classList.toggle('off', p.k > 0 && safe < Math.pow(10, p.k));
     }
@@ -427,7 +428,7 @@
 
   var HERO_W = PANEL_W - 36;
   var lenOf = function (v) { return Math.max(1, Math.floor(Math.log10(Math.max(1, v))) + 1); };
-  function paintCompact(v) {
+  function paintCompact(v, s) {
     var str, unit, lastCont;
     if (v < 10000) { str = String(Math.floor(Math.max(0, v))); unit = ''; lastCont = v % 10; }
     else {
@@ -447,7 +448,7 @@
       if (ch === '.') { usedP[di - 1] = true; continue; }
       var slot = cSlots[C_D[di]];
       slot.el.classList.remove('off');
-      var pos = (j === lastDigitIdx && !reduceMotion) ? lastCont : +ch;
+      var pos = (j === lastDigitIdx && !reduceMotion) ? lastCont + (+ch - lastCont) * (s || 0) : +ch;
       slot.reel.style.transform = 'translateY(' + (-pos).toFixed(3) + 'em)';
       di++;
     }
@@ -456,16 +457,16 @@
     unitEl.textContent = unit;
     bigLineEl.style.fontSize = '132px';
   }
-  function paintKilo(v) {
+  function paintKilo(v, s) {
     var kv = v < 1000 ? v : v / 1000;
-    paintParts(kiloParts, kv);
+    paintParts(kiloParts, kv, s);
     unitEl.textContent = v < 1000 ? '' : 'K';
     var len = lenOf(kv), seps = Math.floor((len - 1) / 3);
     bigLineEl.style.fontSize = Math.min(132, Math.floor(HERO_W / (len * .6 + seps * .26 + (v < 1000 ? 0 : .3)))) + 'px';
   }
-  function paintFull(v) {
-    paintParts(hiParts, v);
-    paintParts(loParts, v);
+  function paintFull(v, s) {
+    paintParts(hiParts, v, s);
+    paintParts(loParts, v, s);
     var hasHi = v >= 1e6;
     rowHiEl.style.display = hasHi ? '' : 'none';
     var fs;
@@ -498,7 +499,7 @@
     b.onclick = function () {
       mode = b.dataset.mode;
       try { localStorage.setItem(MODE_KEY, mode); } catch (e) { /* */ }
-      applyMode(); paintHeroNumber();
+      applyMode(); paintHeroNumber(heroRaf ? 0 : 1); // 静止时切模式直接整位呈现
     };
   });
   applyMode();
@@ -534,27 +535,41 @@
     meterNextEl.innerHTML = t.next ? '→ <b>' + t.nextLabel + '</b>' : '<b>MAX</b>';
   }
 
-  // ---------- 大数字引擎：轮询目标 + rAF 匀速滚近（追上即停，零常驻） ----------
+  // ---------- 大数字引擎：轮询目标 + rAF 匀速滚近（追上后 ~300ms 落位归整再停，零常驻） ----------
   var heroV = 0, heroTarget = 0, heroRate = 0, heroRaf = 0, heroLastT = 0, firstFeed = true;
+  var SETTLE_MS = 300, heroSettleT = 0; // 落位计时：滚动可以过程连滚，静止必须整位
   var lastTokSpeed = 0; // tok/s，趋势行显示
-  function paintHeroNumber() {
-    if (mode === 'compact') paintCompact(heroV);
-    else if (mode === 'kilo') paintKilo(heroV);
-    else paintFull(heroV);
-    paintParts(subParts, heroV);
+  function paintHeroNumber(s) {
+    if (mode === 'compact') paintCompact(heroV, s);
+    else if (mode === 'kilo') paintKilo(heroV, s);
+    else paintFull(heroV, s);
+    paintParts(subParts, heroV, s);
   }
   function heroFrame(now) {
     var dt = now - heroLastT; heroLastT = now;
     heroV = Math.min(heroTarget, heroV + heroRate * dt);
-    paintHeroNumber();
+    if (!isOpen() || document.hidden) { // 不可见：直接收尾落位，不留半路轮子
+      heroV = heroTarget; heroSettleT = 0; heroRaf = 0;
+      paintHeroNumber(1); paintTier(heroV);
+      return;
+    }
+    var s = 0;
+    if (heroV >= heroTarget) {
+      if (!heroSettleT) heroSettleT = now;
+      var st = Math.min(1, (now - heroSettleT) / SETTLE_MS);
+      s = 1 - Math.pow(1 - st, 3);
+    } else heroSettleT = 0;
+    paintHeroNumber(s);
     paintTier(heroV);
-    heroRaf = heroV < heroTarget && isOpen() && !document.hidden ? requestAnimationFrame(heroFrame) : 0;
+    var more = heroV < heroTarget || s < 1;
+    if (!more) heroSettleT = 0;
+    heroRaf = more ? requestAnimationFrame(heroFrame) : 0;
   }
   function feedTotal(total) {
     if (firstFeed || reduceMotion) {
       firstFeed = false;
       heroV = heroTarget = total;
-      paintHeroNumber(); paintTier(heroV, true);
+      paintHeroNumber(1); paintTier(heroV, true);
       return;
     }
     if (total <= heroTarget + 1) { heroTarget = Math.max(heroTarget, total); return; }
