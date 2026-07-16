@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>观察舱 · 今日 Token 里程 —— 巨数版</title>
+<!--
+  观察舱 v4.3：今日 Token 里程 · 巨数版（按用户第三轮反馈修订）
+
+  【v4.4 追加】主读数三种模式，客户自选（切换器在数字下方右侧，真实版存用户设置）：
+   · 简写：三位有效数字 + 单位（5.16B）恒定超大 + 精确小滚轮；
+   · K 模式：只除 1000，其余位全部实滚（5,166,918 + 小 K），末位=千位，蹦得飞快；
+   · 全显：一个零不砍，记分牌两行堆叠（高位行 / 低位六位行，右对齐），
+     每行最多 7 格 → 字号稳在 ~80px+，全部数位同时在蹦。
+
+  【v4.3 相对 v4.2 的改动】
+   1. 统计口径改成「今日」（每天 00:00 重置），并且吃全机器的量，不只 Rurubox 终端：
+      · Claude Code：~/.claude/projects/**/*.jsonl 每条 assistant 消息带 usage（真 token，
+        含 cache）——server.js 的 claudeUsage() 已聚合出 today 桶，直接用；
+      · Codex：~/.codex/sessions/**/rollout-*.jsonl 的 token_count 事件带 total_token_usage
+        （真 token，已在本机日志验证）——按天聚合各会话增量即 Codex 今日量；
+      · 轮询走 /api/agent-usage（现用量面板 45s 刷，观察舱开着时提到 ~12s）。
+   2. 外部 agent 识别：rollout / project jsonl 的 mtime 新鲜（<30s）但会话不属于任何
+      Rurubox 终端 → 观察舱冒出一张「外部」仓位卡（如 Codex 客户端），实时显示它在烧；
+      安静下来自动收走。演示里预置了一张「Codex 客户端」外部卡。
+   3. 大数字防缩水（用户点名：零多了字就小了，要冲击力）：
+      · 主读数 = 三位有效数字 + 单位（K/M/B），恒定 ~136px 撑满面板，永不缩水；
+        最后一位有效数字连续滚动（活的）；
+      · 主读数下面加一行小号「精确里程表」：完整位数照旧飞速滚动——灵魂读数；
+      · 数据源分行：Claude / Codex 各自今日量的小 chips。
+   4. 色阶天梯与仓位里程边框口径同步改为「今日」：1M 蓝 / 1B 金 / 3B 彩虹（每天重爬，
+      跟用户「一天最多 1B 上下」的日常量级正好咬合）。
+
+  【资源纪律（不变）】持续动效只碰 transform / opacity / 合成器 filter；辉光全部预烘焙静态。
+
+  【预览参数】?tok=5000000 起始里程（缺省 = 各仓位合计）· &done=2 预置 n 个收工仓位
+             · &still=1 冻结（截图用） · &font=doto|space（备用） · 演示控制台在左侧舞台底部
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Doto:wght@400..900&family=Chakra+Petch:wght@500;600;700&family=Space+Grotesk:wght@400..700&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --page: #0c0f14;
+    --window: #10141b;
+    --panel: #161b23;
+    --panel-hover: #232a35;
+    --line: rgba(235, 240, 248, .09);
+    --line-2: rgba(235, 240, 248, .18);
+    --ink: #f2f5f9;
+    --muted: #94a0b0;
+    --faint: #5a6675;
+    --coral: #ff716c; --coral-rgb: 255 113 108;
+    --mango: #ffc857; --mango-rgb: 255 200 87;
+    --mint:  #4de0a8; --mint-rgb: 77 224 168;
+    --sky:   #62c9ff; --sky-rgb: 98 201 255;
+    --lilac: #a991ff; --lilac-rgb: 169 145 255;
+    --ease-out: cubic-bezier(.23, 1, .32, 1);
+    --ease-smooth: cubic-bezier(.77, 0, .175, 1);
+    --mono: "SF Mono", "Maple Mono CN", Menlo, monospace;
+    --num-font: "Chakra Petch";  /* 方盒（用户定案） */
+    --num-weight: 600;
+    --dw: .60em;  /* 滚轮单个数位宽 */
+    --sw: .26em;  /* 千分位分隔宽 */
+    --pw: .30em;  /* 小数点位宽 */
+    --glow: 226 232 240; /* 环境辉光 = 当前色阶色（JS 换 class 驱动） */
+    --rainbow: linear-gradient(90deg, #ff716c, #ffc857, #4de0a8, #62c9ff, #a991ff);
+    --card-face: linear-gradient(180deg, #1a202a, #141a22);
+  }
+  .font-doto  { --num-font: "Doto"; --num-weight: 800; --dw: .64em; }
+  .font-space { --num-font: "Space Grotesk"; --num-weight: 600; --dw: .60em; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background: var(--page);
+    font-family: "Avenir Next", Manrope, "PingFang SC", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* ===== 舞台：模拟终端区（道具） ===== */
+  .stage { display: flex; height: 100vh; }
+  .term-zone { position: relative; display: flex; flex: 1; min-width: 0; flex-direction: column; border-right: 1px solid var(--line); background: var(--window); }
+  .term-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+  .tabs { display: flex; gap: 5px; }
+  .tab { display: flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid transparent; border-radius: 9px; color: var(--muted); font-size: 10.5px; cursor: default; }
+  .tab.on { border-color: var(--line); color: var(--ink); background: var(--panel); }
+  .tab i { width: 6px; height: 6px; border-radius: 2px; }
+  .fake-term { flex: 1; padding: 18px 22px; overflow: hidden; font: 12px/1.9 var(--mono); color: #b0bccd; opacity: .8; }
+  .fake-term .dim { color: var(--faint); }
+  .fake-term .p { color: var(--lilac); }
+  .fake-term .g { color: var(--mint); }
+
+  /* 演示控制台（道具，真实版没有） */
+  .console { border-top: 1px dashed var(--line-2); padding: 12px 20px 14px; display: flex; flex-wrap: wrap; gap: 18px; align-items: center; background: rgb(0 0 0 / .2); }
+  .console .grp { display: flex; align-items: center; gap: 5px; }
+  .console em { color: var(--faint); font: 9.5px/1 var(--mono); font-style: normal; letter-spacing: .08em; margin-right: 3px; }
+  .console button { height: 24px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: none; color: var(--muted); font: 10.5px/1 var(--mono); cursor: pointer; transition: transform 140ms var(--ease-out), background 160ms ease, color 160ms ease; }
+  .console button:hover { background: var(--panel-hover); color: var(--ink); }
+  .console button:active { transform: scale(.95); }
+  .console button.on { border-color: var(--line-2); background: var(--panel); color: var(--ink); }
+  .console .tag { color: var(--faint); font: 9px/1.4 var(--mono); width: 100%; letter-spacing: .1em; }
+
+  /* ===== 观察舱（380px = 真实宽度）：极光版 ===== */
+  .obs {
+    position: relative; display: flex; flex-direction: column;
+    width: 380px; height: 100%;
+    background:
+      radial-gradient(130% 42% at 50% -12%, rgb(var(--glow) / .17), transparent 66%),
+      radial-gradient(80% 30% at 96% 106%, rgb(var(--glow) / .06), transparent 62%),
+      linear-gradient(180deg, #12161e 0%, #0d1117 52%, #0a0d12 100%);
+  }
+  .grain {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");
+  }
+  .aura {
+    position: absolute; z-index: 0; top: -150px; left: -90px;
+    width: 430px; height: 430px; border-radius: 50%;
+    background: radial-gradient(circle, rgb(var(--glow) / .11), transparent 62%);
+    mix-blend-mode: screen; pointer-events: none;
+    animation: drift 24s ease-in-out infinite alternate;
+  }
+  .obs::after {
+    content: ""; position: absolute; inset: auto 0 0 0; height: 90px;
+    background: linear-gradient(180deg, transparent, rgb(0 0 0 / .3));
+    pointer-events: none;
+  }
+
+  .light-track { position: absolute; z-index: 8; top: 0; right: 0; left: 0; height: 3px; overflow: hidden; background: rgb(255 255 255 / .04); }
+  .light-train { position: absolute; top: 0; left: -22%; display: flex; width: 26%; height: 100%; animation: train 8s steps(80) infinite; }
+  .light-train i { flex: 1; }
+  .light-train i:nth-child(1) { background: var(--coral); }
+  .light-train i:nth-child(2) { background: var(--mango); }
+  .light-train i:nth-child(3) { background: var(--mint); }
+  .light-train i:nth-child(4) { background: var(--sky); }
+  .light-train i:nth-child(5) { background: var(--lilac); }
+
+  .obs-head { display: flex; align-items: center; gap: 9px; flex: 0 0 46px; padding: 3px 10px 0 16px; border-bottom: 1px solid var(--line); position: relative; z-index: 3; }
+  .live-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--mint); box-shadow: 0 0 9px var(--mint); animation: breathe 2.4s steps(24) infinite; }
+  .eyebrow { color: var(--muted); font: 9px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+  .obs-head .sp, .obs-foot .sp { flex: 1; }
+  .icon-btn { display: grid; width: 26px; height: 26px; place-items: center; border: 1px solid var(--line); border-radius: 7px; background: rgb(255 255 255 / .03); color: var(--muted); cursor: pointer; font-size: 11px; transition: transform 140ms var(--ease-out), background 160ms ease, color 160ms ease; }
+  .icon-btn:hover { background: var(--panel-hover); color: var(--ink); }
+  .icon-btn:active { transform: scale(.94); }
+
+  /* ---- hero：今日 Token 里程 ---- */
+  .hero { position: relative; z-index: 3; flex: 0 0 auto; margin: 14px 16px 0; padding: 0 2px; }
+  .hero-top { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+  .num-label { color: var(--muted); font: 11px/1 var(--mono); letter-spacing: .18em; }
+  .tier-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-left: auto; padding: 4px 10px 4px 8px;
+    border: 1px solid rgb(var(--glow) / .38);
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+    color: rgb(var(--glow)); font: 600 9.5px/1 var(--mono); letter-spacing: .12em;
+    background: rgb(var(--glow) / .08);
+    transition: color 500ms ease, border-color 500ms ease, background 500ms ease;
+  }
+  .tier-badge i { width: 6px; height: 6px; background: currentColor; }
+  .tier-badge.pop { animation: badge-pop 620ms var(--ease-out); }
+  .obs.t3 .tier-badge { color: var(--ink); border-color: transparent; background: linear-gradient(#171d26, #171d26) padding-box, linear-gradient(100deg, var(--coral), var(--mango), var(--mint), var(--sky), var(--lilac)) border-box; border: 1px solid transparent; }
+
+  .num-bloom {
+    position: absolute; inset: -8px -16px 22px; opacity: 0; pointer-events: none;
+    mix-blend-mode: screen; filter: blur(18px);
+    background:
+      radial-gradient(ellipse 62% 88% at 30% 55%, rgb(var(--glow) / .5), transparent 62%),
+      radial-gradient(ellipse 55% 85% at 74% 45%, rgb(var(--glow) / .38), transparent 62%);
+    transition: opacity 1200ms ease;
+  }
+  .hero.flash .num-bloom { opacity: .9; transition: opacity 140ms ease; }
+  .hero.flash .big-wrap { animation: settle 560ms var(--ease-out); }
+
+  /* 主读数：三位有效数字 + 单位，恒定超大永不缩水 */
+  .big-wrap { display: inline-block; }
+  .big {
+    display: inline-flex; align-items: baseline;
+    font-family: var(--num-font), var(--mono);
+    font-weight: var(--num-weight);
+    font-size: 136px; line-height: 1;
+    font-variant-numeric: tabular-nums;
+    transition: font-size 320ms var(--ease-out), filter 600ms ease;
+    filter: drop-shadow(0 0 18px rgb(var(--glow) / 0));
+  }
+  /* 全显模式：记分牌两行堆叠（高位行 / 低位六位行，右对齐） */
+  .big.stack { display: none; flex-direction: column; align-items: flex-end; line-height: 1.06; font-size: 96px; }
+  .big .row { display: inline-flex; }
+  .hero.mode-full .big.line { display: none; }
+  .hero.mode-full .big.stack { display: inline-flex; }
+  .hero.mode-full .sub-cap, .hero.mode-full .num-sub { display: none; }
+  .hero.mode-compact #bigKilo, .hero.mode-kilo #bigDigits { display: none; }
+  /* 读数模式切换（产品设置，真实版持久化） */
+  .mode-sw { margin-left: auto; display: inline-flex; gap: 3px; }
+  .mode-sw button { padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--faint); font: 600 9px/1 var(--mono); letter-spacing: .06em; cursor: pointer; transition: color 160ms ease, background 160ms ease, border-color 160ms ease; }
+  .mode-sw button:hover { color: var(--ink); }
+  .mode-sw button.on { border-color: var(--line-2); background: rgb(255 255 255 / .06); color: var(--ink); }
+  .t1 .big, .t2 .big { filter: drop-shadow(0 0 18px rgb(var(--glow) / .4)); }
+  .t3 .big { filter: drop-shadow(0 0 12px rgb(var(--mango-rgb) / .32)) drop-shadow(0 0 26px rgb(var(--sky-rgb) / .32)); }
+  .big-digits { display: inline-flex; }
+  .big-unit { font-size: .38em; margin-left: .08em; transform: translateY(-.06em); }
+  .t0 .big-unit { color: var(--muted); }
+  .t1 .big-unit { color: var(--sky); }
+  .t2 .big-unit { color: var(--mango); }
+  .t3 .big-unit { background-image: linear-gradient(120deg, var(--mango), var(--mint), var(--sky)); background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+
+  /* 精确里程表（副读数）：完整位数小滚轮 */
+  .sub-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; }
+  .sub-cap { color: var(--faint); font: 9px/1 var(--mono); letter-spacing: .14em; }
+  .num-sub { font-family: var(--num-font), var(--mono); font-weight: var(--num-weight); font-size: 19px; line-height: 1; }
+  .num-sub .reel b, .num-sub .sep b { color: rgb(235 240 248 / .62); }
+
+  .odo, .big-digits { position: relative; }
+  .digit { display: inline-block; vertical-align: top; width: var(--dw); height: 1em; overflow: hidden; transition: width 300ms var(--ease-out), opacity 300ms ease; }
+  .digit.off { width: 0; opacity: 0; }
+  .sep { display: inline-block; vertical-align: top; width: var(--sw); height: 1em; overflow: hidden; transition: width 300ms var(--ease-out), opacity 300ms ease; }
+  .sep.off { width: 0; opacity: 0; }
+  .pt { display: inline-block; vertical-align: top; width: var(--pw); height: 1em; }
+  .pt.off { width: 0; opacity: 0; }
+  .pt b { display: block; height: 1em; line-height: 1; font-weight: var(--num-weight); text-align: center; }
+  .reel { display: block; will-change: transform; }
+  .reel b, .sep b { display: block; height: 1em; line-height: 1; font-weight: var(--num-weight); text-align: center; }
+
+  /* 色阶配色（今日口径）：t0 素白 → t1 蓝移 1M → t2 鎏金 1B → t3 棱镜 3B */
+  .obs.t0 { --glow: 226 232 240; }
+  .obs.t1 { --glow: 98 201 255; }
+  .obs.t2 { --glow: 255 200 87; }
+  .obs.t3 { --glow: 190 175 255; }
+  .t0 .big .reel b, .t0 .big .pt b { color: var(--ink); }
+  .t1 .big .reel b, .t1 .big .pt b, .t2 .big .reel b, .t2 .big .pt b, .t3 .big .reel b, .t3 .big .pt b {
+    color: transparent;
+    background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-size: 64px 100%;
+    animation: num-flow 5.6s linear infinite;
+  }
+  .t1 .big .reel b, .t1 .big .pt b { background-image: linear-gradient(100deg, #a5e6ff 0%, #62c9ff 32%, #4d9bff 60%, #62c9ff 82%, #a5e6ff 100%); }
+  .t2 .big .reel b, .t2 .big .pt b { background-image: linear-gradient(100deg, #ffe29a 0%, #ffc857 34%, #ff9f45 62%, #ffc857 82%, #ffe29a 100%); }
+  .t3 .big .reel b, .t3 .big .pt b { background-image: linear-gradient(100deg, var(--coral) 0%, var(--mango) 22%, var(--mint) 44%, var(--sky) 64%, var(--lilac) 84%, var(--coral) 100%); }
+
+  /* 里程仪表：十段刻度，跨阶清零像新的一圈 */
+  .meter-row { display: flex; align-items: center; gap: 9px; margin: 13px 0 0; }
+  .meter { position: relative; flex: 1; height: 6px; background: rgb(255 255 255 / .06); border-radius: 2px; overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: rgb(var(--glow) / .92); transition: width 500ms var(--ease-out), background 500ms ease; }
+  .t3 .meter i { background: var(--rainbow); }
+  .meter::after {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1.5px), #0b0e13 calc(10% - 1.5px) 10%);
+  }
+  .meter-next { color: var(--faint); font: 10px/1 var(--mono); letter-spacing: .08em; flex: 0 0 auto; }
+  .meter-next b { color: rgb(var(--glow)); font-weight: 600; transition: color 500ms ease; }
+
+  .trend { margin: 11px 0 0; color: var(--muted); font: 11.5px/1.4 var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trend b { color: var(--mint); font-weight: 500; }
+  /* 数据源 chips：Claude / Codex 各自今日量（真实版来自本机会话日志） */
+  .src-row { display: flex; align-items: center; gap: 12px; margin: 7px 0 0; }
+  .src { display: inline-flex; align-items: center; gap: 5px; color: var(--faint); font: 10px/1 var(--mono); }
+  .src i { width: 6px; height: 6px; border-radius: 2px; }
+  .src b { color: var(--muted); font-weight: 500; }
+  .src-note { margin-left: auto; color: var(--faint); font: 9px/1 var(--mono); letter-spacing: .06em; }
+  .hero-rule { position: relative; z-index: 3; height: 1px; margin: 14px 16px 0; background: linear-gradient(90deg, transparent, rgb(var(--glow) / .45) 30%, rgb(var(--glow) / .45) 70%, transparent); transition: background 600ms ease; }
+
+  /* ---- 仓位：极光玻璃卡 + 里程边框 ---- */
+  .flow { position: relative; z-index: 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 14px 12px; min-height: 0; overflow-y: auto; align-content: start; }
+  .flow::-webkit-scrollbar { width: 0; }
+  .bay {
+    position: relative; min-width: 0; padding: 11px 12px 12px;
+    border: 1px solid rgb(255 255 255 / .07);
+    border-radius: 14px;
+    background: var(--card-face);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .045), 0 14px 30px -18px rgb(0 0 0 / .9);
+  }
+  .bay.m1 { border-color: rgb(var(--sky-rgb) / .5); box-shadow: inset 0 1px 0 rgb(255 255 255 / .045), 0 14px 30px -18px rgb(0 0 0 / .9), 0 0 18px -7px rgb(var(--sky-rgb) / .5); }
+  .bay.m2 { border-color: rgb(var(--mango-rgb) / .55); box-shadow: inset 0 1px 0 rgb(255 255 255 / .045), 0 14px 30px -18px rgb(0 0 0 / .9), 0 0 18px -7px rgb(var(--mango-rgb) / .55); }
+  .bay.m3 { border: 1px solid transparent; background: var(--card-face) padding-box, linear-gradient(120deg, var(--coral), var(--mango), var(--mint), var(--sky), var(--lilac)) border-box;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .045), 0 14px 30px -18px rgb(0 0 0 / .9), 0 0 16px -7px rgb(var(--coral-rgb) / .38), 0 0 20px -8px rgb(var(--sky-rgb) / .38); }
+  .bay.m1 .bay-tok { color: var(--sky); }
+  .bay.m2 .bay-tok { color: var(--mango); }
+  .bay.m3 .bay-tok { background-image: linear-gradient(100deg, var(--mango), var(--mint), var(--sky)); background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; font-weight: 700; }
+
+  .bay-head { position: relative; z-index: 2; display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+  .bay-led { width: 7px; height: 7px; border-radius: 2px; background: var(--faint); flex: 0 0 auto; transition: background 300ms ease, box-shadow 300ms ease; }
+  .bay.working .bay-led { background: var(--mint); box-shadow: 0 0 8px var(--mint); animation: breathe 2.4s steps(24) infinite; }
+  .bay.waiting .bay-led { background: var(--mango); box-shadow: 0 0 8px var(--mango); }
+  .bay.ext .bay-led { background: var(--lilac); box-shadow: 0 0 8px var(--lilac); }
+  .bay-pick { display: flex; align-items: center; gap: 5px; min-width: 0; border: none; background: none; padding: 2px 4px; margin: -2px 0; border-radius: 6px; color: var(--ink); font-size: 12px; font-weight: 650; cursor: pointer; transition: background 160ms ease, transform 140ms var(--ease-out); }
+  .bay-pick:hover { background: rgb(255 255 255 / .07); }
+  .bay-pick:active { transform: scale(.97); }
+  .bay-pick .chev { color: var(--faint); font-size: 8.5px; }
+  .bay-pick .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 外部 agent 标签：不属于 Rurubox 终端，是从会话日志里认出来的 */
+  .ext-chip { flex: 0 0 auto; padding: 2px 5px; border: 1px solid rgb(var(--lilac-rgb) / .55); border-radius: 5px; color: var(--lilac); font: 600 8px/1 var(--mono); letter-spacing: .1em; }
+  .bay-tok { margin-left: auto; color: var(--muted); font: 11px/1 var(--mono); flex: 0 0 auto; letter-spacing: .02em; }
+  .bay.done .bay-tok { color: var(--ink); font-weight: 700; background: none; -webkit-text-fill-color: currentColor; }
+
+  .bay-run { position: relative; z-index: 2; display: block; height: 2px; margin: 0 0 9px; border-radius: 99px; background-color: rgb(255 255 255 / .06); background-image: linear-gradient(90deg, var(--mint), var(--sky)); background-repeat: no-repeat; background-size: 0% 100%; }
+  .bay.ext .bay-run { background-image: linear-gradient(90deg, var(--lilac), var(--sky)); }
+  .bay.done .bay-run { background-image: var(--rainbow); background-size: 100% 100%; }
+
+  .grid { position: relative; z-index: 2; display: grid; gap: 6px; }
+  .cell { aspect-ratio: 1; border: 1px solid rgb(255 255 255 / .05); border-radius: 4px; background: rgb(0 0 0 / .32); transform: translateZ(0); transition: transform 200ms var(--ease-out), background-color 320ms ease, border-color 320ms ease, box-shadow 320ms ease; }
+  .cell.coral { color: var(--coral); border-color: rgb(var(--coral-rgb) / .8); background: rgb(var(--coral-rgb) / .72); }
+  .cell.mango { color: var(--mango); border-color: rgb(var(--mango-rgb) / .8); background: rgb(var(--mango-rgb) / .7); }
+  .cell.mint  { color: var(--mint);  border-color: rgb(var(--mint-rgb) / .8);  background: rgb(var(--mint-rgb) / .68); }
+  .cell.sky   { color: var(--sky);   border-color: rgb(var(--sky-rgb) / .8);   background: rgb(var(--sky-rgb) / .7); }
+  .cell.lilac { color: var(--lilac); border-color: rgb(var(--lilac-rgb) / .8); background: rgb(var(--lilac-rgb) / .7); }
+  .cell.chasing { outline: 1px solid rgb(255 255 255 / .55); outline-offset: 1px; transform: translateY(-2px) scale(1.08); }
+  .cell.pop { animation: pop 340ms var(--ease-out); }
+
+  /* ===== 收工 = 彩虹流光（定稿保留） ===== */
+  .bay-rim { position: absolute; inset: 0; z-index: 0; border-radius: 14px; overflow: hidden; display: none; pointer-events: none; }
+  .bay-rim::before { content: ""; position: absolute; inset: -75%; background: conic-gradient(from 0deg, #ff716c, #ffc857, #4de0a8, #62c9ff, #a991ff, #ff716c); animation: spin 3.2s linear infinite; }
+  .bay-rim::after { content: ""; position: absolute; inset: 2px; border-radius: 12px; background: linear-gradient(180deg, #191f28, #12171f); }
+  .bay.done .bay-rim { display: block; }
+  .bay.done { border-color: transparent; box-shadow: 0 0 26px -6px rgb(var(--coral-rgb) / .3), 0 0 40px -10px rgb(var(--sky-rgb) / .3), 0 0 34px -8px rgb(var(--mango-rgb) / .22); }
+  .bay.done .grid { animation: hue-run 4s linear infinite; }
+  .bay.done .cell { border-color: transparent; box-shadow: 0 0 10px -1px currentColor; }
+  .bay.done .cell.coral { background: rgb(var(--coral-rgb) / .95); }
+  .bay.done .cell.mango { background: rgb(var(--mango-rgb) / .95); }
+  .bay.done .cell.mint  { background: rgb(var(--mint-rgb) / .95); }
+  .bay.done .cell.sky   { background: rgb(var(--sky-rgb) / .95); }
+  .bay.done .cell.lilac { background: rgb(var(--lilac-rgb) / .95); }
+  .bay-flash { position: absolute; inset: 0; z-index: 3; border-radius: 14px; overflow: hidden; pointer-events: none; display: none; }
+  .bay-flash i { position: absolute; top: -30%; bottom: -30%; left: 0; width: 46%; background: linear-gradient(105deg, transparent, rgb(255 255 255 / .32), transparent); transform: translateX(-130%) skewX(-12deg); }
+  .bay.celebrate .bay-flash { display: block; }
+  .bay.celebrate .bay-flash i { animation: sweep 760ms var(--ease-out) 120ms both; }
+  .bay.celebrate { animation: bay-win 900ms var(--ease-out); }
+  .bay.done .bay-led { background: #fff; box-shadow: 0 0 10px #fff; animation: none; }
+
+  .obs-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; flex: 0 0 auto; padding: 11px 16px; border-top: 1px solid var(--line); color: var(--faint); font: 9.5px/1.5 var(--mono); position: relative; z-index: 3; }
+  .ladder { display: flex; gap: 9px; align-items: center; }
+  .ladder span { display: flex; align-items: center; gap: 4px; }
+  .ladder i { width: 7px; height: 7px; border-radius: 2px; }
+
+  @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+  @keyframes train { to { left: 100%; } }
+  @keyframes drift { to { transform: translate(230px, 130px) scale(1.18); } }
+  @keyframes num-flow { to { background-position: 64px 0; } }
+  @keyframes settle { 0% { transform: scale(1.04); } 100% { transform: scale(1); } }
+  @keyframes badge-pop { 0% { transform: scale(.8); } 55% { transform: scale(1.14); } 100% { transform: scale(1); } }
+  @keyframes pop { 0% { transform: scale(.82); } 62% { transform: scale(1.10); } 100% { transform: scale(1); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes hue-run { to { filter: hue-rotate(360deg); } }
+  @keyframes sweep { to { transform: translateX(320%) skewX(-12deg); } }
+  @keyframes bay-win { 0% { transform: scale(1); } 26% { transform: scale(1.03); } 100% { transform: scale(1); } }
+
+  /* still=1 截图冻结：无头 Chrome 的 virtual-time 会把过渡冻在起点，截图前直接掐掉全部过渡 */
+  html.still * { transition-duration: 0ms !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .light-train, .live-dot, .bay-led, .cell.pop, .tier-badge.pop, .hero.flash .big-wrap,
+    .bay.done .grid, .bay-rim::before, .bay.celebrate, .bay.celebrate .bay-flash i, .aura,
+    .t1 .big .reel b, .t2 .big .reel b, .t3 .big .reel b, .t1 .big .pt b, .t2 .big .pt b, .t3 .big .pt b { animation: none !important; }
+    .cell, .obs, .digit, .sep, .pt { transition-duration: 1ms; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <section class="term-zone">
+      <header class="term-head">
+        <nav class="tabs" id="tabs"></nav>
+      </header>
+      <div class="fake-term">
+        <div class="dim">~/Documents/RuruCode/Rurubox · claude</div>
+        <br>
+        <div><span class="p">✻</span> Refactoring token meter…</div>
+        <div><span class="g">⏺</span> Edit(public/observer-patch.js) · +96 -41</div>
+        <div><span class="g">⏺</span> Bash(npm test) · rerunning…</div>
+        <br>
+        <div class="dim">❯ █</div>
+      </div>
+      <div class="console">
+        <span class="tag">演示控制台（道具，真实版没有）—— 里程预设会顺带调好燃速；「Codex 客户端」那张卡演示外部 agent 识别</span>
+        <span class="grp"><em>今日</em>
+          <button data-tok="0">归零</button>
+          <button data-tok="985000" data-rate="2600">冲 1M</button>
+          <button data-tok="996800000" data-rate="620000">冲 1B</button>
+          <button data-tok="2996000000" data-rate="650000">冲 3B</button>
+        </span>
+        <span class="grp"><em>燃速</em>
+          <button data-mult="1" class="on">×1</button>
+          <button data-mult="40">×40</button>
+          <button data-mult="1200">×1200</button>
+        </span>
+        <span class="grp"><em>仓位</em>
+          <button id="finishOne">让一个仓位收工</button>
+        </span>
+      </div>
+    </section>
+
+    <aside class="obs t0" id="obs">
+      <span class="aura"></span>
+      <span class="grain"></span>
+      <div class="light-track"><div class="light-train"><i></i><i></i><i></i><i></i><i></i></div></div>
+      <header class="obs-head">
+        <span class="live-dot"></span>
+        <span class="eyebrow">Live · 今日 Token</span>
+        <span class="sp"></span>
+        <button class="icon-btn" title="收起">✕</button>
+      </header>
+
+      <div class="hero" id="hero">
+        <span class="num-bloom"></span>
+        <div class="hero-top">
+          <span class="num-label">今日消耗 · TOKENS</span>
+          <span class="tier-badge" id="badge"><i></i><span id="badgeText">点火</span></span>
+        </div>
+        <span class="big-wrap">
+          <span class="big line"><span class="big-digits" id="bigDigits"></span><span class="big-digits" id="bigKilo"></span><span class="big-unit" id="bigUnit"></span></span>
+          <span class="big stack" id="bigStack"><span class="row" id="rowHi"></span><span class="row" id="rowLo"></span></span>
+        </span>
+        <div class="sub-row"><span class="sub-cap">精确</span><span class="num-sub"><span class="odo" id="odo"></span></span>
+          <span class="mode-sw"><button data-mode="compact">简写</button><button data-mode="kilo">K</button><button data-mode="full">全显</button></span>
+        </div>
+        <div class="meter-row">
+          <div class="meter"><i id="meterFill"></i></div>
+          <span class="meter-next" id="meterNext">→ <b>1M</b></span>
+        </div>
+        <div class="trend" id="trend">—</div>
+        <div class="src-row">
+          <span class="src"><i style="background:var(--coral)"></i><b id="srcClaude">—</b></span>
+          <span class="src"><i style="background:var(--lilac)"></i><b id="srcCodex">—</b></span>
+          <span class="src-note">本机日志 · ~12s 刷新</span>
+        </div>
+      </div>
+      <div class="hero-rule"></div>
+
+      <div class="flow" id="flow"></div>
+
+      <footer class="obs-foot">
+        <span class="ladder">
+          <span style="color:#62c9ff"><i style="background:#62c9ff"></i>1M 蓝移</span>
+          <span style="color:#ffc857"><i style="background:#ffc857"></i>1B 鎏金</span>
+          <span style="color:#cbb8ff"><i style="background:linear-gradient(135deg,#ff716c,#ffc857,#4de0a8,#62c9ff,#a991ff)"></i>3B 棱镜</span>
+        </span>
+        <span class="sp"></span>
+        <span>今日 00:00 起 · 只观察</span>
+      </footer>
+    </aside>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const Q = new URLSearchParams(location.search);
+  const STILL = Q.get('still') === '1';
+  if (STILL) document.documentElement.classList.add('still');
+
+  // ---------- 色阶天梯（今日口径：1M 蓝 → 1B 金 → 3B 彩虹） ----------
+  const TIERS = [
+    { at: 0,    cls: 't0', name: '点火', next: 1e6,  nextLabel: '1M' },
+    { at: 1e6,  cls: 't1', name: '蓝移 1M', next: 1e9,  nextLabel: '1B' },
+    { at: 1e9,  cls: 't2', name: '鎏金 1B', next: 3e9,  nextLabel: '3B' },
+    { at: 3e9,  cls: 't3', name: '棱镜 3B', next: null, nextLabel: 'MAX' },
+  ];
+  const tierOf = (v) => { let t = TIERS[0]; for (const x of TIERS) if (v >= x.at) t = x; return t; };
+  const msOf = (v) => v >= 3e9 ? 'm3' : v >= 1e9 ? 'm2' : v >= 1e6 ? 'm1' : '';
+
+  // ---------- 滚轮构件 ----------
+  const mkDigit = (cls) => {
+    const d = document.createElement('span');
+    d.className = cls;
+    d.innerHTML = '<span class="reel">' + Array.from({ length: 11 }, (_, n) => '<b>' + (n % 10) + '</b>').join('') + '</span>';
+    return d;
+  };
+  const setReel = (el, pos) => { el.querySelector('.reel').style.transform = 'translateY(' + (-pos).toFixed(3) + 'em)'; };
+
+  // 主读数：4 个数位槽 + 2 个小数点槽（d0 p0 d1 p1 d2 d3），三位有效数字 + 单位
+  const bigDigits = $('#bigDigits'), bigUnit = $('#bigUnit');
+  const bSlots = [];
+  for (let i = 0; i < 4; i++) {
+    const d = mkDigit('digit'); bigDigits.appendChild(d); bSlots.push({ el: d, digit: true });
+    if (i < 2) { const p = document.createElement('span'); p.className = 'pt'; p.innerHTML = '<b>.</b>'; bigDigits.appendChild(p); bSlots.push({ el: p, digit: false }); }
+  }
+  // bSlots 序：d0 p0 d1 p1 d2 d3
+  const B_D = [0, 2, 4, 5], B_P = [1, 3];
+  function paintBig(v) {
+    let str, unit, lastCont; // lastCont = 末位有效数字的连续滚动位置
+    if (v < 10000) {
+      str = String(Math.floor(Math.max(0, v)));
+      unit = '';
+      lastCont = v % 10;
+    } else {
+      const g = Math.min(3, Math.floor(Math.log10(v) / 3));
+      const scaled = v / Math.pow(10, 3 * g);
+      unit = 'KMB'[g - 1];
+      const step = scaled < 10 ? .01 : scaled < 100 ? .1 : 1;
+      const fixed = scaled < 10 ? 2 : scaled < 100 ? 1 : 0;
+      str = (Math.floor(scaled / step) * step).toFixed(fixed);
+      lastCont = (scaled / step) % 10;
+    }
+    const chars = str.split('');
+    let di = 0, usedP = [false, false];
+    const lastDigitIdx = (() => { let li = 0; chars.forEach((ch, i) => { if (ch !== '.') li = i; }); return li; })();
+    chars.forEach((ch, i) => {
+      if (ch === '.') { usedP[di - 1] = true; return; }
+      const slot = bSlots[B_D[di]];
+      slot.el.classList.remove('off');
+      const pos = (i === lastDigitIdx && !reduceMotion && !STILL) ? lastCont : +ch;
+      setReel(slot.el, pos);
+      di++;
+    });
+    for (let i = di; i < 4; i++) bSlots[B_D[i]].el.classList.add('off');
+    B_P.forEach((pi, i) => bSlots[pi].el.classList.toggle('off', !usedP[i]));
+    bigUnit.textContent = unit;
+  }
+
+  // 通用滚轮行：kHi..kLo 位 + 千分位（tailSep = 行尾再挂一个逗号，给全显高位行用）
+  const WINDOWS_K = [1, .34, .18, .12];
+  function buildRow(container, kHi, kLo, tailSep) {
+    const list = [];
+    for (let k = kHi; k >= kLo; k--) {
+      const d = mkDigit('digit');
+      container.appendChild(d);
+      list.push({ el: d, k, sep: false });
+      if (k > kLo && k % 3 === 0) {
+        const s = document.createElement('span');
+        s.className = 'sep'; s.innerHTML = '<b>,</b>';
+        container.appendChild(s);
+        list.push({ el: s, k, sep: true });
+      }
+    }
+    if (tailSep) {
+      const s = document.createElement('span');
+      s.className = 'sep'; s.innerHTML = '<b>,</b>';
+      container.appendChild(s);
+      list.push({ el: s, k: kLo, sep: true });
+    }
+    return list;
+  }
+  function paintParts(list, v) {
+    const safe = Math.max(0, v);
+    for (const p of list) {
+      if (p.sep) { p.el.classList.toggle('off', safe < Math.pow(10, p.k)); continue; }
+      const u = safe / Math.pow(10, p.k);
+      const D = Math.floor(u) % 10;
+      const r = u - Math.floor(u);
+      const W = WINDOWS_K[p.k] || .09;
+      const pos = (reduceMotion || STILL) ? D : D + Math.max(0, 1 - (1 - r) / W);
+      setReel(p.el, pos);
+      p.el.classList.toggle('off', p.k > 0 && safe < Math.pow(10, p.k));
+    }
+  }
+  const parts = buildRow($('#odo'), 10, 0);           // 精确副读数（完整 11 位）
+  const kparts = buildRow($('#bigKilo'), 7, 0);       // K 模式：值/1000，8 位到 99B
+  const hiParts = buildRow($('#rowHi'), 10, 6, true); // 全显高位行（百万以上 + 行尾逗号）
+  const loParts = buildRow($('#rowLo'), 5, 0);        // 全显低位行（末六位）
+  const paintSub = (v) => paintParts(parts, v);
+
+  // ---------- 三种读数模式（客户自选；真实版持久化到设置） ----------
+  const bigLine = document.querySelector('.big.line');
+  const stackEl = $('#bigStack'), rowHiEl = $('#rowHi');
+  const dwNow = () => {
+    const cs = getComputedStyle(document.documentElement);
+    return { dw: parseFloat(cs.getPropertyValue('--dw')) || .6, sw: .26 };
+  };
+  const lenOf = (v) => Math.max(1, Math.floor(Math.log10(Math.max(1, v))) + 1);
+  function paintKilo(v) {
+    const kv = v < 1000 ? v : v / 1000;
+    paintParts(kparts, kv);
+    bigUnit.textContent = v < 1000 ? '' : 'K';
+    const { dw, sw } = dwNow();
+    const len = lenOf(kv), seps = Math.floor((len - 1) / 3);
+    bigLine.style.fontSize = Math.min(136, Math.floor(344 / (len * dw + seps * sw + (v < 1000 ? 0 : .3)))) + 'px';
+  }
+  function paintFull(v) {
+    paintParts(hiParts, v);
+    paintParts(loParts, v);
+    const hasHi = v >= 1e6;
+    rowHiEl.style.display = hasHi ? '' : 'none';
+    const { dw, sw } = dwNow();
+    let fs;
+    if (!hasHi) {
+      const len = lenOf(v), seps = Math.floor((len - 1) / 3);
+      fs = Math.min(136, Math.floor(344 / (len * dw + seps * sw)));
+    } else {
+      const loEm = 6 * dw + sw;
+      const hiLen = lenOf(v) - 6, hiSeps = (hiLen > 3 ? 1 : 0) + 1; // 组内逗号 + 行尾逗号
+      const hiEm = hiLen * dw + hiSeps * sw;
+      fs = Math.min(96, Math.floor(344 / Math.max(loEm, hiEm)));
+    }
+    stackEl.style.fontSize = fs + 'px';
+  }
+  const MODES = ['compact', 'kilo', 'full'];
+  let mode = MODES.includes(Q.get('mode')) ? Q.get('mode') : 'kilo';
+  function paintHero(v) {
+    if (mode === 'compact') { paintBig(v); bigLine.style.fontSize = '136px'; }
+    else if (mode === 'kilo') paintKilo(v);
+    else paintFull(v);
+    paintSub(v);
+  }
+  function applyMode() {
+    hero.classList.remove('mode-compact', 'mode-kilo', 'mode-full');
+    hero.classList.add('mode-' + mode);
+    document.querySelectorAll('.mode-sw button').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
+  }
+  document.querySelectorAll('.mode-sw button').forEach((b) => {
+    b.onclick = () => { mode = b.dataset.mode; applyMode(); paintHero(V); };
+  });
+
+  // ---------- 色阶渲染（跨阶 = 一次性仪式） ----------
+  const obs = $('#obs'), hero = $('#hero'), badge = $('#badge'), badgeText = $('#badgeText');
+  const meterFill = $('#meterFill'), meterNext = $('#meterNext');
+  let curTier = null;
+  function paintTier(v, silent) {
+    const t = tierOf(v);
+    if (t !== curTier) {
+      obs.classList.remove('t0', 't1', 't2', 't3');
+      obs.classList.add(t.cls);
+      badgeText.textContent = t.name;
+      if (curTier && !silent && !reduceMotion) {
+        hero.classList.remove('flash'); void hero.offsetWidth; hero.classList.add('flash');
+        badge.classList.remove('pop'); void badge.offsetWidth; badge.classList.add('pop');
+        setTimeout(() => hero.classList.remove('flash'), 900);
+      }
+      curTier = t;
+    }
+    let p;
+    if (!t.next) p = 1;
+    else if (t.at === 0) p = v / t.next;
+    else p = (Math.log(v) - Math.log(t.at)) / (Math.log(t.next) - Math.log(t.at));
+    meterFill.style.width = (Math.max(0, Math.min(1, p)) * 100).toFixed(1) + '%';
+    meterNext.innerHTML = t.next ? '→ <b>' + t.nextLabel + '</b>' : '<b>MAX</b>';
+  }
+
+  // ---------- 仓位（终端 6 + 外部 Codex 客户端 1，各自带今日里程边框） ----------
+  const TONES = ['coral', 'mango', 'mint', 'sky', 'lilac'];
+  const WORK_TONES = ['sky', 'sky', 'sky', 'mint', 'mint', 'lilac', 'lilac', 'mango', 'coral'];
+  const BAYS = [
+    { name: 'Rurubox', tone: 'mango', status: 'working', share: .26, total: 3.42e9 },              // 3B+ 彩虹框
+    { name: 'Build',   tone: 'coral', status: 'working', share: .2,  total: 1.21e9 },              // 1B+ 金框
+    { name: 'Codex', tone: 'lilac', status: 'working', share: .18, total: 5.28e8, ext: true }, // 外部客户端识别（不占终端 tab）
+    { name: 'Tests',   tone: 'mint',  status: 'working', share: .12, total: 8.4e6 },               // 1M+ 蓝框
+    { name: 'Server',  tone: 'sky',   status: 'waiting', share: 0,   total: 9.4e4 },
+    { name: 'Docs',    tone: 'sky',   status: 'working', share: .1,  total: 4.12e5 },              // 快到 1M
+    { name: 'zsh',     tone: 'sky',   status: 'idle',    share: 0,   total: 1.2e4 },
+  ];
+  $('#tabs').innerHTML = BAYS.filter((b) => !b.ext).map((b, i) =>
+    '<span class="tab ' + (i === 0 ? 'on' : '') + '"><i style="background:var(--' + b.tone + ')"></i>' + b.name + '</span>').join('');
+
+  const COLS = 6, ROWS = 4;
+  const flow = $('#flow');
+  const trim0 = (s) => s.replace(/\.0+$/, '');
+  const fmt = (n) => n >= 1e9 ? trim0((n / 1e9).toFixed(n < 1e10 ? 2 : 1)) + 'B'
+    : n >= 1e6 ? trim0((n / 1e6).toFixed(n < 1e7 ? 2 : 1)) + 'M'
+    : n >= 1e3 ? trim0((n / 1e3).toFixed(n < 1e4 ? 1 : 0)) + 'K' : String(Math.round(n));
+
+  const bays = BAYS.map((b) => {
+    const el = document.createElement('div');
+    el.className = 'bay' + (b.ext ? ' ext' : '');
+    el.innerHTML = '<span class="bay-rim"></span><span class="bay-flash"><i></i></span>' +
+      '<div class="bay-head"><span class="bay-led"></span>' +
+      '<button class="bay-pick"><span class="nm"></span><span class="chev">' + (b.ext ? '' : '▾') + '</span></button>' +
+      (b.ext ? '<span class="ext-chip">外部</span>' : '') +
+      '<span class="bay-tok">·</span></div>' +
+      '<i class="bay-run"></i>' +
+      '<div class="grid" style="grid-template-columns:repeat(' + COLS + ',1fr)">' + '<i class="cell"></i>'.repeat(COLS * ROWS) + '</div>';
+    el.querySelector('.nm').textContent = b.name;
+    el.querySelector('.nm').style.color = 'var(--' + b.tone + ')';
+    flow.appendChild(el);
+    return {
+      def: b, el,
+      cells: [...el.querySelectorAll('.cell')],
+      tokEl: el.querySelector('.bay-tok'),
+      runEl: el.querySelector('.bay-run'),
+      total: b.total,
+      ms: null,
+      round: 0, est: 3e4 + Math.random() * 7e4,
+      done: false, holdUntil: 0, ptr: 0,
+    };
+  });
+  function paintMilestone(bay) {
+    const ms = msOf(bay.total);
+    if (ms === bay.ms) return;
+    bay.ms = ms;
+    bay.el.classList.remove('m1', 'm2', 'm3');
+    if (ms) bay.el.classList.add(ms);
+  }
+  function seedBay(bay) {
+    const bi = bays.indexOf(bay);
+    const idle = bay.def.status === 'idle';
+    bay.cells.forEach((c, i) => {
+      c.className = 'cell';
+      if (idle) { if ((i * 11 + bi * 3) % 12 === 2) c.classList.add('sky'); return; }
+      if ((i * 7 + bi * 5 + 3) % 5 !== 1) c.classList.add(WORK_TONES[(i * 13 + bi * 17 + 5) % WORK_TONES.length]);
+    });
+    bay.ptr = 0;
+  }
+  function finishBay(bay) {
+    if (bay.done || bay.def.status !== 'working') return;
+    bay.done = true;
+    bay.holdUntil = performance.now() + 8000 + Math.random() * 4000;
+    bay.tokEl.textContent = '✓ ' + fmt(bay.total);
+    bay.el.classList.add('done');
+    bay.el.classList.remove('celebrate'); void bay.el.offsetWidth; bay.el.classList.add('celebrate');
+    const prev = bay.el.querySelector('.cell.chasing');
+    if (prev) prev.classList.remove('chasing');
+    bay.cells.forEach((c, ci) => {
+      const row = Math.floor(ci / COLS), col = ci % COLS;
+      const delay = reduceMotion ? 0 : (row + col) * 40;
+      setTimeout(() => {
+        c.className = 'cell ' + TONES[(row + col) % 5];
+        if (!reduceMotion) { void c.offsetWidth; c.classList.add('pop'); }
+      }, delay);
+    });
+  }
+  function reviveBay(bay) {
+    bay.done = false;
+    bay.round = 0;
+    bay.est = 3e4 + Math.random() * 7e4;
+    bay.el.classList.remove('done', 'celebrate');
+    seedBay(bay);
+  }
+  bays.forEach(seedBay);
+  $('#finishOne').onclick = () => {
+    const b = bays.find((x) => !x.done && x.def.status === 'working');
+    if (b) finishBay(b);
+  };
+
+  // ---------- 状态铺底 ----------
+  bays.forEach((bay) => {
+    bay.el.classList.toggle('working', bay.def.status === 'working');
+    bay.el.classList.toggle('waiting', bay.def.status === 'waiting');
+    bay.tokEl.textContent = bay.def.status === 'idle' ? '·' : fmt(bay.total);
+    paintMilestone(bay);
+  });
+
+  // ---------- 演示引擎 ----------
+  // 今日总量拆两路数据源（真实版：claudeUsage().today + Codex rollout 今日聚合）
+  const baySum = bays.reduce((s, b) => s + b.total, 0);
+  let V = Q.has('tok') ? parseFloat(Q.get('tok')) : baySum;
+  const extShare = bays.filter((b) => b.def.ext).reduce((s, b) => s + b.total, 0) / baySum;
+  let Vx = V * extShare, Vc = V - Vx; // Codex / Claude 两路
+  let rate = parseFloat(Q.get('rate')) || 2400;
+  let mult = 1;
+  const BAY_RATE_CAP = 5200;
+  const trend = $('#trend'), srcClaude = $('#srcClaude'), srcCodex = $('#srcCodex');
+  let raf = 0, last = 0, tick = 0;
+
+  function frame(now) {
+    const dt = Math.min(.1, (now - last) / 1000); last = now;
+    const r = rate * mult;
+    V += r * dt; Vc += r * dt * .82; Vx += r * dt * .18;
+    paintHero(V);
+    paintTier(V);
+    if (now - tick > 250) {
+      tick = now;
+      const bayRate = Math.min(r, BAY_RATE_CAP);
+      let working = 0, extBurn = false;
+      bays.forEach((bay) => {
+        if (bay.def.status !== 'working') return;
+        if (bay.done) { if (now > bay.holdUntil) reviveBay(bay); return; }
+        working++;
+        if (bay.def.ext) extBurn = true;
+        const d = bayRate * bay.def.share * .25;
+        bay.round += d; bay.total += d;
+        bay.tokEl.textContent = fmt(bay.total);
+        bay.runEl.style.backgroundSize = Math.min(100, bay.round / bay.est * 100).toFixed(1) + '% 100%';
+        paintMilestone(bay);
+        if (bay.round >= bay.est) { finishBay(bay); return; }
+        if (Math.random() < .55) {
+          const c = bay.cells[bay.ptr % bay.cells.length];
+          c.className = 'cell ' + WORK_TONES[Math.floor(Math.random() * WORK_TONES.length)];
+          if (!reduceMotion) { void c.offsetWidth; c.classList.add('pop'); }
+          bay.ptr++;
+        }
+      });
+      const doneN = bays.filter((b) => b.done).length;
+      trend.innerHTML = working
+        ? '<b>⚡ ' + working + ' 路</b>在烧 · ' + fmt(r) + ' tok/s' + (extBurn ? ' · 含外部' : '') + (doneN ? ' · <b>✓' + doneN + '</b>' : '')
+        : '安静 · agent 一开工就开始涨';
+      srcClaude.textContent = 'Claude ' + fmt(Vc);
+      srcCodex.textContent = 'Codex ' + fmt(Vx);
+    }
+    if (!STILL) raf = requestAnimationFrame(frame);
+  }
+
+  // 巡场高亮：每仓 1 个，相位错开
+  const chase = setInterval(() => {
+    if (document.hidden) return;
+    bays.forEach((bay, i) => {
+      const prev = bay.el.querySelector('.cell.chasing');
+      if (prev) prev.classList.remove('chasing');
+      if (bay.done || bay.def.status !== 'working') return;
+      const step = Math.floor(performance.now() / 640) + i * 5;
+      bay.cells[step % bay.cells.length].classList.add('chasing');
+    });
+  }, 640);
+
+  // ---------- 演示控制台 ----------
+  document.querySelectorAll('[data-tok]').forEach((b) => {
+    b.onclick = () => {
+      V = +b.dataset.tok; Vx = V * extShare; Vc = V - Vx;
+      rate = b.dataset.rate ? +b.dataset.rate : 2400;
+    };
+  });
+  document.querySelectorAll('[data-mult]').forEach((b) => {
+    b.onclick = () => {
+      mult = +b.dataset.mult;
+      document.querySelectorAll('[data-mult]').forEach((x) => x.classList.toggle('on', x === b));
+    };
+  });
+  const FONTS = { chakra: '', doto: 'font-doto', space: 'font-space' };
+  const f0 = Q.get('font');
+  if (f0 && FONTS[f0] !== undefined) document.documentElement.className = FONTS[f0];
+  const done0 = parseInt(Q.get('done'), 10) || 0;
+  for (let i = 0; i < done0; i++) {
+    const b = bays.find((x) => !x.done && x.def.status === 'working');
+    if (b) { finishBay(b); b.holdUntil = Infinity; }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+    else if (!raf && !STILL) { last = performance.now(); raf = requestAnimationFrame(frame); }
+  });
+
+  paintTier(V, true);
+  applyMode();
+  paintHero(V);
+  last = performance.now();
+  if (STILL) { clearInterval(chase); frame(last + 16); }
+  else raf = requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

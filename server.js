@@ -1780,13 +1780,162 @@ async function claudeOfficialLimits() {
       // 这是「Claude 用量一直没数据」的真根因：接口被频繁查打到限流，老逻辑当成账号无窗口。
       if (d && d.error) { lastErr = d.error.type === 'rate_limit_error' ? 'rate-limited' : 'request-failed'; break; }
       const fiveHour = win(d.five_hour), sevenDay = win(d.seven_day);
-      if (fiveHour || sevenDay) { const res = { fiveHour, sevenDay }; claudeOfficialCache = { at: Date.now(), data: res }; return res; }
+      // 模型专属限额（如 Fable 的独立周配额）：从 limits 数组挑 scoped 条目，标签直接用官方
+      // 的 display_name。完全数据驱动——官方哪天撤掉这个窗口，这里就是空数组，前端自动不
+      // 渲染（和 Codex 取消周配额后的表现同款）；再冒出新模型窗口也自动跟上。
+      const scoped = Array.isArray(d.limits) ? d.limits
+        .filter((l) => l && /scoped/.test(String(l.kind)) && l.percent != null)
+        .map((l) => ({
+          label: (l.scope && l.scope.model && l.scope.model.display_name)
+            || (l.scope && l.scope.surface) || String(l.kind).replace(/_/g, ' '),
+          usedPercent: l.percent,
+          resetsAt: l.resets_at ? Math.floor(Date.parse(l.resets_at) / 1000) : 0,
+          weekly: l.group === 'weekly',
+        })) : [];
+      if (fiveHour || sevenDay) { const res = { fiveHour, sevenDay, scoped }; claudeOfficialCache = { at: Date.now(), data: res }; return res; }
       lastErr = 'no-windows'; break; // 正常响应但确实无窗口：不重试，避免对严格限流的接口多打一次
     } catch { lastErr = 'request-failed'; /* 仅瞬时失败才再试一次 */ }
   }
   // 没拿到新数据：有过成功缓存就沿用（stale 总比「没数据」强），否则如实报原因
   if (cached && !cached.unavailable) return { ...cached, stale: true };
   return { unavailable: lastErr };
+}
+
+// ---------- 观察舱 · 今日 Token 里程 ----------
+// 数据只读「运行本 App 的用户」自己的家目录（~/.claude / ~/.codex），谁装谁读谁的。
+// Claude Code：复用 claudeFileCache 增量解析，按项目目录聚合今日 usage（真 token，含 cache）；
+//   目录名 → 真实 cwd 从该目录最新 jsonl 文件头抓（10 分钟缓存）。
+// Codex：增量扫 rollout 的 token_count.info.total_token_usage 快照（会话内累计值），
+//   今日增量 = 最新快照 − 今日零点前最后一个快照（跨午夜会话自动迁移基线）；
+//   文件 45s 内有动静标 active——前端据此识别「外部 Codex 正在消耗」（含 Codex 客户端）。
+let obsTokensCache = { at: 0, data: null };
+const obsCwdCache = new Map();    // Claude 项目目录名 -> { cwd, t }
+const codexScanCache = new Map(); // rollout 文件 -> { offset, base, baseT, cur, curT, cwd }
+
+async function obsClaudeToday() {
+  const day = new Date(); day.setHours(0, 0, 0, 0);
+  const ds = day.getTime();
+  const cutoff = Date.now() - 2 * 86400000; // 跨午夜留余量
+  let dirs;
+  try { dirs = await fsp.readdir(CLAUDE_PROJ); } catch { return { total: 0, perCwd: {} }; }
+  let total = 0; const perCwd = {};
+  await Promise.all(dirs.map(async (d) => {
+    const base = path.join(CLAUDE_PROJ, d);
+    let names; try { names = await fsp.readdir(base); } catch { return; }
+    const files = []; let newest = null;
+    await Promise.all(names.filter((n) => n.endsWith('.jsonl')).map(async (n) => {
+      const fp = path.join(base, n);
+      try {
+        const st = await fsp.stat(fp);
+        if (!newest || st.mtimeMs > newest.st.mtimeMs) newest = { fp, st };
+        if (st.mtimeMs >= cutoff) files.push({ fp, st });
+      } catch { /* */ }
+    }));
+    if (!files.length) return;
+    let sum = 0;
+    for (const { fp, st } of files) {
+      try {
+        const evs = await parseClaudeFile(fp, st);
+        for (const e of evs) { if (e.t >= ds) sum += e.in + e.out + e.cc + e.cr; }
+      } catch { /* 单文件坏不挡整体 */ }
+    }
+    if (!sum) return;
+    total += sum;
+    let c = obsCwdCache.get(d);
+    if (!c || Date.now() - c.t > 600000) {
+      let cwd = null;
+      try { cwd = await readCwdFromHead(newest.fp, 4096); } catch { /* */ }
+      c = { cwd, t: Date.now() }; obsCwdCache.set(d, c);
+    }
+    const key = c.cwd || d;
+    perCwd[key] = (perCwd[key] || 0) + sum;
+  }));
+  return { total, perCwd };
+}
+
+async function obsCodexToday() {
+  const day = new Date(); day.setHours(0, 0, 0, 0);
+  const ds = day.getTime();
+  const files = [];
+  const walk = async (dir, depth) => {
+    let names;
+    try { names = await fsp.readdir(dir, { withFileTypes: true }); } catch { return; }
+    for (const n of names) {
+      const fp = path.join(dir, n.name);
+      if (n.isDirectory() && depth < 3) await walk(fp, depth + 1);
+      else if (n.isFile() && n.name.endsWith('.jsonl')) {
+        try { const st = await fsp.stat(fp); files.push({ fp, mtimeMs: st.mtimeMs, size: st.size }); } catch { /* */ }
+      }
+    }
+  };
+  await walk(CODEX_SESS, 0);
+  const now = Date.now();
+  let total = 0; const perCwd = {}; const sessions = [];
+  for (const f of files.filter((x) => x.mtimeMs >= ds)) {
+    let c = codexScanCache.get(f.fp);
+    if (!c) { c = { offset: 0, base: 0, baseT: 0, cur: 0, curT: 0, cwd: null }; codexScanCache.set(f.fp, c); }
+    if (f.size < c.offset) { c.offset = 0; c.base = 0; c.baseT = 0; c.cur = 0; c.curT = 0; } // 文件被截断重写：重来
+    // 跨午夜：缓存里「最新快照」已落在今日之前 → 它就是新一天的基线
+    if (c.curT && c.curT < ds && c.curT > c.baseT) { c.base = c.cur; c.baseT = c.curT; }
+    if (f.size > c.offset) {
+      try {
+        const fh = await fsp.open(f.fp, 'r');
+        let chunk;
+        try {
+          const len = Math.min(f.size - c.offset, 8 * 1024 * 1024); // 单轮 8MB 上限，超大会话分轮补
+          const buf = Buffer.alloc(len);
+          await fh.read(buf, 0, len, c.offset);
+          chunk = buf.toString('utf8');
+        } finally { await fh.close(); }
+        const lastNL = chunk.lastIndexOf('\n');
+        if (lastNL !== -1) {
+          c.offset += Buffer.byteLength(chunk.slice(0, lastNL + 1), 'utf8');
+          for (const line of chunk.slice(0, lastNL).split('\n')) {
+            if (!c.cwd && line.includes('"cwd"')) {
+              const m = line.match(/"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+              if (m) { try { c.cwd = JSON.parse('"' + m[1] + '"'); } catch { /* */ } }
+            }
+            if (!line.includes('"total_token_usage"')) continue;
+            let d2; try { d2 = JSON.parse(line); } catch { continue; }
+            const info = d2 && d2.payload && d2.payload.info;
+            const tt = info && info.total_token_usage && info.total_token_usage.total_tokens;
+            if (tt == null) continue;
+            const t = Date.parse(d2.timestamp || '') || f.mtimeMs;
+            if (t < ds) { if (t >= c.baseT) { c.base = tt; c.baseT = t; } }
+            else if (t >= c.curT) { c.cur = tt; c.curT = t; }
+          }
+        }
+      } catch { /* 单文件坏不挡整体 */ }
+    }
+    const todayTok = c.curT >= ds ? Math.max(0, c.cur - c.base) : 0;
+    if (!todayTok) continue;
+    total += todayTok;
+    const key = c.cwd || 'codex';
+    perCwd[key] = (perCwd[key] || 0) + todayTok;
+    sessions.push({ agent: 'codex', cwd: c.cwd || '', todayTokens: todayTok, active: now - f.mtimeMs < 45000 });
+  }
+  // 已过期文件出缓存（只保留今天还在看的）
+  const live = new Set(files.filter((x) => x.mtimeMs >= ds).map((x) => x.fp));
+  for (const k of codexScanCache.keys()) { if (!live.has(k)) codexScanCache.delete(k); }
+  return { total, perCwd, sessions };
+}
+
+async function obsTokens() {
+  if (obsTokensCache.data && Date.now() - obsTokensCache.at < 10000) return obsTokensCache.data;
+  const [cc, cx] = await Promise.all([
+    obsClaudeToday().catch(() => ({ total: 0, perCwd: {} })),
+    obsCodexToday().catch(() => ({ total: 0, perCwd: {}, sessions: [] })),
+  ]);
+  const perCwd = { ...cc.perCwd };
+  for (const [k, v] of Object.entries(cx.perCwd)) perCwd[k] = (perCwd[k] || 0) + v;
+  const day = new Date(); day.setHours(0, 0, 0, 0);
+  const data = {
+    ok: true, at: Date.now(), dayStart: day.getTime(),
+    claudeToday: cc.total, codexToday: cx.total, total: cc.total + cx.total,
+    perCwd, codexSessions: cx.sessions,
+  };
+  obsTokensCache = { at: Date.now(), data };
+  return data;
 }
 
 // ---------- Agent 项目（最近被 coding agent 处理过的项目文件夹）----------
@@ -2466,6 +2615,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/agent-usage') {
       return sendJSON(res, 200, await agentUsage());
+    }
+    if (p === '/api/obs-tokens') {
+      return sendJSON(res, 200, await obsTokens());
     }
     if (p === '/api/favorites') {
       if (req.method === 'POST') {

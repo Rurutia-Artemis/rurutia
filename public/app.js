@@ -4224,7 +4224,10 @@ const usagePanel = {
     // 接近上限警告：任一官方窗口 ≥85% → 顶部醒目警告条 + 桌面通知（节流）
     const warns = [];
     const ck = (label, w) => { if (w && w.usedPercent != null && w.usedPercent >= 85) warns.push(`${label} ${Math.round(w.usedPercent)}%`); };
-    if (d.claude && d.claude.official) { ck('5h 窗口', d.claude.official.fiveHour); ck('周配额', d.claude.official.sevenDay); }
+    if (d.claude && d.claude.official) {
+      ck('5h 窗口', d.claude.official.fiveHour); ck('周配额', d.claude.official.sevenDay);
+      (d.claude.official.scoped || []).forEach((s) => ck(`${s.label}${s.weekly ? ' 周' : ''}`, s));
+    }
     if (d.codex) { ck('Codex 5h', d.codex.primary); ck('Codex 周', d.codex.secondary); }
     if (warns.length) { h += `<div class="usage-warn">⚠ 用量接近上限 · ${warns.join(' / ')}</div>`; this.notifyHigh(warns); }
     if (d.codex) {
@@ -4246,6 +4249,10 @@ const usagePanel = {
       if (o && (o.fiveHour || o.sevenDay)) {
         if (o.fiveHour) h += this.meter('5h 窗口', o.fiveHour.usedPercent, '', this.fmtReset(o.fiveHour.resetsAt));
         if (o.sevenDay) h += this.meter('周配额', o.sevenDay.usedPercent, '', this.fmtReset(o.sevenDay.resetsAt));
+        // 模型专属窗口（如 Fable 的独立周配额）：接口给就画在总配额下面，接口撤就自动消失
+        for (const s of (o.scoped || [])) {
+          h += this.meter(`${escapeHtml(s.label)}${s.weekly ? ' 周' : ''}`, s.usedPercent, '', this.fmtReset(s.resetsAt));
+        }
       } else if (o && o.unavailable) {
         h += `<div class="ux-empty">${this.reasonText(o.unavailable)} <a class="usage-retry" onclick="usagePanel.refresh()">重试</a></div>`;
       }

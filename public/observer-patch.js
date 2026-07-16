@@ -1,62 +1,77 @@
 /*
  * observer-patch.js — 观察舱（Rurutia 纯新增补丁）
  * ------------------------------------------------------------------
- * 主窗最右侧一列可开合的「终端工作状态」面板，视觉语言取自 GlintGrid 定稿样例
- * （design-demos/观察舱-glintgrid-样例.html），颜色全部吃皮肤 CSS 变量——换肤即换装，
- * 连大数字的彩虹渐变都是当前皮肤自己的状态色（--err/--yellow/--ok/--info/--accent）拼的。
+ * v2.12 改版：从「倒数模型」换成「今日 Token 里程」——消耗即成就，只涨不跌。
+ * 视觉定稿见 design-demos/观察舱-token里程-样例.html（极光版 + 三种读数模式）。
  *
- * 真数据三路：
- *   · 模块 = 打开的终端 tab（term.sessions，数量自适应：1=独占超大 / 2=竖排 / ≥3=双列），
- *     模块头可点名换绑任意 tab；点模块图标即切到那个终端。
- *   · 格子 = 该终端的实时输出事件（fanboxPty.onData 旁听），按内容轻量分类：
- *     错误(err) / 警告(yellow) / 成功(ok) / 思考(accent) / 一般输出(info)。
- *   · 大数字 = 倒数模型（永远在倒数，不再往上滚；总量可以是估的，归零必须是真的）：
- *     1) 有 CC 任务清单 → 「未完成任务」真任务数（~/.claude/tasks/<会话>/<n>.json，会话↔终端靠
- *        ~/.claude/projects/<目录名>/<会话>.jsonl 的 cwd 对应），完成一项减一项，最准；
- *     2) 没清单但有终端在干活 → 「预计剩余」：每回合（开始吐字 → 安静 6.5s 收工）按该终端
- *        历史产出估一个总量（EMA，按项目存 localStorage，越用越准），真实输出字节驱动往下减
- *        （64 字节 = 1 单位），快见底渐近减速吊在个位数，agent 真停下瞬间归零；
- *     3) 全安静 → 0 待命。彩色渗入比例 = 完成度（两种倒数同一套视觉语言）；
- *     归零 → 庆祝：辉光 + 格子瀑布翻绿。子任务完成 / 单终端收工 → 模块卡片绿光脉冲 + 波浪闪。
- *     工作态不垫常驻绿底（用户定案：绿色辉光只属于归零庆祝；浅色皮肤 bloom 整体停用防色斑）。
+ * 数据三路（全部只读「运行本 App 的用户」自己的家目录，谁装谁读谁的）：
+ *   · 大数字 = 今日全机消耗（/api/obs-tokens，12s 轮询）：
+ *     Claude Code 读 ~/.claude/projects/**.jsonl 的 usage（真 token 含 cache），
+ *     Codex 读 ~/.codex/sessions/** rollout 的 total_token_usage 快照按天求增量；
+ *     两次轮询之间用 rAF 把显示值匀速滚向目标——滚轮一直在转，追上即停（零常驻开销）。
+ *   · 仓位 = 打开的终端 tab（term.sessions），右上角显示该项目今日消耗（perCwd 归属）；
+ *     外加「外部仓位」：Codex 会话 45s 内活跃、但 cwd 不属于任何打开的终端 →
+ *     自动冒出一张带「外部」章的卡（如单开的 Codex 客户端），安静后自动收走。
+ *   · 格子 = 该终端实时输出事件（fanboxPty.onData 旁听分类），与 v2.11 相同。
  *
- * 资源纪律（用户点名要求最低占用）：
- *   · 持续动效只碰 transform/opacity；辉光是预烘焙渐变的 opacity 切换，绝不连续动画 box-shadow；
- *   · 面板关闭或窗口隐藏 → 全部定时器停摆，pty 旁听只记一个时间戳即返回；
- *   · 任务轮询增量化：/api/list 看 mtime，只重读变过的小 json；
- *   · 数字滚轮用 CSS transition（离散值变化才动，无常驻 rAF）。
+ * 色阶天梯（今日口径，用户定案）：点火 <1M 素白 → 蓝移 1M（--info）→ 鎏金 1B（--yellow）
+ *   → 棱镜 3B（五色流光）。跨阶一次性闪光；环境极光跟着色阶换色。
+ *   仓位卡也按「该项目今日消耗」换里程边框（1M 蓝 / 1B 金 / 3B 彩虹渐变）。
  *
- * 布局不入侵：#app 打开时加 padding-right，面板自身 fixed 靠右——不碰 #app 的
- * grid-template-columns（侧栏折叠/拖宽的内联样式一概无关），终端在开合后主动 refit。
- * web 版无终端不装载；?rbobs=demo 用演示数据（无头验收用）。
+ * 读数三模式（rb_obs_nummode，切换器在精确行右侧）：
+ *   简写 = 三位有效数字+单位恒定超大；K = 只除 1000 其余位全滚；全显 = 记分牌两行堆叠。
+ *   任一模式下方都有 11 位「精确」小滚轮（全显模式隐藏，它本身就是精确值）。
+ *
+ * 收工庆典（回合机与 v2.11 相同：安静 6.5s 判收工）：闪光扫过 + 旋转彩虹流光边框 +
+ *   格子对角彩虹（hue-rotate 合成器流动），8.5s 后恢复原格子色。子任务完成庆祝保留。
+ *
+ * 资源纪律（不变）：持续动效只碰 transform/opacity/合成器 filter；辉光全部预烘焙；
+ *   面板关闭或窗口隐藏 → 定时器与 rAF 全停；浅色皮肤停用辉光/噪点（screen 叠加会出色斑）。
+ * 布局不入侵：#app 打开时加 padding-right，面板自身 fixed 靠右。
+ * web 版无终端不装载；?rbobs=demo 演示数据（无头验收），&rbtok=N 预置今日量，
+ * &win=N 窗口数，&rbdone=1 预置一张收工卡，&rbmode=compact|kilo|full 预置读数模式。
  */
 (function () {
   'use strict';
   var DEMO = /rbobs=demo/.test(location.search);
-  var WORKDEMO = DEMO && /[?&]work=1/.test(location.search); // 无任务·纯工作态演示（无头验收用）
-  var DEMOWIN = (function () { var m = /[?&]win=(\d+)/.exec(location.search); return m ? Math.max(1, Math.min(6, +m[1])) : 0; })(); // ?win=N：演示窗口数模拟（验收布局用）
+  var DEMOWIN = (function () { var m = /[?&]win=(\d+)/.exec(location.search); return m ? Math.max(1, Math.min(6, +m[1])) : 0; })();
+  var DEMOTOK = (function () { var m = /[?&]rbtok=(\d+)/.exec(location.search); return m ? +m[1] : 0; })();
   if (!window.fanboxPty && !DEMO) return;
   if (/[?&]pv=/.test(location.search)) return; // 独立预览窗里不装
 
   var PANEL_W = 380;
   var OPEN_KEY = 'rb_obs_open';
+  var MODE_KEY = 'rb_obs_nummode';
+  var POLL_MS = 12000;
   var reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var AGENT_BINS = ['claude', 'codex', 'grok', 'hermes', 'openclaw', 'kimi', 'opencode', 'pi', 'codebuddy', 'qodercli'];
 
-  // ---------- 样式：全走皮肤变量 ----------
+  // ---------- 样式：全走皮肤变量，色阶经 --rbg 中转 ----------
   var st = document.createElement('style');
   st.textContent = [
+    '@font-face { font-family: "Chakra Petch"; font-style: normal; font-weight: 600; font-display: swap; src: url("vendor/fonts/chakra-petch-600-latin.woff2") format("woff2"); }',
     '#app { transition: padding-right 340ms cubic-bezier(.77,0,.175,1); }',
     '#app.rb-obs-open { padding-right: ' + PANEL_W + 'px; }',
     '#rb-obs { position: fixed; z-index: 45; top: 0; right: 0; bottom: 0; width: ' + PANEL_W + 'px;',
     '  display: flex; flex-direction: column; overflow: hidden;',
-    '  background: var(--bg); border-left: 1px solid var(--border); color: var(--text);',
+    '  --rbg: var(--text-dim); --rb-num: "Chakra Petch", var(--font-mono, monospace);',
+    '  background: radial-gradient(130% 42% at 50% -12%, color-mix(in srgb, var(--rbg) 14%, transparent), transparent 66%),',
+    '    radial-gradient(80% 30% at 96% 106%, color-mix(in srgb, var(--rbg) 6%, transparent), transparent 62%), var(--bg);',
+    '  border-left: 1px solid var(--border); color: var(--text);',
     '  transform: translateX(100%); transition: transform 340ms cubic-bezier(.77,0,.175,1);',
     '  -webkit-app-region: no-drag; }',
-    '.desktop #rb-obs { top: 40px; }', // 让出顶部整条窗口拖拽区
+    '#rb-obs.t1 { --rbg: var(--info); }',
+    '#rb-obs.t2 { --rbg: var(--yellow); }',
+    '#rb-obs.t3 { --rbg: var(--accent); }',
+    'html[data-mode="light"] #rb-obs { background: radial-gradient(130% 42% at 50% -12%, color-mix(in srgb, var(--rbg) 7%, transparent), transparent 66%), var(--bg); }',
+    '.desktop #rb-obs { top: 40px; }',
     '#app.rb-obs-open #rb-obs { transform: none; }',
+    // 细颗粒噪点（深色皮肤专属材质；浅色会显脏，停用）
+    '.ro-grain { position: absolute; inset: 0; z-index: 0; pointer-events: none;',
+    "  background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E\"); }",
+    'html[data-mode="light"] #rb-obs .ro-grain { display: none; }',
     // 顶部五色跑马灯（皮肤状态色）
-    '.ro-track { position: absolute; top: 0; right: 0; left: 0; height: 3px; overflow: hidden; background: var(--panel); }',
+    '.ro-track { position: absolute; z-index: 8; top: 0; right: 0; left: 0; height: 3px; overflow: hidden; background: color-mix(in srgb, var(--text) 5%, transparent); }',
     '.ro-train { position: absolute; top: 0; left: -22%; display: flex; width: 26%; height: 100%; animation: ro-train 8s steps(80) infinite; }',
     '.ro-train i { flex: 1; }',
     '.ro-train i:nth-child(1) { background: var(--err); }',
@@ -64,82 +79,156 @@
     '.ro-train i:nth-child(3) { background: var(--ok); }',
     '.ro-train i:nth-child(4) { background: var(--info); }',
     '.ro-train i:nth-child(5) { background: var(--accent); }',
-    '.ro-head { display: flex; align-items: center; gap: 9px; flex: 0 0 46px; padding: 3px 10px 0 15px; border-bottom: 1px solid var(--border); }',
-    '.ro-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 9px var(--ok); animation: ro-breathe 2.4s steps(24) infinite; flex: 0 0 auto; }',
-    '.ro-eyebrow { color: var(--text-dim); font: 9px/1 var(--font-mono, monospace); letter-spacing: .12em; text-transform: uppercase; }',
-    '.ro-x { display: grid; width: 26px; height: 26px; place-items: center; margin-left: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text-dim); cursor: pointer; font-size: 11px; transition: transform 140ms cubic-bezier(.23,1,.32,1), background 160ms ease, color 160ms ease; }',
+    '.ro-head { display: flex; align-items: center; gap: 9px; flex: 0 0 46px; padding: 3px 10px 0 15px; border-bottom: 1px solid var(--border); position: relative; z-index: 3; }',
+    '.ro-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--ok); box-shadow: 0 0 9px var(--ok); animation: ro-breathe 2.4s steps(24) infinite; flex: 0 0 auto; }',
+    '.ro-eyebrow { color: var(--text-dim); font: 9px/1 var(--font-mono, monospace); letter-spacing: .14em; text-transform: uppercase; }',
+    '.ro-x { display: grid; width: 26px; height: 26px; place-items: center; margin-left: auto; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); color: var(--text-dim); cursor: pointer; font-size: 11px; transition: transform 140ms cubic-bezier(.23,1,.32,1), background 160ms ease, color 160ms ease; }',
     '.ro-x:hover { background: var(--accent-soft, var(--panel)); color: var(--text); }',
     '.ro-x:active { transform: scale(.94); }',
-    // 大数字区
-    '.ro-hero { position: relative; flex: 0 0 auto; padding: 22px 18px 6px; }',
-    '.ro-label { margin: 0 0 11px 4px; color: var(--text-dim); font: 15px/1 var(--font-mono, monospace); letter-spacing: .12em; }',
-    '.ro-bloom { position: absolute; inset: -18px -26px; opacity: 0; pointer-events: none; mix-blend-mode: screen; filter: blur(16px); transition: opacity 900ms ease;',
-    '  background: radial-gradient(ellipse 60% 90% at 22% 55%, color-mix(in srgb, var(--err) 46%, transparent), transparent 60%),',
-    '  radial-gradient(ellipse 55% 85% at 52% 45%, color-mix(in srgb, var(--ok) 40%, transparent), transparent 62%),',
-    '  radial-gradient(ellipse 55% 90% at 82% 55%, color-mix(in srgb, var(--accent) 46%, transparent), transparent 60%); }',
-    '.ro-hero.complete .ro-bloom { opacity: .75; animation: ro-bloom 3.2s ease-in-out .9s infinite; }',
-    // 辉光是深色 UI 的语言：screen 混合在浅底上会洗出一块可见色斑（用户截图定案）→ 浅色皮肤整体停用
+    // ---- hero：今日 Token 里程 ----
+    '.ro-hero { position: relative; z-index: 3; flex: 0 0 auto; margin: 13px 16px 0; padding: 0 2px; }',
+    '.ro-hero-top { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }',
+    '.ro-label { color: var(--text-dim); font: 11px/1 var(--font-mono, monospace); letter-spacing: .16em; }',
+    '.ro-badge { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 4px 10px 4px 8px;',
+    '  border: 1px solid color-mix(in srgb, var(--rbg) 40%, transparent);',
+    '  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);',
+    '  color: var(--rbg); font: 600 9.5px/1 var(--font-mono, monospace); letter-spacing: .1em;',
+    '  background: color-mix(in srgb, var(--rbg) 9%, transparent);',
+    '  transition: color 500ms ease, border-color 500ms ease, background 500ms ease; }',
+    '.ro-badge i { width: 6px; height: 6px; background: currentColor; }',
+    '.ro-badge.pop { animation: ro-badgepop 620ms cubic-bezier(.23,1,.32,1); }',
+    '#rb-obs.t3 .ro-badge { color: var(--text); border-color: transparent;',
+    '  background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(100deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)) border-box; border: 1px solid transparent; }',
+    // 跨阶闪光（预烘焙光斑，只动 opacity；浅色皮肤停用——screen 叠加在浅底出色斑）
+    '.ro-bloom { position: absolute; inset: -6px -14px 20px; opacity: 0; pointer-events: none; mix-blend-mode: screen; filter: blur(18px); transition: opacity 1200ms ease;',
+    '  background: radial-gradient(ellipse 62% 88% at 30% 55%, color-mix(in srgb, var(--rbg) 50%, transparent), transparent 62%),',
+    '  radial-gradient(ellipse 55% 85% at 74% 45%, color-mix(in srgb, var(--rbg) 38%, transparent), transparent 62%); }',
+    '.ro-hero.flash .ro-bloom { opacity: .9; transition: opacity 140ms ease; }',
+    '.ro-hero.flash .ro-bigwrap { animation: ro-settle 560ms cubic-bezier(.23,1,.32,1); }',
     'html[data-mode="light"] #rb-obs .ro-bloom { display: none; }',
-    // 工作态：数字只轻呼吸表示活着（用户定案：不垫绿底不变绿字，绿色辉光只属于归零庆祝）
-    '.ro-hero.busy .ro-num-inner { animation: ro-livepulse 2.6s ease-in-out infinite; }',
-    '.ro-num { position: relative; display: inline-block; font-size: 92px; font-weight: 600; line-height: 1; letter-spacing: -.05em; font-variant-numeric: tabular-nums; transition: font-size 340ms cubic-bezier(.23,1,.32,1); }',
-    '.ro-num-inner { display: inline-block; }',
-    '.ro-hero.complete .ro-num-inner { animation: ro-settle 520ms cubic-bezier(.23,1,.32,1); }',
-    '.ro-odo { position: relative; display: inline-flex; }',
-    '.ro-layer { display: inline-flex; height: 1em; overflow: hidden; }',
-    '.ro-layer.white { position: absolute; inset: 0; color: var(--text); clip-path: inset(0 0 0 0); transition: clip-path 600ms ease; }',
-    '.ro-layer.rainbow strong { color: transparent;',
-    '  background: linear-gradient(100deg, var(--err) 0%, var(--yellow) 22%, var(--ok) 44%, var(--info) 66%, var(--accent) 86%, var(--err) 100%);',
-    '  background-size: 64px 100%; background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;',
-    '  animation: ro-flow 5.6s linear infinite; }',
-    '.ro-hero.complete .ro-layer.rainbow strong { animation-duration: 2.4s; }',
-    '.ro-digit { display: inline-block; vertical-align: top; width: .6em; height: 1em; overflow: hidden; transition: width 300ms cubic-bezier(.23,1,.32,1), opacity 300ms ease; }',
-    '.ro-digit.off, .ro-sep.off { width: 0; opacity: 0; }',
-    '.ro-sep { display: inline-block; vertical-align: top; width: .3em; transition: width 300ms cubic-bezier(.23,1,.32,1), opacity 300ms ease; }',
-    '.ro-reel { display: block; transition: transform 680ms cubic-bezier(.23,1,.32,1); will-change: transform; }',
-    '.ro-reel strong, .ro-sep strong { display: block; height: 1em; line-height: 1; font-weight: 600; }',
-    '.ro-sep strong { transform: translateY(-.1em); }', // Maple Mono 的逗号偏低，1em 裁切盒里视觉下坠，微抬回来
-
-    '.ro-trend { margin-top: 13px; color: var(--text-dim); font: 12.5px/1.5 var(--font-mono, monospace); }',
+    // 主读数（简写/K 单行 + 全显两行堆叠）
+    '.ro-bigwrap { display: inline-block; }',
+    '.rb-big { display: inline-flex; align-items: baseline; font-family: var(--rb-num); font-weight: 600; font-size: 132px; line-height: 1; font-variant-numeric: tabular-nums;',
+    '  transition: font-size 320ms cubic-bezier(.23,1,.32,1), filter 600ms ease; }',
+    '#rb-obs.t1 .rb-big, #rb-obs.t2 .rb-big { filter: drop-shadow(0 0 16px color-mix(in srgb, var(--rbg) 38%, transparent)); }',
+    '#rb-obs.t3 .rb-big { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--yellow) 30%, transparent)) drop-shadow(0 0 22px color-mix(in srgb, var(--info) 30%, transparent)); }',
+    'html[data-mode="light"] #rb-obs .rb-big { filter: none; }',
+    '.rb-big.stack { display: none; flex-direction: column; align-items: flex-end; line-height: 1.06; font-size: 92px; }',
+    '.rb-big .row { display: inline-flex; }',
+    '.ro-hero.mode-full .rb-big.line { display: none; }',
+    '.ro-hero.mode-full .rb-big.stack { display: inline-flex; }',
+    '.ro-hero.mode-full .ro-subcap, .ro-hero.mode-full .ro-subnum { display: none; }',
+    '.ro-hero.mode-compact #rb-kilo, .ro-hero.mode-kilo #rb-compact { display: none; }',
+    '.rb-unit { font-size: .38em; margin-left: .08em; transform: translateY(-.06em); color: var(--text-dim); }',
+    '#rb-obs.t1 .rb-unit { color: var(--info); }',
+    '#rb-obs.t2 .rb-unit { color: var(--yellow); }',
+    '#rb-obs.t3 .rb-unit { background-image: linear-gradient(120deg, var(--yellow), var(--ok), var(--info)); background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }',
+    // 滚轮构件（大字与精确行共用）：容器一律 inline-flex——inline-block 的 baseline 对齐
+    // 会拿 overflow:hidden 盒子的底边当基线，整行错位（真实壳里踩过的坑）
+    '.rb-digits, #rb-sub, #rb-rowhi, #rb-rowlo { display: inline-flex; }',
+    '.rb-dg { display: inline-block; vertical-align: top; width: .6em; height: 1em; overflow: hidden; transition: width 300ms cubic-bezier(.23,1,.32,1), opacity 300ms ease; }',
+    '.rb-dg.off, .rb-sep.off, .rb-pt.off { width: 0; opacity: 0; }',
+    '.rb-sep { display: inline-block; vertical-align: top; width: .26em; height: 1em; overflow: hidden; transition: width 300ms cubic-bezier(.23,1,.32,1), opacity 300ms ease; }',
+    '.rb-pt { display: inline-block; vertical-align: top; width: .3em; height: 1em; transition: width 300ms cubic-bezier(.23,1,.32,1), opacity 300ms ease; }',
+    '.rb-reel { display: block; will-change: transform; }',
+    '.rb-reel b, .rb-sep b, .rb-pt b { display: block; height: 1em; line-height: 1; font-weight: 600; text-align: center; color: var(--text); }',
+    // 色阶配色：t0 素色 → t1 蓝移 → t2 鎏金 → t3 棱镜（渐变文字缓慢流动，只作用于大字）
+    '#rb-obs.t1 .rb-big .rb-reel b, #rb-obs.t1 .rb-big .rb-pt b, #rb-obs.t2 .rb-big .rb-reel b, #rb-obs.t2 .rb-big .rb-pt b, #rb-obs.t3 .rb-big .rb-reel b, #rb-obs.t3 .rb-big .rb-pt b {',
+    '  color: transparent; background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-size: 64px 100%; animation: ro-flow 5.6s linear infinite; }',
+    '#rb-obs.t1 .rb-big .rb-reel b, #rb-obs.t1 .rb-big .rb-pt b { background-image: linear-gradient(100deg, color-mix(in srgb, var(--info) 55%, #fff) 0%, var(--info) 32%, color-mix(in srgb, var(--info) 72%, #003) 60%, var(--info) 82%, color-mix(in srgb, var(--info) 55%, #fff) 100%); }',
+    '#rb-obs.t2 .rb-big .rb-reel b, #rb-obs.t2 .rb-big .rb-pt b { background-image: linear-gradient(100deg, color-mix(in srgb, var(--yellow) 55%, #fff) 0%, var(--yellow) 34%, color-mix(in srgb, var(--yellow) 70%, #530) 62%, var(--yellow) 82%, color-mix(in srgb, var(--yellow) 55%, #fff) 100%); }',
+    '#rb-obs.t3 .rb-big .rb-reel b, #rb-obs.t3 .rb-big .rb-pt b { background-image: linear-gradient(100deg, var(--err) 0%, var(--yellow) 22%, var(--ok) 44%, var(--info) 64%, var(--accent) 84%, var(--err) 100%); }',
+    'html[data-mode="light"] #rb-obs.t1 .rb-big .rb-reel b, html[data-mode="light"] #rb-obs.t1 .rb-big .rb-pt b { background-image: linear-gradient(100deg, var(--info) 0%, color-mix(in srgb, var(--info) 70%, #003) 50%, var(--info) 100%); }',
+    'html[data-mode="light"] #rb-obs.t2 .rb-big .rb-reel b, html[data-mode="light"] #rb-obs.t2 .rb-big .rb-pt b { background-image: linear-gradient(100deg, var(--yellow) 0%, color-mix(in srgb, var(--yellow) 70%, #530) 50%, var(--yellow) 100%); }',
+    // 精确行 + 模式切换
+    '.ro-subrow { display: flex; align-items: center; gap: 8px; margin: 9px 0 0; }',
+    '.ro-subcap { color: var(--text-faint); font: 9px/1 var(--font-mono, monospace); letter-spacing: .14em; }',
+    '.ro-subnum { font-family: var(--rb-num); font-weight: 600; font-size: 18px; line-height: 1; }',
+    '.ro-subnum .rb-reel b, .ro-subnum .rb-sep b { color: color-mix(in srgb, var(--text) 62%, transparent); }',
+    '.ro-modesw { margin-left: auto; display: inline-flex; gap: 3px; }',
+    '.ro-modesw button { padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; background: none; color: var(--text-faint); font: 600 9px/1 var(--font-mono, monospace); letter-spacing: .06em; cursor: pointer; transition: color 160ms ease, background 160ms ease, border-color 160ms ease; }',
+    '.ro-modesw button:hover { color: var(--text); }',
+    '.ro-modesw button.on { border-color: color-mix(in srgb, var(--text) 24%, transparent); background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }',
+    // 里程仪表：十段刻度，跨阶清零像新的一圈
+    '.ro-meterrow { display: flex; align-items: center; gap: 9px; margin: 12px 0 0; }',
+    '.ro-meter { position: relative; flex: 1; height: 6px; background: color-mix(in srgb, var(--text) 8%, transparent); border-radius: 2px; overflow: hidden; }',
+    '.ro-meter i { display: block; height: 100%; width: 0; background: color-mix(in srgb, var(--rbg) 92%, transparent); transition: width 500ms cubic-bezier(.23,1,.32,1), background 500ms ease; }',
+    '#rb-obs.t3 .ro-meter i { background: linear-gradient(90deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)); }',
+    '.ro-meter::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1.5px), var(--bg) calc(10% - 1.5px) 10%); }',
+    '.ro-meternext { color: var(--text-faint); font: 10px/1 var(--font-mono, monospace); letter-spacing: .08em; flex: 0 0 auto; }',
+    '.ro-meternext b { color: var(--rbg); font-weight: 600; transition: color 500ms ease; }',
+    '.ro-trend { margin: 10px 0 0; color: var(--text-dim); font: 11.5px/1.4 var(--font-mono, monospace); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
     '.ro-trend b { color: var(--ok); font-weight: 500; }',
-    // 模块区
-    '.ro-flow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 34px 14px 12px; min-height: 0; overflow-y: auto; align-content: start; }',
+    '.ro-srcrow { display: flex; align-items: center; gap: 12px; margin: 6px 0 0; }',
+    '.ro-src { display: inline-flex; align-items: center; gap: 5px; color: var(--text-faint); font: 10px/1 var(--font-mono, monospace); }',
+    '.ro-src i { width: 6px; height: 6px; border-radius: 2px; flex: 0 0 auto; }',
+    '.ro-src b { color: var(--text-dim); font-weight: 500; }',
+    '.ro-srcnote { margin-left: auto; color: var(--text-faint); font: 9px/1 var(--font-mono, monospace); letter-spacing: .06em; }',
+    '.ro-rule { position: relative; z-index: 3; height: 1px; margin: 13px 16px 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--rbg) 45%, transparent) 30%, color-mix(in srgb, var(--rbg) 45%, transparent) 70%, transparent); }',
+    // ---- 仓位 ----
+    '.ro-flow { position: relative; z-index: 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 13px 14px 12px; min-height: 0; overflow-y: auto; align-content: start; }',
     '.ro-flow.cols-1 { grid-template-columns: 1fr; }',
     '.ro-flow::-webkit-scrollbar { width: 0; }',
-    '.ro-mod { min-width: 0; padding: 10px 11px 11px; border: 1px solid var(--border); border-radius: 13px; background: var(--panel); }',
-    '.ro-mod-head { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; }',
-    '.ro-st { width: 6px; height: 6px; border-radius: 50%; background: var(--text-faint); flex: 0 0 auto; }',
+    '.ro-mod { position: relative; min-width: 0; padding: 10px 11px 11px; border: 1px solid var(--border); border-radius: 13px; background: var(--panel); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent); }',
+    'html[data-mode="light"] .ro-mod { box-shadow: none; }',
+    // 里程边框：该项目今日消耗 1M 蓝 / 1B 金 / 3B 彩虹（常驻荣誉；收工的旋转流光是临时庆典）
+    '.ro-mod.m1 { border-color: color-mix(in srgb, var(--info) 52%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent), 0 0 18px -7px color-mix(in srgb, var(--info) 50%, transparent); }',
+    '.ro-mod.m2 { border-color: color-mix(in srgb, var(--yellow) 55%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent), 0 0 18px -7px color-mix(in srgb, var(--yellow) 55%, transparent); }',
+    '.ro-mod.m3 { border: 1px solid transparent; background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(120deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)) border-box;',
+    '  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent), 0 0 16px -7px color-mix(in srgb, var(--err) 38%, transparent), 0 0 20px -8px color-mix(in srgb, var(--info) 38%, transparent); }',
+    'html[data-mode="light"] .ro-mod.m1, html[data-mode="light"] .ro-mod.m2, html[data-mode="light"] .ro-mod.m3 { box-shadow: none; }',
+    '.ro-mod.m1 .ro-cnt { color: var(--info); }',
+    '.ro-mod.m2 .ro-cnt { color: var(--yellow); }',
+    '.ro-mod.m3 .ro-cnt { background-image: linear-gradient(100deg, var(--yellow), var(--ok), var(--info)); background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; font-weight: 700; }',
+    '.ro-mod-head { position: relative; z-index: 2; display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }',
+    '.ro-st { width: 7px; height: 7px; border-radius: 2px; background: var(--text-faint); flex: 0 0 auto; transition: background 300ms ease, box-shadow 300ms ease; }',
     '.ro-st.working { background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: ro-breathe 2.4s steps(24) infinite; }',
     '.ro-st.waiting { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }',
     '.ro-st.exited { background: var(--err); }',
+    '.ro-mod.ext .ro-st { background: var(--accent); box-shadow: 0 0 8px var(--accent); }',
     '.ro-pick { display: flex; align-items: center; gap: 5px; min-width: 0; border: none; background: none; padding: 2px 4px; margin: -2px 0; border-radius: 6px; color: var(--text); font-size: 12px; font-weight: 650; cursor: pointer; transition: background 160ms ease, transform 140ms cubic-bezier(.23,1,.32,1); }',
     '.ro-pick:hover { background: var(--accent-soft, rgba(128,128,128,.12)); }',
     '.ro-pick:active { transform: scale(.97); }',
     '.ro-pick small { color: var(--text-faint); font-size: 9px; }',
     '.ro-pick .ro-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-    '.ro-cnt { margin-left: auto; color: var(--text-dim); font: 13px/1 var(--font-mono, monospace); flex: 0 0 auto; }',
-    '.ro-mod.done .ro-cnt { color: var(--ok); }',
-    '.ro-mod.waiting { border-color: color-mix(in srgb, var(--yellow) 55%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--yellow) 18%, transparent), 0 0 20px color-mix(in srgb, var(--yellow) 10%, transparent); }',
-    '.ro-mod.working { border-color: color-mix(in srgb, var(--ok) 52%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ok) 18%, transparent), 0 0 22px color-mix(in srgb, var(--ok) 12%, transparent); }',
-    '.ro-mod.working .ro-cnt { color: var(--ok); }',
-    '.ro-grid { display: grid; gap: 6px; }',
-    '.ro-cell { aspect-ratio: 1; border: 1px solid var(--border); border-radius: 5px; background: var(--bg); transform: translateZ(0); transition: transform 200ms cubic-bezier(.23,1,.32,1), background-color 320ms ease, border-color 320ms ease, box-shadow 320ms ease; }',
+    '.ro-extchip { flex: 0 0 auto; padding: 2px 5px; border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); border-radius: 5px; color: var(--accent); font: 600 8px/1 var(--font-mono, monospace); letter-spacing: .1em; }',
+    '.ro-cnt { margin-left: auto; color: var(--text-dim); font: 11px/1 var(--font-mono, monospace); flex: 0 0 auto; letter-spacing: .02em; }',
+    '.ro-mod.working .ro-cnt { color: var(--text); }',
+    // 本轮进度丝（回合机驱动）
+    '.ro-run { position: relative; z-index: 2; display: block; height: 2px; margin: 0 0 8px; border-radius: 99px; background-color: color-mix(in srgb, var(--text) 8%, transparent); background-image: linear-gradient(90deg, var(--ok), var(--info)); background-repeat: no-repeat; background-size: 0% 100%; }',
+    '.ro-mod.ext .ro-run { background-image: linear-gradient(90deg, var(--accent), var(--info)); }',
+    '.ro-mod.done .ro-run { background-image: linear-gradient(90deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)); background-size: 100% 100%; }',
+    '.ro-grid { position: relative; z-index: 2; display: grid; gap: 6px; }',
+    '.ro-cell { aspect-ratio: 1; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); transform: translateZ(0); transition: transform 200ms cubic-bezier(.23,1,.32,1), background-color 320ms ease, border-color 320ms ease, box-shadow 320ms ease; }',
     ['err', 'yellow', 'accent', 'ok', 'info'].map(function (t) {
       var v = 'var(--' + t + ')';
       return '.ro-cell.' + t + ' { color: ' + v + '; border-color: color-mix(in srgb, ' + v + ' 78%, transparent); background: color-mix(in srgb, ' + v + ' 66%, transparent); }\n' +
-        // 浅色皮肤：66% 透明度蒙在米底上会被稀释成粉彩（用户对比截图定案）→ 实心糖果 chip
         'html[data-mode="light"] .ro-cell.' + t + ' { border-color: ' + v + '; background: color-mix(in srgb, ' + v + ' 90%, transparent); }';
     }).join('\n'),
-    '.ro-cell.chasing { outline: 1px solid currentColor; outline-offset: 1px; transform: translateY(-2px) scale(1.08); box-shadow: 0 0 12px -1px currentColor; }',
+    '.ro-cell.chasing { outline: 1px solid color-mix(in srgb, var(--text) 55%, transparent); outline-offset: 1px; transform: translateY(-2px) scale(1.08); }',
     '.ro-cell.pop { animation: ro-pop 340ms cubic-bezier(.23,1,.32,1); }',
-    // 模块庆祝（子任务完成 / 单终端收工）：全一次性动画，播完自己消失，无常驻开销
+    // ===== 收工 = 彩虹流光（一次性庆典 + 8.5s 持续流光后自动恢复） =====
+    '.ro-rim { position: absolute; inset: 0; z-index: 0; border-radius: 13px; overflow: hidden; display: none; pointer-events: none; }',
+    '.ro-rim::before { content: ""; position: absolute; inset: -75%; background: conic-gradient(from 0deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent), var(--err)); animation: ro-spin 3.2s linear infinite; }',
+    '.ro-rim::after { content: ""; position: absolute; inset: 2px; border-radius: 11px; background: var(--panel); }',
+    '.ro-mod.done .ro-rim { display: block; }',
+    '.ro-mod.done { border-color: transparent; box-shadow: 0 0 26px -6px color-mix(in srgb, var(--err) 30%, transparent), 0 0 40px -10px color-mix(in srgb, var(--info) 30%, transparent); }',
+    'html[data-mode="light"] .ro-mod.done { box-shadow: none; }',
+    '.ro-mod.done .ro-grid { animation: ro-huerun 4s linear infinite; }',
+    '.ro-mod.done .ro-cell { border-color: transparent; box-shadow: 0 0 10px -1px currentColor; }',
+    'html[data-mode="light"] .ro-mod.done .ro-cell { box-shadow: none; }',
+    '.ro-flash { position: absolute; inset: 0; z-index: 3; border-radius: 13px; overflow: hidden; pointer-events: none; display: none; }',
+    '.ro-flash i { position: absolute; top: -30%; bottom: -30%; left: 0; width: 46%; background: linear-gradient(105deg, transparent, color-mix(in srgb, #fff 32%, transparent), transparent); transform: translateX(-130%) skewX(-12deg); }',
+    '.ro-mod.celebrate .ro-flash { display: block; }',
+    '.ro-mod.celebrate .ro-flash i { animation: ro-sweep 760ms cubic-bezier(.23,1,.32,1) 120ms both; }',
     '.ro-mod.celebrate { animation: ro-modwin 900ms cubic-bezier(.23,1,.32,1); }',
-    '.ro-cell.win { animation: ro-cellwin 620ms cubic-bezier(.23,1,.32,1); }',
+    '.ro-mod.done .ro-st { background: var(--text); box-shadow: 0 0 10px var(--text); animation: none; }',
     '.ro-cnt.winpop { animation: ro-pop 340ms cubic-bezier(.23,1,.32,1); }',
     '.ro-empty { grid-column: 1 / -1; padding: 30px 10px; color: var(--text-faint); font: 12px/1.8 var(--font-mono, monospace); text-align: center; }',
-    '.ro-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; flex: 0 0 auto; padding: 11px 16px; border-top: 1px solid var(--border); color: var(--text-faint); font: 9.5px/1.5 var(--font-mono, monospace); }',
-    '.ro-legend { display: flex; gap: 9px; }',
-    '.ro-legend i { display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 2px; background: currentColor; }',
+    '.ro-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; flex: 0 0 auto; padding: 11px 16px; border-top: 1px solid var(--border); color: var(--text-faint); font: 9.5px/1.5 var(--font-mono, monospace); position: relative; z-index: 3; }',
+    '.ro-ladder { display: flex; gap: 9px; align-items: center; }',
+    '.ro-ladder span { display: flex; align-items: center; gap: 4px; }',
+    '.ro-ladder i { width: 7px; height: 7px; border-radius: 2px; }',
     '.ro-foot .sp { flex: 1; }',
     // 换绑菜单：origin-aware
     '.ro-menu { position: fixed; z-index: 120; min-width: 170px; padding: 5px; border: 1px solid var(--border); border-radius: 11px; background: var(--panel); box-shadow: var(--shadow, 0 18px 60px rgba(0,0,0,.4)); transform-origin: top left; transform: scale(.97); opacity: 0; transition: transform 150ms cubic-bezier(.23,1,.32,1), opacity 150ms cubic-bezier(.23,1,.32,1); }',
@@ -151,13 +240,17 @@
     '@keyframes ro-breathe { 0%,100% { opacity: 1; } 50% { opacity: .45; } }',
     '@keyframes ro-train { to { left: 100%; } }',
     '@keyframes ro-flow { to { background-position: 64px 0; } }',
-    '@keyframes ro-bloom { 0%,100% { opacity: .75; } 50% { opacity: .5; } }',
-    '@keyframes ro-settle { 0% { transform: scale(1.035); } 100% { transform: scale(1); } }',
+    '@keyframes ro-settle { 0% { transform: scale(1.04); } 100% { transform: scale(1); } }',
+    '@keyframes ro-badgepop { 0% { transform: scale(.8); } 55% { transform: scale(1.14); } 100% { transform: scale(1); } }',
     '@keyframes ro-pop { 0% { transform: scale(.82); } 62% { transform: scale(1.10); } 100% { transform: scale(1); } }',
-    '@keyframes ro-livepulse { 0%,100% { opacity: 1; } 50% { opacity: .74; } }',
-    '@keyframes ro-modwin { 0% { box-shadow: 0 0 0 0 transparent; } 30% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 26%, transparent), 0 0 30px color-mix(in srgb, var(--ok) 30%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }',
-    '@keyframes ro-cellwin { 40% { transform: translateY(-2px) scale(1.16); background-color: color-mix(in srgb, var(--ok) 74%, transparent); border-color: var(--ok); } }',
-    '@media (prefers-reduced-motion: reduce) { .ro-train, .ro-dot, .ro-st, .ro-cell.pop, .ro-cell.win, .ro-mod.celebrate, .ro-cnt.winpop, .ro-hero.complete .ro-num-inner, .ro-hero.busy .ro-num-inner { animation: none !important; } #rb-obs, #app { transition-duration: 1ms; } }',
+    '@keyframes ro-spin { to { transform: rotate(360deg); } }',
+    '@keyframes ro-huerun { to { filter: hue-rotate(360deg); } }',
+    '@keyframes ro-sweep { to { transform: translateX(320%) skewX(-12deg); } }',
+    '@keyframes ro-modwin { 0% { transform: scale(1); } 26% { transform: scale(1.03); } 100% { transform: scale(1); } }',
+    // ?shot 截图模式：无头 Chrome 的 virtual-time 会把过渡冻在起点，截图时过渡全瞬时
+    (/[?&]shot/.test(location.search) ? '#rb-obs, #rb-obs * { transition-duration: 0ms !important; }' : ''),
+    '@media (prefers-reduced-motion: reduce) { .ro-train, .ro-dot, .ro-st, .ro-cell.pop, .ro-badge.pop, .ro-hero.flash .ro-bigwrap, .ro-mod.done .ro-grid, .ro-rim::before, .ro-mod.celebrate, .ro-mod.celebrate .ro-flash i, .ro-cnt.winpop,',
+    '  #rb-obs.t1 .rb-big .rb-reel b, #rb-obs.t2 .rb-big .rb-reel b, #rb-obs.t3 .rb-big .rb-reel b { animation: none !important; } #rb-obs, #app { transition-duration: 1ms; } }',
   ].join('\n');
   document.head.appendChild(st);
 
@@ -166,22 +259,49 @@
   if (!app) return;
   var aside = document.createElement('aside');
   aside.id = 'rb-obs';
+  aside.className = 't0';
   aside.innerHTML =
+    '<span class="ro-grain"></span>' +
     '<div class="ro-track"><div class="ro-train"><i></i><i></i><i></i><i></i><i></i></div></div>' +
-    '<header class="ro-head"><span class="ro-dot"></span><span class="ro-eyebrow">Live · 终端工作状态</span>' +
+    '<header class="ro-head"><span class="ro-dot"></span><span class="ro-eyebrow">Live · 今日 Token</span>' +
     '<button class="ro-x" title="收起观察舱（终端 ⋯ 菜单可再打开）">✕</button></header>' +
-    '<div class="ro-hero"><span class="ro-bloom"></span><div class="ro-label">未完成任务</div>' +
-    '<span class="ro-num-inner"><span class="ro-num"><span class="ro-odo"></span></span></span>' +
-    '<div class="ro-trend">—</div></div>' +
+    '<div class="ro-hero">' +
+    '<span class="ro-bloom"></span>' +
+    '<div class="ro-hero-top"><span class="ro-label">今日消耗 · TOKENS</span>' +
+    '<span class="ro-badge"><i></i><span class="ro-badgetext">点火</span></span></div>' +
+    '<span class="ro-bigwrap">' +
+    '<span class="rb-big line"><span class="rb-digits" id="rb-compact"></span><span class="rb-digits" id="rb-kilo"></span><span class="rb-unit"></span></span>' +
+    '<span class="rb-big stack"><span class="row" id="rb-rowhi"></span><span class="row" id="rb-rowlo"></span></span>' +
+    '</span>' +
+    '<div class="ro-subrow"><span class="ro-subcap">精确</span><span class="ro-subnum"><span id="rb-sub"></span></span>' +
+    '<span class="ro-modesw"><button data-mode="compact">简写</button><button data-mode="kilo">K</button><button data-mode="full">全显</button></span></div>' +
+    '<div class="ro-meterrow"><div class="ro-meter"><i></i></div><span class="ro-meternext">→ <b>1M</b></span></div>' +
+    '<div class="ro-trend">—</div>' +
+    '<div class="ro-srcrow"><span class="ro-src"><i style="background:var(--err)"></i><b class="ro-src-claude">—</b></span>' +
+    '<span class="ro-src"><i style="background:var(--accent)"></i><b class="ro-src-codex">—</b></span>' +
+    '<span class="ro-srcnote">本机日志 · 每天 00:00 起</span></div>' +
+    '</div>' +
+    '<div class="ro-rule"></div>' +
     '<div class="ro-flow"></div>' +
-    '<footer class="ro-foot"><span class="ro-legend">' +
-    '<span style="color:var(--ok)"><i></i>成功</span><span style="color:var(--yellow)"><i></i>警告</span>' +
-    '<span style="color:var(--err)"><i></i>错误</span><span style="color:var(--info)"><i></i>输出</span>' +
+    '<footer class="ro-foot"><span class="ro-ladder">' +
+    '<span style="color:var(--info)"><i style="background:var(--info)"></i>1M 蓝移</span>' +
+    '<span style="color:var(--yellow)"><i style="background:var(--yellow)"></i>1B 鎏金</span>' +
+    '<span style="color:var(--accent)"><i style="background:linear-gradient(135deg,var(--err),var(--yellow),var(--ok),var(--info),var(--accent))"></i>3B 棱镜</span>' +
     '</span><span class="sp"></span><span>只观察 · 不接管</span></footer>';
   app.appendChild(aside);
   var flow = aside.querySelector('.ro-flow');
   var hero = aside.querySelector('.ro-hero');
   var trendEl = aside.querySelector('.ro-trend');
+  var srcClaudeEl = aside.querySelector('.ro-src-claude');
+  var srcCodexEl = aside.querySelector('.ro-src-codex');
+  var badgeEl = aside.querySelector('.ro-badge');
+  var badgeTextEl = aside.querySelector('.ro-badgetext');
+  var meterFillEl = aside.querySelector('.ro-meter i');
+  var meterNextEl = aside.querySelector('.ro-meternext');
+  var unitEl = aside.querySelector('.rb-unit');
+  var bigLineEl = aside.querySelector('.rb-big.line');
+  var bigStackEl = aside.querySelector('.rb-big.stack');
+  var rowHiEl = document.getElementById('rb-rowhi');
 
   // ---------- 开合（关闭 = 零成本） ----------
   function isOpen() { return app.classList.contains('rb-obs-open'); }
@@ -190,7 +310,6 @@
     try { localStorage.setItem(OPEN_KEY, on ? '1' : '0'); } catch (e) { /* */ }
     try { document.dispatchEvent(new CustomEvent('rb-obs-open', { detail: !!on })); } catch (e) { /* 工具条按钮高亮同步 */ }
     if (on) { startAll(); } else { stopAll(); }
-    // 面板推开/收回改变主区宽度：终端网格要 refit（过渡中补一次，结束再一次）
     var refit = function () { try { if (typeof term !== 'undefined' && term.fitActive) term.fitActive(); } catch (e) { /* */ } };
     setTimeout(refit, 180); setTimeout(refit, 380);
   }
@@ -201,7 +320,7 @@
   var demoSessions = DEMO ? [
     { id: 'd1', title: 'Rurubox', cwd: '/tmp/Rurubox' }, { id: 'd2', title: 'Build', cwd: '/tmp/Build' },
     { id: 'd3', title: 'Tests', cwd: '/tmp/Tests' }, { id: 'd4', title: 'Server', cwd: '/tmp/Server' },
-    { id: 'd5', title: 'Codex', cwd: '/tmp/Codex' }, { id: 'd6', title: 'zsh', cwd: '/tmp/zsh' },
+    { id: 'd5', title: 'Docs', cwd: '/tmp/Docs' }, { id: 'd6', title: 'zsh', cwd: '/tmp/zsh' },
   ] : null;
   function sessionsNow() {
     if (DEMO) return DEMOWIN ? demoSessions.slice(0, DEMOWIN) : demoSessions;
@@ -216,33 +335,244 @@
   }
 
   // ---------- 活动旁听（面板关着时只记时间戳） ----------
-  // turn = 当前回合 { spentB:产出字节, spent:单位, est:估算总量, t0 }；ema = 该终端历史每回合产出（校准估算）
-  var act = {}; // sid -> { last, pend:[], proc, cells:[], ptr, open:任务数, done:任务数, turn, ema, emaKey }
+  var act = {}; // sid -> { last, pend:[], proc, cells:[], ptr, turn, ema, emaKey, open, done }
   function actOf(sid) { return act[sid] || (act[sid] = { last: 0, pend: [], proc: '', cells: null, ptr: 0, open: null, done: 0, turn: null, ema: 0, emaKey: '', demoHold: 0 }); }
   function classify(chunk) {
     var s = String(chunk).slice(0, 400);
     if (/error|failed|✗|✘|exception|fatal/i.test(s)) return 'err';
     if (/warn/i.test(s)) return 'yellow';
-    if (/✓|✔|⏺|passed|success|committed| done/i.test(s)) return 'ok'; // ⏺ = CC 完成一个动作
-    if (/✻|✽|✢|✳|thinking|esc to interrupt/i.test(s)) return 'accent'; // CC 思考转轮的各种帧
+    if (/✓|✔|⏺|passed|success|committed| done/i.test(s)) return 'ok';
+    if (/✻|✽|✢|✳|thinking|esc to interrupt/i.test(s)) return 'accent';
     return 'info';
   }
   if (!DEMO && window.fanboxPty && window.fanboxPty.onData) {
     window.fanboxPty.onData(function (m) {
       var a = actOf(m.id);
       a.last = Date.now();
-      if (a.turn) a.turn.spentB += (m.data && m.data.length) || 0; // 回合产出计量：一次加法，面板关着也不算负担
+      if (a.turn) a.turn.spentB += (m.data && m.data.length) || 0;
       if (!isOpen() || document.hidden) return;
       if (a.pend.length < 4) a.pend.push(classify(m.data));
     });
   }
 
-  // ---------- 模块渲染（数量自适应 + 可换绑） ----------
-  var overrides = {}; // 槽位 -> sid（用户手选）
-  var mods = []; // { sid, el, cells:[], cols }
+  // ---------- 数字滚轮构件 ----------
+  var WINDOWS_K = [1, .34, .18, .12]; // 低位连续飞转，高位咔哒进位
+  function mkDigit() {
+    var d = document.createElement('span');
+    d.className = 'rb-dg';
+    var reel = '<span class="rb-reel">';
+    for (var n = 0; n <= 10; n++) reel += '<b>' + (n % 10) + '</b>';
+    d.innerHTML = reel + '</span>';
+    return d;
+  }
+  function buildRow(container, kHi, kLo, tailSep) {
+    var list = [];
+    for (var k = kHi; k >= kLo; k--) {
+      var d = mkDigit();
+      container.appendChild(d);
+      list.push({ el: d, reel: d.querySelector('.rb-reel'), k: k, sep: false });
+      if (k > kLo && k % 3 === 0) {
+        var s = document.createElement('span');
+        s.className = 'rb-sep'; s.innerHTML = '<b>,</b>';
+        container.appendChild(s);
+        list.push({ el: s, k: k, sep: true });
+      }
+    }
+    if (tailSep) {
+      var ts = document.createElement('span');
+      ts.className = 'rb-sep'; ts.innerHTML = '<b>,</b>';
+      container.appendChild(ts);
+      list.push({ el: ts, k: kLo, sep: true });
+    }
+    return list;
+  }
+  function paintParts(list, v) {
+    var safe = Math.max(0, v);
+    for (var i = 0; i < list.length; i++) {
+      var p = list[i];
+      if (p.sep) { p.el.classList.toggle('off', safe < Math.pow(10, p.k)); continue; }
+      var u = safe / Math.pow(10, p.k);
+      var D = Math.floor(u) % 10;
+      var r = u - Math.floor(u);
+      var W = WINDOWS_K[p.k] || .09;
+      var pos = reduceMotion ? D : D + Math.max(0, 1 - (1 - r) / W);
+      p.reel.style.transform = 'translateY(' + (-pos).toFixed(3) + 'em)';
+      p.el.classList.toggle('off', p.k > 0 && safe < Math.pow(10, p.k));
+    }
+  }
+  // 简写模式：4 数位槽 + 2 小数点槽（d0 p0 d1 p1 d2 d3）
+  var compactEl = document.getElementById('rb-compact');
+  var cSlots = [];
+  (function () {
+    for (var i = 0; i < 4; i++) {
+      var d = mkDigit(); compactEl.appendChild(d);
+      cSlots.push({ el: d, reel: d.querySelector('.rb-reel'), digit: true });
+      if (i < 2) {
+        var pnode = document.createElement('span');
+        pnode.className = 'rb-pt'; pnode.innerHTML = '<b>.</b>';
+        compactEl.appendChild(pnode);
+        cSlots.push({ el: pnode, digit: false });
+      }
+    }
+  })();
+  var C_D = [0, 2, 4, 5], C_P = [1, 3];
+  var subParts = buildRow(document.getElementById('rb-sub'), 10, 0);
+  var kiloParts = buildRow(document.getElementById('rb-kilo'), 7, 0);
+  var hiParts = buildRow(rowHiEl, 10, 6, true);
+  var loParts = buildRow(document.getElementById('rb-rowlo'), 5, 0);
+
+  var HERO_W = PANEL_W - 36;
+  var lenOf = function (v) { return Math.max(1, Math.floor(Math.log10(Math.max(1, v))) + 1); };
+  function paintCompact(v) {
+    var str, unit, lastCont;
+    if (v < 10000) { str = String(Math.floor(Math.max(0, v))); unit = ''; lastCont = v % 10; }
+    else {
+      var g = Math.min(3, Math.floor(Math.log10(v) / 3));
+      var scaled = v / Math.pow(10, 3 * g);
+      unit = 'KMB'[g - 1];
+      var step = scaled < 10 ? .01 : scaled < 100 ? .1 : 1;
+      var fixed = scaled < 10 ? 2 : scaled < 100 ? 1 : 0;
+      str = (Math.floor(scaled / step) * step).toFixed(fixed);
+      lastCont = (scaled / step) % 10;
+    }
+    var chars = str.split('');
+    var di = 0, usedP = [false, false], lastDigitIdx = 0;
+    for (var i = 0; i < chars.length; i++) { if (chars[i] !== '.') lastDigitIdx = i; }
+    for (var j = 0; j < chars.length; j++) {
+      var ch = chars[j];
+      if (ch === '.') { usedP[di - 1] = true; continue; }
+      var slot = cSlots[C_D[di]];
+      slot.el.classList.remove('off');
+      var pos = (j === lastDigitIdx && !reduceMotion) ? lastCont : +ch;
+      slot.reel.style.transform = 'translateY(' + (-pos).toFixed(3) + 'em)';
+      di++;
+    }
+    for (var m = di; m < 4; m++) cSlots[C_D[m]].el.classList.add('off');
+    C_P.forEach(function (pi, idx) { cSlots[pi].el.classList.toggle('off', !usedP[idx]); });
+    unitEl.textContent = unit;
+    bigLineEl.style.fontSize = '132px';
+  }
+  function paintKilo(v) {
+    var kv = v < 1000 ? v : v / 1000;
+    paintParts(kiloParts, kv);
+    unitEl.textContent = v < 1000 ? '' : 'K';
+    var len = lenOf(kv), seps = Math.floor((len - 1) / 3);
+    bigLineEl.style.fontSize = Math.min(132, Math.floor(HERO_W / (len * .6 + seps * .26 + (v < 1000 ? 0 : .3)))) + 'px';
+  }
+  function paintFull(v) {
+    paintParts(hiParts, v);
+    paintParts(loParts, v);
+    var hasHi = v >= 1e6;
+    rowHiEl.style.display = hasHi ? '' : 'none';
+    var fs;
+    if (!hasHi) {
+      var len = lenOf(v), seps = Math.floor((len - 1) / 3);
+      fs = Math.min(132, Math.floor(HERO_W / (len * .6 + seps * .26)));
+    } else {
+      var loEm = 6 * .6 + .26;
+      var hiLen = lenOf(v) - 6, hiSeps = (hiLen > 3 ? 1 : 0) + 1;
+      var hiEm = hiLen * .6 + hiSeps * .26;
+      fs = Math.min(94, Math.floor(HERO_W / Math.max(loEm, hiEm)));
+    }
+    bigStackEl.style.fontSize = fs + 'px';
+  }
+
+  // ---------- 读数模式（客户自选，持久化） ----------
+  var MODES = ['compact', 'kilo', 'full'];
+  var mode = (function () {
+    var m = /[?&]rbmode=(\w+)/.exec(location.search);
+    if (m && MODES.indexOf(m[1]) !== -1) return m[1];
+    try { var s = localStorage.getItem(MODE_KEY); if (MODES.indexOf(s) !== -1) return s; } catch (e) { /* */ }
+    return 'kilo';
+  })();
+  function applyMode() {
+    hero.classList.remove('mode-compact', 'mode-kilo', 'mode-full');
+    hero.classList.add('mode-' + mode);
+    aside.querySelectorAll('.ro-modesw button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === mode); });
+  }
+  aside.querySelectorAll('.ro-modesw button').forEach(function (b) {
+    b.onclick = function () {
+      mode = b.dataset.mode;
+      try { localStorage.setItem(MODE_KEY, mode); } catch (e) { /* */ }
+      applyMode(); paintHeroNumber();
+    };
+  });
+  applyMode();
+
+  // ---------- 色阶天梯（今日口径）：1M 蓝 → 1B 金 → 3B 彩虹 ----------
+  var TIERS = [
+    { at: 0, cls: 't0', name: '点火', next: 1e6, nextLabel: '1M' },
+    { at: 1e6, cls: 't1', name: '蓝移 1M', next: 1e9, nextLabel: '1B' },
+    { at: 1e9, cls: 't2', name: '鎏金 1B', next: 3e9, nextLabel: '3B' },
+    { at: 3e9, cls: 't3', name: '棱镜 3B', next: null, nextLabel: 'MAX' },
+  ];
+  var tierOf = function (v) { var t = TIERS[0]; for (var i = 0; i < TIERS.length; i++) { if (v >= TIERS[i].at) t = TIERS[i]; } return t; };
+  var msOf = function (v) { return v >= 3e9 ? 'm3' : v >= 1e9 ? 'm2' : v >= 1e6 ? 'm1' : ''; };
+  var curTier = null;
+  function paintTier(v, silent) {
+    var t = tierOf(v);
+    if (t !== curTier) {
+      aside.classList.remove('t0', 't1', 't2', 't3');
+      aside.classList.add(t.cls);
+      badgeTextEl.textContent = t.name;
+      if (curTier && !silent && !reduceMotion) {
+        hero.classList.remove('flash'); void hero.offsetWidth; hero.classList.add('flash');
+        badgeEl.classList.remove('pop'); void badgeEl.offsetWidth; badgeEl.classList.add('pop');
+        setTimeout(function () { hero.classList.remove('flash'); }, 900);
+      }
+      curTier = t;
+    }
+    var p;
+    if (!t.next) p = 1;
+    else if (t.at === 0) p = v / t.next;
+    else p = (Math.log(v) - Math.log(t.at)) / (Math.log(t.next) - Math.log(t.at));
+    meterFillEl.style.width = (Math.max(0, Math.min(1, p)) * 100).toFixed(1) + '%';
+    meterNextEl.innerHTML = t.next ? '→ <b>' + t.nextLabel + '</b>' : '<b>MAX</b>';
+  }
+
+  // ---------- 大数字引擎：轮询目标 + rAF 匀速滚近（追上即停，零常驻） ----------
+  var heroV = 0, heroTarget = 0, heroRate = 0, heroRaf = 0, heroLastT = 0, firstFeed = true;
+  var lastTokSpeed = 0; // tok/s，趋势行显示
+  function paintHeroNumber() {
+    if (mode === 'compact') paintCompact(heroV);
+    else if (mode === 'kilo') paintKilo(heroV);
+    else paintFull(heroV);
+    paintParts(subParts, heroV);
+  }
+  function heroFrame(now) {
+    var dt = now - heroLastT; heroLastT = now;
+    heroV = Math.min(heroTarget, heroV + heroRate * dt);
+    paintHeroNumber();
+    paintTier(heroV);
+    heroRaf = heroV < heroTarget && isOpen() && !document.hidden ? requestAnimationFrame(heroFrame) : 0;
+  }
+  function feedTotal(total) {
+    if (firstFeed || reduceMotion) {
+      firstFeed = false;
+      heroV = heroTarget = total;
+      paintHeroNumber(); paintTier(heroV, true);
+      return;
+    }
+    if (total <= heroTarget + 1) { heroTarget = Math.max(heroTarget, total); return; }
+    lastTokSpeed = (total - heroV) / (POLL_MS / 1000);
+    heroRate = (total - heroV) / POLL_MS;
+    heroTarget = total;
+    if (!heroRaf) { heroLastT = performance.now(); heroRaf = requestAnimationFrame(heroFrame); }
+  }
+
+  // ---------- 模块渲染（数量自适应 + 可换绑 + 外部仓位） ----------
+  var overrides = {};
+  var mods = [];
+  var extMods = {}; // key(cwd) -> { el, cellEls, ptr, lastSeen, cols, tokens }
   var lastKey = '';
+  var fmtTok = function (n) {
+    var t0 = function (s) { return s.replace(/\.0+$/, ''); };
+    return n >= 1e9 ? t0((n / 1e9).toFixed(n < 1e10 ? 2 : 1)) + 'B'
+      : n >= 1e6 ? t0((n / 1e6).toFixed(n < 1e7 ? 2 : 1)) + 'M'
+      : n >= 1e3 ? t0((n / 1e3).toFixed(n < 1e4 ? 1 : 0)) + 'K' : String(Math.round(n));
+  };
   function layoutFor(n) {
-    return n === 1 ? { one: true, cols: 6, rows: 4 } : n === 2 ? { one: true, cols: 8, rows: 5 } : { one: false, cols: 6, rows: 5 };
+    return n === 1 ? { one: true, cols: 6, rows: 4 } : n === 2 ? { one: true, cols: 8, rows: 5 } : { one: false, cols: 6, rows: 4 };
   }
   function pickSessions() {
     var ss = sessionsNow();
@@ -256,39 +586,48 @@
     }
     return chosen;
   }
+  function modShell(opts) {
+    var el = document.createElement('div');
+    el.className = 'ro-mod' + (opts.ext ? ' ext' : '');
+    el.innerHTML = '<span class="ro-rim"></span><span class="ro-flash"><i></i></span>' +
+      '<div class="ro-mod-head"><span class="ro-st"></span>' +
+      '<button class="ro-pick" title="' + (opts.ext ? '外部 agent（不属于任何终端 tab）' : '点名字换绑窗口') + '"><span class="ro-nm"></span>' + (opts.ext ? '' : '<small>▾</small>') + '</button>' +
+      (opts.ext ? '<span class="ro-extchip">外部</span>' : '') +
+      '<span class="ro-cnt">·</span></div>' +
+      '<i class="ro-run"></i>' +
+      '<div class="ro-grid" style="grid-template-columns:repeat(' + opts.cols + ',1fr)">' + new Array(opts.cols * opts.rows + 1).join('<i class="ro-cell"></i>') + '</div>';
+    return el;
+  }
   function rebuildModules() {
     var chosen = pickSessions();
     var L = layoutFor(Math.max(1, chosen.length));
     flow.classList.toggle('cols-1', !!L.one);
     mods = [];
-    if (!chosen.length) {
+    flow.innerHTML = '';
+    if (!chosen.length && !Object.keys(extMods).length) {
       flow.innerHTML = '<div class="ro-empty">还没有打开的终端<br>开个终端跑 agent，这里就活了</div>';
       lastKey = 'empty';
       return;
     }
-    flow.innerHTML = '';
     chosen.forEach(function (s, slot) {
       var a = actOf(s.id);
       var total = L.cols * L.rows;
       if (!a.cells || a.cells.length !== total) { a.cells = new Array(total).fill(null); a.ptr = 0; }
-      var el = document.createElement('div');
-      el.className = 'ro-mod';
-      el.innerHTML = '<div class="ro-mod-head"><span class="ro-st"></span>' +
-        '<button class="ro-pick" title="点名字换绑窗口 · 点图标切到该终端"><span class="ro-nm"></span><small>▾</small></button>' +
-        '<span class="ro-cnt">—</span></div>' +
-        '<div class="ro-grid" style="grid-template-columns:repeat(' + L.cols + ',1fr)">' + new Array(total + 1).join('<i class="ro-cell"></i>') + '</div>';
+      var el = modShell({ ext: false, cols: L.cols, rows: L.rows });
       el.querySelector('.ro-nm').textContent = nameOf(s);
       el.querySelector('.ro-nm').style.color = 'hsl(' + hueOf(s) + ' 62% 58%)';
       el.querySelector('.ro-pick').onclick = function (ev) { openMenu(ev, slot); };
       flow.appendChild(el);
-      var m = { sid: s.id, el: el, cellEls: [].slice.call(el.querySelectorAll('.ro-cell')), cols: L.cols };
-      // 回放该会话已积累的格子状态（重建布局不丢历史）
+      var m = { sid: s.id, cwd: s.cwd || s.startDir || '', el: el, cellEls: [].slice.call(el.querySelectorAll('.ro-cell')), runEl: el.querySelector('.ro-run'), cols: L.cols, ms: null, doneUntil: 0 };
       a.cells.forEach(function (tone, i) { if (tone && m.cellEls[i]) m.cellEls[i].classList.add(tone); });
       mods.push(m);
     });
+    // 外部仓位：DOM 节点常驻复用，重建布局时重新挂回
+    Object.keys(extMods).forEach(function (k) { flow.appendChild(extMods[k].el); });
+    paintBayMilestones();
   }
   function sessionsKey() {
-    return pickSessions().map(function (s) { return s.id; }).join(',') + '|' + JSON.stringify(overrides);
+    return pickSessions().map(function (s) { return s.id; }).join(',') + '|' + JSON.stringify(overrides) + '|' + Object.keys(extMods).join(',');
   }
 
   // 换绑菜单
@@ -326,9 +665,9 @@
   }
 
   // ---------- 格子事件消化 + 进度翻绿 + 巡场 ----------
-  var DEMO_TONES = ['info', 'info', 'info', 'info', 'ok', 'ok', 'accent', 'accent', 'yellow', 'err']; // 权重贴近真实终端
+  var DEMO_TONES = ['info', 'info', 'info', 'info', 'ok', 'ok', 'accent', 'accent', 'yellow', 'err'];
   function paintCell(m, a, i, tone) {
-    a.cells[i] = tone;
+    if (a) a.cells[i] = tone;
     var c = m.cellEls[i];
     if (!c) return;
     c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'pop');
@@ -338,9 +677,9 @@
   function drainTick() {
     var now = Date.now();
     mods.forEach(function (m, idx) {
+      if (m.doneUntil > now) return; // 收工流光期间格子定格彩虹
       var a = actOf(m.sid);
       var tone = a.pend.shift();
-      // 演示：只有真在干活的窗口才吐事件（等回话/空闲/收工静默期都安静），别再全场乱闪
       if (DEMO) {
         var live = demoStatus(idx) === 'working' && !(a.demoHold && now < a.demoHold);
         tone = live && Math.random() < .8 ? DEMO_TONES[Math.floor(Math.random() * DEMO_TONES.length)] : null;
@@ -348,14 +687,25 @@
       if (tone) { paintCell(m, a, a.ptr % a.cells.length, tone); a.ptr++; }
       greenTick(m, a);
     });
+    // 外部仓位：按活跃状态低频吐事件（没有 pty 流，节奏是合成的）
+    Object.keys(extMods).forEach(function (k) {
+      var x = extMods[k];
+      if (x.doneUntil > now) return;
+      if (now - x.lastSeen > 60000) return;
+      if (x.active && Math.random() < .5) {
+        var c = x.cellEls[x.ptr % x.cellEls.length];
+        if (c) {
+          c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'pop');
+          c.classList.add(DEMO_TONES[Math.floor(Math.random() * DEMO_TONES.length)]);
+          if (!reduceMotion) { void c.offsetWidth; c.classList.add('pop'); }
+        }
+        x.ptr++;
+      }
+    });
   }
-  // 上下互动：格子的绿色占比跟着完成度走——大数字每往下减一截，就有最老的格子被「确认完成」
-  // 翻绿（每拍最多一格 = 波浪感）。任务模式按 已完成/总任务，回合模式按估算完成度；收工时板子
-  // 自然已近全绿，庆祝闪一波收尾，新回合的事件再逐渐把它覆盖掉。
   function greenTick(m, a) {
     var p = null;
-    if (a.open != null && a.open + a.done > 0) p = a.done / (a.open + a.done);
-    else if (a.turn && a.turn.spent >= TURN_MIN) p = Math.min(1, 1 - turnRemaining(a.turn) / a.turn.est);
+    if (a.turn && a.turn.spent >= TURN_MIN) p = Math.min(1, a.turn.spent / a.turn.est);
     if (p == null) return;
     var landed = Math.min(a.ptr, a.cells.length);
     if (!landed) return;
@@ -368,43 +718,37 @@
     if (greens < target && oldest >= 0) paintCell(m, a, oldest, 'ok');
   }
   function chaseTick() {
+    var now = Date.now();
     mods.forEach(function (m, i) {
       var prev = m.el.querySelector('.ro-cell.chasing');
       if (prev) prev.classList.remove('chasing');
+      if (m.doneUntil > now) return;
       var step = Math.floor(Date.now() / 640) + i * 5;
       var c = m.cellEls[step % m.cellEls.length];
       if (c) c.classList.add('chasing');
     });
   }
 
-  // ---------- 状态（工作中 / 等回话 / 空闲）+ 回合机（通用「预计剩余」倒数） ----------
-  // 回合 = 一次连续干活：开始吐字起回合，安静 QUIET_MS 判收工。总量按该终端历史产出估（EMA，
-  // 按项目目录存 localStorage，越用越准），产出字节驱动往下减——总量是估的，归零是真的。
-  var UNIT = 64;            // 64 字节输出 = 1 单位工作量
-  var TURN_MIN = 40;        // 一回合至少 40 单位（约 2.5KB）才算数：快问快答不起倒数、不庆祝
-  var QUIET_MS = 6500;      // 安静这么久 = 这回合真干完了
-  var DEFAULT_EST = 1800;   // 该项目没有历史时的首轮估算
+  // ---------- 状态 + 回合机（进度丝 + 收工庆典；EMA 校准估算，按项目持久化） ----------
+  var UNIT = 64;
+  var TURN_MIN = 40;
+  var QUIET_MS = 6500;
+  var DEFAULT_EST = 1800;
   var EMA_KEY = 'rb_obs_ema';
   var emaStore = (function () { try { return JSON.parse(localStorage.getItem(EMA_KEY) || '{}'); } catch (e) { return {}; } })();
-  var workingNow = 0, workingNames = [], lastTaskOpen = null, zeroFlashUntil = 0;
-  var escName = function (s) { return String(s == null ? '' : s).replace(/[<>&]/g, ''); };
+  var workingNow = 0;
+  var mungeCwd = function (cwd) { return String(cwd || '').replace(/[^A-Za-z0-9]/g, '-'); };
   function demoStatus(i) { return ['working', 'working', 'waiting', 'idle', 'working', 'idle'][i] || 'idle'; }
-  function visibleTurns() {
-    var list = [];
-    mods.forEach(function (m) { var a = actOf(m.sid); if (a.turn && a.turn.spent >= TURN_MIN) list.push(a.turn); });
-    return list;
-  }
   function statusTick() {
     var now = Date.now();
     var ss = sessionsNow();
-    var wc = 0, wnames = [], endedWork = false;
+    var wc = 0;
     mods.forEach(function (m, idx) {
       var a = actOf(m.sid);
-      // 演示节奏：working 模块持续喂活动，跑满估算量就静默收工，静默期过了再开下一轮（走同一台回合机）
       if (DEMO && demoStatus(idx) === 'working') {
         if (a.demoHold && now < a.demoHold) { /* 收工静默期 */ }
         else if (a.turn && a.turn.spent >= a.turn.est) { a.demoHold = now + 9000; }
-        else { a.last = now; if (a.turn) a.turn.spentB += 9600; } // 每秒 150 单位：千位数量级 + 十几秒一轮，贴近真实观感
+        else { a.last = now; if (a.turn) a.turn.spentB += 9600; }
       }
       var stEl = m.el.querySelector('.ro-st');
       var working = now - a.last < 4000;
@@ -422,33 +766,26 @@
       }
       if (a.turn) {
         a.turn.spent = Math.round(a.turn.spentB / UNIT);
+        m.runEl.style.backgroundSize = (a.turn.spent >= TURN_MIN ? Math.min(100, a.turn.spent / a.turn.est * 100).toFixed(1) : 0) + '% 100%';
         if (now - a.last > QUIET_MS) {
           var t = a.turn; a.turn = null;
-          if (t.spent >= TURN_MIN) { // 够格的一轮：校准估算 + 这块模块自己庆祝
+          m.runEl.style.backgroundSize = '0% 100%';
+          if (t.spent >= TURN_MIN) {
             a.ema = Math.max(TURN_MIN, a.ema ? Math.round(a.ema * .6 + t.spent * .4) : t.spent);
             if (!DEMO && a.emaKey) { emaStore[a.emaKey] = a.ema; try { localStorage.setItem(EMA_KEY, JSON.stringify(emaStore)); } catch (e) { /* */ } }
-            endedWork = true;
-            celebrateModule(m);
+            bayDone(m, a); // 收工庆典：闪光 + 旋转流光 + 对角彩虹
           }
         }
       }
+      if (m.doneUntil > now) cls = 'working';
       stEl.className = 'ro-st ' + cls;
       stEl.title = cls === 'working' ? '工作中' : cls === 'waiting' ? (a.proc + ' 在等你回话') : '空闲';
       m.el.classList.toggle('waiting', cls === 'waiting');
-      m.el.classList.toggle('working', cls === 'working'); // 卡片整块发绿光 = 存在感
-      if (cls === 'working') { wc++; var s = ss.find(function (x) { return x.id === m.sid; }); wnames.push(s ? nameOf(s) : ''); }
-      var cnt = m.el.querySelector('.ro-cnt');
-      // 没任务可数时，计数槽也别摆死「—」：干活的亮个 ⚡，闲的收成小圆点
-      cnt.textContent = a.open == null
-        ? (cls === 'working' ? '⚡' : '·')
-        : (a.open === 0 && a.done > 0 ? '✓ 0' : String(a.open));
-      m.el.classList.toggle('done', a.open === 0 && a.done > 0);
+      m.el.classList.toggle('working', cls === 'working' && m.doneUntil <= now);
+      if (cls === 'working') wc++;
     });
-    workingNow = wc; workingNames = wnames;
-    // 最后一台干活的终端收工 → 大数字归零庆祝一小会儿
-    if (endedWork && !visibleTurns().length) zeroFlashUntil = now + 4200;
-    // 无任务态：每秒刷新（倒数/收工/待命），不必等 8s 的任务轮询才有反应
-    if (lastTaskOpen == null) paintIdle();
+    workingNow = wc;
+    paintTrend();
   }
   function procTick() {
     if (DEMO || !window.fanboxPty || !window.fanboxPty.proc) return;
@@ -459,32 +796,63 @@
     });
   }
 
-  // ---------- 任务数（~/.claude/tasks ↔ 终端 cwd 归属） ----------
-  var mungeCwd = function (cwd) { return String(cwd || '').replace(/[^A-Za-z0-9]/g, '-'); };
-  var projCache = {};  // 目录名 -> { sids:[], t }
+  // ---------- 收工庆典 / 子任务庆祝 ----------
+  var RAINBOW5 = ['err', 'yellow', 'ok', 'info', 'accent'];
+  function bayDone(m, a) {
+    var now = Date.now();
+    m.doneUntil = now + 8500;
+    m.el.classList.add('done');
+    m.el.classList.remove('celebrate'); void m.el.offsetWidth; m.el.classList.add('celebrate');
+    var prev = m.el.querySelector('.ro-cell.chasing');
+    if (prev) prev.classList.remove('chasing');
+    m.cellEls.forEach(function (c, ci) {
+      var row = Math.floor(ci / m.cols), col = ci % m.cols;
+      var delay = reduceMotion ? 0 : (row + col) * 40;
+      setTimeout(function () {
+        c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'pop');
+        c.classList.add(RAINBOW5[(row + col) % 5]);
+        if (!reduceMotion) { void c.offsetWidth; c.classList.add('pop'); }
+      }, delay);
+    });
+    setTimeout(function () {
+      m.el.classList.remove('done', 'celebrate');
+      m.doneUntil = 0;
+      // 恢复事件格子的历史色
+      if (a && a.cells) a.cells.forEach(function (tone, i) {
+        var c = m.cellEls[i];
+        if (!c) return;
+        c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'pop');
+        if (tone) c.classList.add(tone);
+      });
+    }, 8700);
+  }
+  function celebrateModule(m) {
+    if (!m || !m.el || reduceMotion) return;
+    m.el.classList.remove('celebrate'); void m.el.offsetWidth; m.el.classList.add('celebrate');
+    var cnt = m.el.querySelector('.ro-cnt');
+    if (cnt) { cnt.classList.remove('winpop'); void cnt.offsetWidth; cnt.classList.add('winpop'); }
+  }
+
+  // ---------- 子任务庆祝（~/.claude/tasks，保留 v2.11 行为，只做庆祝不做倒数） ----------
+  var projCache = {};
   var taskDirSet = { set: null, t: 0 };
-  var fileCache = {};  // 任务文件 path -> { mtime, open, done }
-  var prevTotal = null;
-  var celebrated = false;
+  var fileCache = {};
   function listDir(p) {
     return api('/api/list?path=' + encodeURIComponent(p)).then(function (d) { return (d && d.entries) || []; }).catch(function () { return []; });
   }
   async function tasksTick() {
-    if (WORKDEMO) { paintTasks(null, 0); return; } // 无任务清单：演示「预计剩余」回合倒数（起估→倒数→收工庆祝→静默→下一轮）
-    if (DEMO) { demoTaskTick(); return; }
+    if (DEMO) return;
     try {
       var now = Date.now();
       if (!taskDirSet.set || now - taskDirSet.t > 30000) {
         var t = await listDir('~/.claude/tasks');
         taskDirSet = { set: new Set(t.map(function (e) { return e.name; })), t: now };
       }
-      var totals = { open: 0, done: 0 };
       for (var mi = 0; mi < mods.length; mi++) {
         var m = mods[mi];
         var s = sessionsNow().find(function (x) { return x.id === m.sid; });
         if (!s) continue;
-        var cwd = s.cwd || s.startDir || '';
-        var dirName = mungeCwd(cwd);
+        var dirName = mungeCwd(s.cwd || s.startDir || '');
         var pc = projCache[dirName];
         if (!pc || now - pc.t > 60000) {
           var entries = await listDir('~/.claude/projects/' + dirName);
@@ -492,7 +860,7 @@
             .map(function (e) { return e.name.replace(/\.jsonl$/, ''); });
           pc = projCache[dirName] = { sids: sids, t: now };
         }
-        var open = null, done = 0, reads = 0, justDone = false;
+        var reads = 0, justDone = false;
         for (var si = 0; si < pc.sids.length; si++) {
           var sid = pc.sids[si];
           if (!taskDirSet.set.has(sid)) continue;
@@ -502,172 +870,109 @@
             if (!/\.json$/.test(f.name)) continue;
             var fc = fileCache[f.path];
             if (!fc || fc.mtime !== f.mtime) {
-              if (reads++ > 40) continue; // 单轮读盘上限，剩下的下一轮补
+              if (reads++ > 40) continue;
               var d = await api('/api/read?path=' + encodeURIComponent(f.path)).catch(function () { return null; });
               var one = { mtime: f.mtime, open: 0, done: 0 };
               try {
                 var j = JSON.parse((d && d.content) || '{}');
                 if (j && j.status) { if (j.status === 'completed') one.done = 1; else one.open = 1; }
               } catch (e) { /* 非任务 json，忽略 */ }
-              if (fc && fc.open === 1 && one.done === 1) justDone = true; // 亲眼看到一个子任务翻绿
+              if (fc && fc.open === 1 && one.done === 1) justDone = true;
               fc = fileCache[f.path] = one;
             }
-            open = (open || 0) + fc.open; done += fc.done;
           }
         }
-        var a = actOf(m.sid);
-        a.open = open; a.done = done;
-        if (open != null) { totals.open += open; totals.done += done; }
-        if (justDone) celebrateModule(m); // 子任务完成 → 这块模块自己先庆祝一下
+        if (justDone) celebrateModule(m);
       }
-      var any = mods.some(function (mm) { return actOf(mm.sid).open != null; });
-      paintTasks(any ? totals.open : null, totals.done);
     } catch (e) { /* 数据层失败不打扰界面 */ }
   }
 
-  // ---------- 大数字滚轮 ----------
-  var DIGITS = 6;
-  var odo = aside.querySelector('.ro-odo');
-  function buildLayer(cls) {
-    var layer = document.createElement('span');
-    layer.className = 'ro-layer ' + cls;
-    for (var k = DIGITS - 1; k >= 0; k--) {
-      if (k === 2) { var sp = document.createElement('span'); sp.className = 'ro-sep'; sp.innerHTML = '<strong>,</strong>'; layer.appendChild(sp); }
-      var d = document.createElement('span');
-      d.className = 'ro-digit'; d.dataset.k = k;
-      var reel = '<span class="ro-reel">';
-      for (var n = 0; n <= 10; n++) reel += '<strong>' + (n % 10) + '</strong>';
-      d.innerHTML = reel + '</span>';
-      layer.appendChild(d);
-    }
-    odo.appendChild(layer);
-    return layer;
+  // ---------- 今日 token 轮询：hero 目标 + 仓位里程 + 外部仓位 ----------
+  var lastFeed = { claudeToday: 0, codexToday: 0, total: 0, perCwd: {}, codexSessions: [] };
+  var demoT0 = Date.now();
+  function demoTokensFeed() {
+    var base = DEMOTOK || 254380000;
+    var elapsed = (Date.now() - demoT0) / 1000;
+    var total = base + elapsed * 24000;
+    var per = {};
+    var shares = [.3, .24, .18, 0, .1, 0];
+    sessionsNow().forEach(function (s, i) { per[s.cwd] = Math.round(total * (shares[i] || 0)); });
+    per['/tmp/CodexApp'] = Math.round(total * .18);
+    return {
+      ok: true, total: total,
+      claudeToday: Math.round(total * .82), codexToday: Math.round(total * .18),
+      perCwd: per,
+      codexSessions: [{ agent: 'codex', cwd: '/tmp/CodexApp', todayTokens: Math.round(total * .18), active: true }],
+    };
   }
-  var layerRainbow = buildLayer('rainbow');
-  var layerWhite = buildLayer('white');
-  var numEl = aside.querySelector('.ro-num');
-  var labelEl = aside.querySelector('.ro-label');
-  var bloomEl = aside.querySelector('.ro-bloom');
-  // 只驱动大数字滚轮（任务态 / 工作态共用），配色与文案各自定
-  function renderNumber(open) {
-    var n = Math.max(0, Math.min(999999, open == null ? 0 : open));
-    var fs = n >= 100000 ? 66 : n >= 10000 ? 80 : 92;
-    numEl.style.fontSize = fs + 'px';
-    [layerRainbow, layerWhite].forEach(function (layer) {
-      layer.querySelectorAll('.ro-digit').forEach(function (d) {
-        var k = +d.dataset.k;
-        var D = Math.floor(n / Math.pow(10, k)) % 10;
-        d.querySelector('.ro-reel').style.transform = 'translateY(' + (-D) + 'em)';
-        d.classList.toggle('off', n < Math.pow(10, k) && k > 0);
-      });
-      var sep = layer.querySelector('.ro-sep');
-      if (sep) sep.classList.toggle('off', n < 1000);
+  function paintBayMilestones() {
+    mods.forEach(function (m) {
+      var tok = lastFeed.perCwd[m.cwd] || 0;
+      var cnt = m.el.querySelector('.ro-cnt');
+      if (cnt) cnt.textContent = tok ? fmtTok(tok) : '·';
+      var ms = msOf(tok);
+      if (ms !== m.ms) {
+        m.ms = ms;
+        m.el.classList.remove('m1', 'm2', 'm3');
+        if (ms) m.el.classList.add(ms);
+      }
     });
-    return n;
   }
-  // 彩色渗入：白层按完成度从右往左揭开露出彩虹（前 6% 保持纯白），两种倒数共用
-  function seepColor(completion) {
-    var colorProgress = Math.pow(Math.max(0, (completion - .06) / .94), 1.18);
-    layerWhite.style.clipPath = 'inset(0 ' + (colorProgress * 100).toFixed(2) + '% 0 0)';
-    return colorProgress;
-  }
-  // 回合剩余量：正常线性往下减；进了收尾段（最后 12%）改渐近减速——每多干一个收尾段的量
-  // 就折半，吊在 1 不落地。est 是估的，什么时候真归零由回合机说了算（agent 真停 = 真 0）。
-  function turnRemaining(t) {
-    var tail = Math.max(24, Math.round(t.est * .12));
-    var raw = t.est - t.spent;
-    if (raw > tail) return raw;
-    return Math.max(1, Math.round(tail * Math.pow(.5, (t.spent - (t.est - tail)) / tail)));
-  }
-  // 没有任务清单时的大数字：有回合在跑 → 「预计剩余」倒数；刚全部收工 → 归零庆祝一小会儿；全安静 → 0 待命
-  function paintIdle() {
+  function syncExtBays() {
     var now = Date.now();
-    var turns = visibleTurns();
-    var names = workingNames.slice(0, 3).map(escName).filter(Boolean).join('、');
-    labelEl.textContent = '预计剩余';
-    bloomEl.style.opacity = '';
-    if (turns.length) {
-      var rem = 0, est = 0;
-      turns.forEach(function (t) { rem += turnRemaining(t); est += Math.max(t.est, t.spent); });
-      hero.classList.remove('complete');
-      hero.classList.add('busy');
-      renderNumber(rem);
-      seepColor(est > 0 ? 1 - rem / est : 0);
-      // 终端数取「在吐字的」和「回合还开着的」较大者：agent 静默跑长命令时不至于报 0 自相矛盾
-      trendEl.innerHTML = '<b>⚡ ' + Math.max(workingNow, turns.length) + ' 个终端</b> 正在工作' + (names ? ' · ' + names : '') + ' · live';
-    } else if (now < zeroFlashUntil) {
-      hero.classList.remove('busy');
-      hero.classList.add('complete');
-      renderNumber(0);
-      layerWhite.style.clipPath = 'inset(0 100% 0 0)'; // 满彩虹
-      trendEl.innerHTML = '<b>✓ 本轮收工</b> · 干完了';
-    } else {
-      hero.classList.remove('busy', 'complete');
-      renderNumber(0);
-      layerWhite.style.clipPath = 'inset(0 0 0 0)';
-      trendEl.innerHTML = workingNow > 0
-        ? '<b>⚡ ' + workingNow + ' 个终端</b> 正在工作' + (names ? ' · ' + names : '') + ' · 热身中'
-        : '终端安静 · agent 一开工这里就开始倒数';
-    }
-  }
-  function paintTasks(open, done) {
-    lastTaskOpen = open;
-    if (open == null) { paintIdle(); return; } // 没任务清单 → 交给回合倒数
-    labelEl.textContent = '未完成任务';
-    hero.classList.remove('busy');
-    var n = renderNumber(open);
-    // 彩色渗入比例 = 已完成占比
-    var totalAll = n + done;
-    var colorProgress = seepColor(totalAll > 0 ? done / totalAll : 0);
-    bloomEl.style.opacity = '';
-    var zeroWin = n === 0 && done > 0;
-    if (!zeroWin) bloomEl.style.opacity = (colorProgress * .25).toFixed(3);
-    hero.classList.toggle('complete', zeroWin);
-    trendEl.innerHTML = zeroWin ? '<b>✓ 全部解决</b> · ' + done + ' 项完成' : '<b>↓ ' + done + '</b> 已完成 · live';
-    if (zeroWin && prevTotal > 0 && !celebrated) { celebrated = true; cascade(); }
-    if (n > 0) celebrated = false;
-    prevTotal = n;
-  }
-  function cascade() {
-    mods.forEach(function (m, mi) {
-      m.cellEls.forEach(function (c, ci) {
-        var delay = reduceMotion ? 0 : mi * 60 + (Math.floor(ci / m.cols) + ci % m.cols) * 30;
-        setTimeout(function () {
-          c.classList.remove('err', 'yellow', 'accent', 'info', 'pop');
-          c.classList.add('ok');
-          if (!reduceMotion) { void c.offsetWidth; c.classList.add('pop'); }
-          actOf(m.sid).cells[ci] = 'ok';
-        }, delay);
-      });
+    var termCwds = {};
+    sessionsNow().forEach(function (s) { termCwds[s.cwd || s.startDir || ''] = 1; });
+    var seen = {};
+    (lastFeed.codexSessions || []).forEach(function (cs) {
+      if (!cs.active || !cs.cwd || termCwds[cs.cwd]) return;
+      seen[cs.cwd] = 1;
+      var x = extMods[cs.cwd];
+      if (!x) {
+        var el = modShell({ ext: true, cols: 6, rows: 4 });
+        el.querySelector('.ro-nm').textContent = 'Codex · ' + baseName(cs.cwd);
+        el.querySelector('.ro-nm').style.color = 'var(--accent)';
+        el.querySelector('.ro-st').className = 'ro-st working';
+        x = extMods[cs.cwd] = { el: el, cellEls: [].slice.call(el.querySelectorAll('.ro-cell')), runEl: el.querySelector('.ro-run'), cols: 6, ptr: 0, lastSeen: now, active: true, ms: null, doneUntil: 0 };
+        refreshSessions(true);
+      }
+      x.lastSeen = now;
+      x.active = true;
+      var cnt = x.el.querySelector('.ro-cnt');
+      if (cnt) cnt.textContent = fmtTok(cs.todayTokens || 0);
+      var ms = msOf(cs.todayTokens || 0);
+      if (ms !== x.ms) { x.ms = ms; x.el.classList.remove('m1', 'm2', 'm3'); if (ms) x.el.classList.add(ms); }
+      x.el.classList.add('working');
+    });
+    // 安静太久的外部卡收走
+    Object.keys(extMods).forEach(function (k) {
+      var x = extMods[k];
+      if (seen[k]) return;
+      x.active = false;
+      x.el.classList.remove('working');
+      var stEl = x.el.querySelector('.ro-st');
+      if (stEl) stEl.className = 'ro-st';
+      if (now - x.lastSeen > 60000) { delete extMods[k]; refreshSessions(true); }
     });
   }
-  // 单模块庆祝（某个子任务翻 completed / 某终端一回合收工）：卡片绿光脉冲 + 格子对角波浪闪 +
-  // 计数弹跳。全是一次性动画，闪完格子颜色原样保留（跟 cascade 的「全翻绿定格」区分开）。
-  function celebrateModule(m) {
-    if (!m || !m.el || reduceMotion) return;
-    m.el.classList.remove('celebrate'); void m.el.offsetWidth; m.el.classList.add('celebrate');
-    var cnt = m.el.querySelector('.ro-cnt');
-    if (cnt) { cnt.classList.remove('winpop'); void cnt.offsetWidth; cnt.classList.add('winpop'); }
-    m.cellEls.forEach(function (c, ci) {
-      var delay = (Math.floor(ci / m.cols) + ci % m.cols) * 26;
-      setTimeout(function () { c.classList.remove('win'); void c.offsetWidth; c.classList.add('win'); }, delay);
-    });
+  function paintTrend() {
+    var extActive = Object.keys(extMods).filter(function (k) { return extMods[k].active; }).length;
+    var n = workingNow + extActive;
+    trendEl.innerHTML = n > 0
+      ? '<b>⚡ ' + n + ' 路</b>在烧' + (lastTokSpeed > 0 ? ' · ' + fmtTok(Math.round(lastTokSpeed)) + ' tok/s' : '') + (extActive ? ' · 含外部' : '')
+      : '今日 00:00 起 · agent 一开工就开始涨';
+    srcClaudeEl.textContent = 'Claude ' + fmtTok(lastFeed.claudeToday || 0);
+    srcCodexEl.textContent = 'Codex ' + fmtTok(lastFeed.codexToday || 0);
   }
-
-  // 演示模式的任务倒数（无头验收用）：份额分给各模块，计数不再是「—」
-  var demoLeft = 4581;
-  var DEMO_SHARE = [.30, .22, .18, .12, .12, .06];
-  function demoTaskTick() {
-    demoLeft = Math.max(0, demoLeft - Math.ceil(demoLeft * .04));
-    if (demoLeft < 6) demoLeft = 0;
-    var done = 4581 - demoLeft;
-    mods.forEach(function (m, i) {
-      var a = actOf(m.sid);
-      a.open = Math.round(demoLeft * (DEMO_SHARE[i] || .1));
-      a.done = Math.round(done * (DEMO_SHARE[i] || .1));
-    });
-    paintTasks(demoLeft, done);
-    return demoLeft;
+  async function tokensTick() {
+    try {
+      var d = DEMO ? demoTokensFeed() : await api('/api/obs-tokens');
+      if (!d || !d.ok) return;
+      lastFeed = d;
+      feedTotal(d.total || 0);
+      paintBayMilestones();
+      syncExtBays();
+      paintTrend();
+    } catch (e) { /* 数据层失败不打扰界面 */ }
   }
 
   // ---------- 引擎开关（关闭/隐藏 = 零成本） ----------
@@ -682,10 +987,15 @@
       setInterval(statusTick, 1000),
       setInterval(procTick, 5000),
       setInterval(tasksTick, 8000),
+      setInterval(tokensTick, POLL_MS),
     ];
-    statusTick(); procTick(); tasksTick();
+    statusTick(); procTick(); tasksTick(); tokensTick();
   }
-  function stopAll() { timers.forEach(clearInterval); timers = []; closeMenu(); }
+  function stopAll() {
+    timers.forEach(clearInterval); timers = [];
+    if (heroRaf) { cancelAnimationFrame(heroRaf); heroRaf = 0; }
+    closeMenu();
+  }
   document.addEventListener('visibilitychange', function () {
     if (!isOpen()) return;
     if (document.hidden) stopAll(); else startAll();
@@ -695,4 +1005,8 @@
   var saved = null;
   try { saved = localStorage.getItem(OPEN_KEY); } catch (e) { /* */ }
   if (DEMO || saved === '1') setOpen(true);
+  // 无头验收：?rbdone=1 预置一张收工卡
+  if (DEMO && /[?&]rbdone=1/.test(location.search)) {
+    setTimeout(function () { if (mods[0]) bayDone(mods[0], actOf(mods[0].sid)); }, 900);
+  }
 })();
