@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>观察舱 · 四档色阶自定义 · 效果图</title>
+<!--
+  观察舱色阶天梯 v2 — 四档 + 阈值自定义（效果图，待用户确认后落地 observer-patch.js）
+
+  新默认（用户定案方向）：点火 <1M 素白 → 蓝移 1M(蓝) → 紫外 10M(紫) → 鎏金 100M(金) → 棱镜 500M(彩虹)
+  四个阈值全部可改：footer ⚙ 打开档位面板，输入支持 800K / 10M / 1.5B / 1200000。
+  下方档位面板是「活的」：改数字，整页的徽章 / 天梯 / 图例即时联动。
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --page: #0c0f14;
+    --panel: #161b23;
+    --panel-2: #10141b;
+    --line: rgba(235, 240, 248, .09);
+    --line-2: rgba(235, 240, 248, .18);
+    --ink: #f2f5f9;
+    --muted: #94a0b0;
+    --faint: #5a6675;
+    --coral: #ff716c;
+    --mango: #ffc857;
+    --mint:  #4de0a8;
+    --sky:   #62c9ff;
+    --lilac: #a991ff;
+    --rainbow: linear-gradient(100deg, #ff716c, #ffc857, #4de0a8, #62c9ff, #a991ff);
+    --mono: "SF Mono", "Maple Mono CN", Menlo, monospace;
+    --num: "Chakra Petch", var(--mono);
+    --ease-out: cubic-bezier(.23, 1, .32, 1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--page); color: var(--ink); font-family: var(--mono); padding: 46px 28px 80px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  .eyebrow { color: var(--faint); font-size: 10px; letter-spacing: .22em; text-transform: uppercase; }
+  h1 { margin: 10px 0 8px; font-size: 26px; font-weight: 700; letter-spacing: .02em; }
+  .sub { color: var(--muted); font-size: 12.5px; line-height: 1.8; }
+  .sub b { color: var(--ink); font-weight: 600; }
+  .sec { margin-top: 44px; }
+  .sec-cap { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+  .sec-cap h2 { font-size: 14px; font-weight: 700; letter-spacing: .06em; }
+  .sec-cap span { color: var(--faint); font-size: 10.5px; }
+
+  /* ---------- 1. 色阶天梯总览 ---------- */
+  .ladder { display: flex; align-items: stretch; gap: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--panel-2); overflow: hidden; }
+  .rung { flex: 1; position: relative; padding: 18px 18px 16px; border-left: 1px solid var(--line); }
+  .rung:first-child { border-left: none; }
+  .rung .nm { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; letter-spacing: .04em; }
+  .rung .nm i { width: 8px; height: 8px; border-radius: 2px; background: var(--c, var(--faint)); box-shadow: 0 0 10px color-mix(in srgb, var(--c, transparent) 60%, transparent); }
+  .rung .at { margin-top: 9px; font-family: var(--num); font-weight: 600; font-size: 21px; color: var(--c, var(--muted)); }
+  .rung .at small { font-size: 11px; color: var(--faint); font-family: var(--mono); font-weight: 400; margin-left: 2px; }
+  .rung .ds { margin-top: 7px; color: var(--faint); font-size: 10px; line-height: 1.7; }
+  .rung::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--c, transparent); opacity: .85; }
+  .rung.r0 { --c: #aab4c2; }
+  .rung.r0::after { background: none; }
+  .rung.r1 { --c: var(--sky); }
+  .rung.r2 { --c: var(--lilac); }
+  .rung.r3 { --c: var(--mango); }
+  .rung.r4 .nm i, .rung.r4::after { background: var(--rainbow); }
+  .rung.r4 .at { background: var(--rainbow); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .rung.r4 .nm { color: var(--ink); }
+
+  /* ---------- 2. 四档 hero 卡 ---------- */
+  .heroes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .hero { position: relative; overflow: hidden; padding: 18px 20px 20px; border: 1px solid var(--line); border-radius: 18px;
+    background: radial-gradient(130% 60% at 50% -18%, color-mix(in srgb, var(--c) 15%, transparent), transparent 66%), var(--panel-2); }
+  .hero-top { display: flex; align-items: center; gap: 8px; }
+  .hero-top .lb { color: var(--muted); font-size: 10px; letter-spacing: .16em; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 5px 10px 5px 8px;
+    border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+    color: var(--c); font-size: 10px; font-weight: 600; letter-spacing: .1em;
+    background: color-mix(in srgb, var(--c) 9%, transparent); }
+  .badge i { width: 6px; height: 6px; background: currentColor; }
+  .hero .num { margin: 14px 0 0; font-family: var(--num); font-weight: 600; font-size: 68px; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap;
+    filter: drop-shadow(0 0 16px color-mix(in srgb, var(--c) 35%, transparent)); }
+  .hero .num .u { font-size: .38em; color: var(--c); margin-left: .06em; }
+  .grad { color: transparent; background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-size: 64px 100%; background-repeat: repeat; animation: flow 5.6s linear infinite; }
+  @keyframes flow { to { background-position: 64px 0; } }
+  .hero.t1 { --c: var(--sky); }
+  .hero.t1 .grad { background-image: linear-gradient(100deg, color-mix(in srgb, var(--sky) 55%, #fff) 0%, var(--sky) 32%, color-mix(in srgb, var(--sky) 72%, #003) 60%, var(--sky) 82%, color-mix(in srgb, var(--sky) 55%, #fff) 100%); }
+  .hero.t2 { --c: var(--lilac); }
+  .hero.t2 .grad { background-image: linear-gradient(100deg, color-mix(in srgb, var(--lilac) 55%, #fff) 0%, var(--lilac) 32%, color-mix(in srgb, var(--lilac) 70%, #103) 60%, var(--lilac) 82%, color-mix(in srgb, var(--lilac) 55%, #fff) 100%); }
+  .hero.t3 { --c: var(--mango); }
+  .hero.t3 .grad { background-image: linear-gradient(100deg, color-mix(in srgb, var(--mango) 55%, #fff) 0%, var(--mango) 34%, color-mix(in srgb, var(--mango) 70%, #530) 62%, var(--mango) 82%, color-mix(in srgb, var(--mango) 55%, #fff) 100%); }
+  .hero.t4 { --c: var(--lilac); }
+  .hero.t4 .num { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--mango) 28%, transparent)) drop-shadow(0 0 22px color-mix(in srgb, var(--sky) 28%, transparent)); }
+  .hero.t4 .grad { background-image: linear-gradient(100deg, var(--coral) 0%, var(--mango) 22%, var(--mint) 44%, var(--sky) 64%, var(--lilac) 84%, var(--coral) 100%); }
+  .hero.t4 .badge { color: var(--ink); border: 1px solid transparent;
+    background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(100deg, var(--coral), var(--mango), var(--mint), var(--sky), var(--lilac)) border-box; }
+  .hero.t4 .num .u { background: linear-gradient(120deg, var(--mango), var(--mint), var(--sky)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .meter-row { display: flex; align-items: center; gap: 9px; margin-top: 16px; }
+  .meter { position: relative; flex: 1; height: 6px; background: rgba(235,240,248,.08); border-radius: 2px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: color-mix(in srgb, var(--c) 92%, transparent); }
+  .hero.t4 .meter i { background: var(--rainbow); }
+  .meter::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1.5px), var(--panel-2) calc(10% - 1.5px) 10%); }
+  .meter-next { color: var(--faint); font-size: 10px; letter-spacing: .08em; }
+  .meter-next b { color: var(--c); font-weight: 600; }
+
+  /* ---------- 3. 档位设置面板（活的） ---------- */
+  .cfg-zone { display: grid; grid-template-columns: 340px 1fr; gap: 26px; align-items: start; }
+  .cfg { border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel); padding: 14px; box-shadow: 0 18px 60px rgba(0,0,0,.4); }
+  .cfg h3 { font-size: 12.5px; font-weight: 700; letter-spacing: .05em; padding: 2px 4px 0; }
+  .cfg .hint { color: var(--faint); font-size: 10px; line-height: 1.7; padding: 5px 4px 10px; border-bottom: 1px solid var(--line); }
+  .row { display: flex; align-items: center; gap: 9px; padding: 9px 4px; border-bottom: 1px solid var(--line); }
+  .row:last-of-type { border-bottom: none; }
+  .row .sw { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
+  .row .tn { font-size: 12.5px; font-weight: 650; width: 44px; }
+  .row .ge { color: var(--faint); font-size: 10px; margin-left: auto; }
+  .row input { width: 92px; padding: 6px 9px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); color: var(--ink);
+    font-family: var(--num); font-weight: 600; font-size: 14px; text-align: right; outline: none; transition: border-color 160ms ease, box-shadow 160ms ease; }
+  .row input:focus { border-color: color-mix(in srgb, var(--sky) 60%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sky) 14%, transparent); }
+  .row input.bad { border-color: color-mix(in srgb, var(--coral) 70%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--coral) 14%, transparent); }
+  .cfg .err-msg { color: var(--coral); font-size: 10px; padding: 7px 4px 0; min-height: 15px; }
+  .cfg-foot { display: flex; align-items: center; gap: 8px; padding: 9px 4px 2px; border-top: 1px solid var(--line); margin-top: 4px; }
+  .btn-reset { padding: 6px 12px; border: 1px solid var(--line-2); border-radius: 8px; background: none; color: var(--muted); font-family: var(--mono); font-size: 10.5px; cursor: pointer; transition: color 160ms ease, background 160ms ease; }
+  .btn-reset:hover { background: rgba(235,240,248,.06); color: var(--ink); }
+  .cfg-foot span { margin-left: auto; color: var(--faint); font-size: 9.5px; }
+  .cfg-notes { color: var(--muted); font-size: 11.5px; line-height: 2.05; }
+  .cfg-notes b { color: var(--ink); font-weight: 600; }
+  .cfg-notes li { margin-left: 18px; }
+  .cfg-notes .k { color: var(--sky); font-family: var(--num); }
+
+  /* ---------- 4. footer 入口 + 图例 ---------- */
+  .foot-mock { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2);
+    color: var(--faint); font-size: 9.5px; }
+  .foot-mock .lg { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+  .foot-mock .lg span { display: flex; align-items: center; gap: 4px; }
+  .foot-mock .lg i { width: 7px; height: 7px; border-radius: 2px; }
+  .foot-mock .sp { flex: 1; }
+  .gear { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--panel); color: var(--muted); cursor: pointer; font-size: 11px; transition: transform 140ms var(--ease-out), color 160ms ease; }
+  .gear:hover { color: var(--ink); transform: rotate(30deg); }
+
+  /* ---------- 5. 仓位卡里程边框 ---------- */
+  .bays { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .bay { position: relative; padding: 10px 11px 11px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+  .bay-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+  .bay-head .st { width: 7px; height: 7px; border-radius: 2px; background: var(--mint); box-shadow: 0 0 8px var(--mint); }
+  .bay-head .nm { font-size: 12px; font-weight: 650; }
+  .bay-head .ct { margin-left: auto; font-size: 11px; font-family: var(--mono); }
+  .bay-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+  .bay-grid i { aspect-ratio: 1; border-radius: 4px; border: 1px solid var(--line); background: var(--page); }
+  .bay-grid i.b { border-color: color-mix(in srgb, var(--sky) 78%, transparent); background: color-mix(in srgb, var(--sky) 66%, transparent); }
+  .bay-grid i.g { border-color: color-mix(in srgb, var(--mint) 78%, transparent); background: color-mix(in srgb, var(--mint) 66%, transparent); }
+  .bay-grid i.o { border-color: color-mix(in srgb, var(--coral) 60%, transparent); background: color-mix(in srgb, #ff9a5c 66%, transparent); }
+  .bay.m1 { border-color: color-mix(in srgb, var(--sky) 52%, transparent); box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 0 18px -7px color-mix(in srgb, var(--sky) 50%, transparent); }
+  .bay.m1 .ct { color: var(--sky); }
+  .bay.m2 { border-color: color-mix(in srgb, var(--lilac) 55%, transparent); box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 0 18px -7px color-mix(in srgb, var(--lilac) 55%, transparent); }
+  .bay.m2 .ct { color: var(--lilac); }
+  .bay.m3 { border-color: color-mix(in srgb, var(--mango) 55%, transparent); box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 0 18px -7px color-mix(in srgb, var(--mango) 55%, transparent); }
+  .bay.m3 .ct { color: var(--mango); }
+  .bay.m4 { border: 1px solid transparent; background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(120deg, var(--coral), var(--mango), var(--mint), var(--sky), var(--lilac)) border-box;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 0 16px -7px color-mix(in srgb, var(--coral) 38%, transparent), 0 0 20px -8px color-mix(in srgb, var(--sky) 38%, transparent); }
+  .bay.m4 .ct { background-image: linear-gradient(100deg, var(--mango), var(--mint), var(--sky)); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 700; }
+  .bay .cap { margin-top: 9px; color: var(--faint); font-size: 9.5px; letter-spacing: .04em; }
+  .bay .cap b { font-weight: 600; }
+  .bay.m1 .cap b { color: var(--sky); } .bay.m2 .cap b { color: var(--lilac); } .bay.m3 .cap b { color: var(--mango); }
+  .bay.m4 .cap b { background: var(--rainbow); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  @media (max-width: 900px) { .heroes, .cfg-zone, .bays { grid-template-columns: 1fr; } .ladder { flex-direction: column; } .rung { border-left: none; border-top: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Rurubox · 观察舱 · 效果图（待确认）</div>
+  <h1>色阶天梯 v2 — 四档 + 阈值自定义</h1>
+  <p class="sub">新默认：<b>1M 蓝移 → 10M 紫外 → 100M 鎏金 → 500M 棱镜</b>（点火 &lt;1M 保持素白）。
+    四个阈值全部可以自己改 —— 入口在观察舱底栏的 <b>⚙</b>，改完立即生效、存本机。<br>
+    下面的「档位设置面板」是活的：改里面的数字，整页的徽章 / 天梯 / 图例会跟着变，可以直接试手感。</p>
+
+  <!-- 1. 天梯总览 -->
+  <div class="sec">
+    <div class="sec-cap"><h2>① 色阶天梯 · 新默认</h2><span>紫外 = 新档位（比蓝移更进一步的频段，名字沿用天文系）</span></div>
+    <div class="ladder">
+      <div class="rung r0"><div class="nm"><i></i>点火</div><div class="at">&lt; <span data-th="1">1M</span></div><div class="ds">素白起步<br>今天刚开工</div></div>
+      <div class="rung r1"><div class="nm"><i></i>蓝移</div><div class="at"><span data-th="1">1M</span><small>起</small></div><div class="ds">数字整体转蓝<br>环境极光跟色</div></div>
+      <div class="rung r2"><div class="nm"><i></i>紫外</div><div class="at"><span data-th="2">10M</span><small>起</small></div><div class="ds">新档位：紫罗兰流光<br>介于蓝与金之间</div></div>
+      <div class="rung r3"><div class="nm"><i></i>鎏金</div><div class="at"><span data-th="3">100M</span><small>起</small></div><div class="ds">一亿封金<br>金色流光 + 金辉光</div></div>
+      <div class="rung r4"><div class="nm"><i></i>棱镜</div><div class="at"><span data-th="4">500M</span><small>起</small></div><div class="ds">五亿成谱<br>五色流光 + 双色辉光</div></div>
+    </div>
+  </div>
+
+  <!-- 2. 四档大数字 -->
+  <div class="sec">
+    <div class="sec-cap"><h2>② 大数字在四个档位下的样子</h2><span>K 读数模式示例 · 渐变文字缓慢流动（与现版同一套动效）</span></div>
+    <div class="heroes">
+      <div class="hero t1">
+        <div class="hero-top"><span class="lb">今日消耗 · TOKENS</span><span class="badge"><i></i>蓝移 <span data-th="1">1M</span></span></div>
+        <div class="num"><span class="grad">2,412</span><span class="u">K</span></div>
+        <div class="meter-row"><div class="meter"><i style="width:38%"></i></div><span class="meter-next">→ <b data-th="2">10M</b></span></div>
+      </div>
+      <div class="hero t2">
+        <div class="hero-top"><span class="lb">今日消耗 · TOKENS</span><span class="badge"><i></i>紫外 <span data-th="2">10M</span></span></div>
+        <div class="num"><span class="grad">24,381</span><span class="u">K</span></div>
+        <div class="meter-row"><div class="meter"><i style="width:44%"></i></div><span class="meter-next">→ <b data-th="3">100M</b></span></div>
+      </div>
+      <div class="hero t3">
+        <div class="hero-top"><span class="lb">今日消耗 · TOKENS</span><span class="badge"><i></i>鎏金 <span data-th="3">100M</span></span></div>
+        <div class="num"><span class="grad">187,506</span><span class="u">K</span></div>
+        <div class="meter-row"><div class="meter"><i style="width:52%"></i></div><span class="meter-next">→ <b data-th="4">500M</b></span></div>
+      </div>
+      <div class="hero t4">
+        <div class="hero-top"><span class="lb">今日消耗 · TOKENS</span><span class="badge"><i></i>棱镜 <span data-th="4">500M</span></span></div>
+        <div class="num"><span class="grad">623,940</span><span class="u">K</span></div>
+        <div class="meter-row"><div class="meter"><i style="width:100%"></i></div><span class="meter-next"><b>MAX</b></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 档位设置面板 -->
+  <div class="sec">
+    <div class="sec-cap"><h2>③ 档位设置面板（这个是活的，可以改）</h2><span>实际做进观察舱：底栏 ⚙ 点开的小浮层，样式同换绑菜单</span></div>
+    <div class="cfg-zone">
+      <div class="cfg" id="cfg">
+        <h3>色阶档位</h3>
+        <div class="hint">烧到多少换什么颜色，自己定 · 支持 800K / 10M / 1.5B / 1200000 写法</div>
+        <div class="row"><span class="sw" style="background:var(--sky)"></span><span class="tn" style="color:var(--sky)">蓝移</span><span class="ge">亮起 ≥</span><input data-tier="1" value="1M"></div>
+        <div class="row"><span class="sw" style="background:var(--lilac)"></span><span class="tn" style="color:var(--lilac)">紫外</span><span class="ge">亮起 ≥</span><input data-tier="2" value="10M"></div>
+        <div class="row"><span class="sw" style="background:var(--mango)"></span><span class="tn" style="color:var(--mango)">鎏金</span><span class="ge">亮起 ≥</span><input data-tier="3" value="100M"></div>
+        <div class="row"><span class="sw" style="background:var(--rainbow)"></span><span class="tn">棱镜</span><span class="ge">亮起 ≥</span><input data-tier="4" value="500M"></div>
+        <div class="err-msg" id="errmsg"></div>
+        <div class="cfg-foot"><button class="btn-reset" id="reset">恢复默认</button><span>实时生效 · 只存本机</span></div>
+      </div>
+      <div class="cfg-notes">
+        <li>四档颜色固定为 <b style="color:var(--sky)">蓝</b> / <b style="color:var(--lilac)">紫</b> / <b style="color:var(--mango)">金</b> / <b>彩虹</b>，只开放阈值；档位必须递增，填乱了会标红提示。</li>
+        <li>存 <span class="k">localStorage</span>（<span class="k">rb_obs_tiers</span>），跟读数模式一个待遇：改完立即生效，不用重启。</li>
+        <li>大数字色阶、进度尺、底栏图例、<b>仓位卡里程边框</b>（见 ④）全部跟着自定义阈值走，一处改全联动。</li>
+        <li>蓝 = 皮肤 <span class="k">--info</span>、金 = 皮肤 <span class="k">--yellow</span>、彩虹 = 皮肤五状态色；<b>紫外用固定紫罗兰</b>（皮肤没有紫色状态色，<span class="k">--accent</span> 每套皮肤颜色都不同，不能挂）。浅色皮肤自动换深一档的紫，保证可读。</li>
+        <li>跨阶闪光、徽章 pop、极光跟色等既有动效不动，只是多一档紫外。</li>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. footer 入口 -->
+  <div class="sec">
+    <div class="sec-cap"><h2>④ 底栏图例 + 设置入口</h2><span>图例四档联动 · ⚙ 打开上面的档位面板</span></div>
+    <div class="foot-mock">
+      <span class="lg">
+        <span style="color:var(--sky)"><i style="background:var(--sky)"></i><span data-th="1">1M</span>&nbsp;蓝移</span>
+        <span style="color:var(--lilac)"><i style="background:var(--lilac)"></i><span data-th="2">10M</span>&nbsp;紫外</span>
+        <span style="color:var(--mango)"><i style="background:var(--mango)"></i><span data-th="3">100M</span>&nbsp;鎏金</span>
+        <span style="color:var(--ink)"><i style="background:var(--rainbow)"></i><span data-th="4">500M</span>&nbsp;棱镜</span>
+      </span>
+      <span class="sp"></span>
+      <button class="gear" title="自定义色阶档位">⚙</button>
+      <span>只观察 · 不接管</span>
+    </div>
+  </div>
+
+  <!-- 5. 仓位卡 -->
+  <div class="sec">
+    <div class="sec-cap"><h2>⑤ 仓位卡里程边框 · 同步四档</h2><span>按「该项目今日消耗」点亮，阈值同一套自定义</span></div>
+    <div class="bays">
+      <div class="bay m1">
+        <div class="bay-head"><span class="st"></span><span class="nm" style="color:#5fb3f0">RuruAgent</span><span class="ct">4.2M</span></div>
+        <div class="bay-grid"><i class="b"></i><i class="b"></i><i class="o"></i><i class="b"></i><i class="b"></i><i class="g"></i><i class="b"></i><i class="g"></i><i class="b"></i><i class="b"></i><i class="o"></i><i class="b"></i></div>
+        <div class="cap">≥ <b data-th="1">1M</b> · 蓝边</div>
+      </div>
+      <div class="bay m2">
+        <div class="bay-head"><span class="st"></span><span class="nm" style="color:#e08de0">cardestiny</span><span class="ct">24.8M</span></div>
+        <div class="bay-grid"><i class="o"></i><i class="b"></i><i class="g"></i><i class="b"></i><i class="o"></i><i class="b"></i><i class="b"></i><i class="g"></i><i class="o"></i><i class="b"></i><i class="b"></i><i class="g"></i></div>
+        <div class="cap">≥ <b data-th="2">10M</b> · 紫边（新）</div>
+      </div>
+      <div class="bay m3">
+        <div class="bay-head"><span class="st"></span><span class="nm" style="color:#b8d96a">RuruOS</span><span class="ct">141M</span></div>
+        <div class="bay-grid"><i class="g"></i><i class="o"></i><i class="b"></i><i class="g"></i><i class="b"></i><i class="g"></i><i class="b"></i><i class="g"></i><i class="o"></i><i class="b"></i><i class="g"></i><i class="b"></i></div>
+        <div class="cap">≥ <b data-th="3">100M</b> · 金边</div>
+      </div>
+      <div class="bay m4">
+        <div class="bay-head"><span class="st"></span><span class="nm" style="color:#6ee0c0">Rurubox</span><span class="ct">512M</span></div>
+        <div class="bay-grid"><i class="b"></i><i class="g"></i><i class="o"></i><i class="b"></i><i class="g"></i><i class="b"></i><i class="o"></i><i class="b"></i><i class="g"></i><i class="b"></i><i class="b"></i><i class="g"></i></div>
+        <div class="cap">≥ <b data-th="4">500M</b> · 彩虹边</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 活的档位面板：解析 800K / 10M / 1.5B / 纯数字，联动全页 data-th 标签
+  var DEFAULTS = { 1: 1e6, 2: 1e7, 3: 1e8, 4: 5e8 };
+  var vals = Object.assign({}, DEFAULTS);
+  var inputs = [].slice.call(document.querySelectorAll('#cfg input'));
+  var errEl = document.getElementById('errmsg');
+  function parseTok(s) {
+    var m = /^\s*(\d+(?:\.\d+)?)\s*([kmb])?\s*$/i.exec(String(s));
+    if (!m) return null;
+    var n = parseFloat(m[1]);
+    var mul = { k: 1e3, m: 1e6, b: 1e9 }[(m[2] || '').toLowerCase()] || 1;
+    var v = Math.round(n * mul);
+    return v >= 1000 ? v : null; // 至少 1K，防手滑
+  }
+  function fmtTok(n) {
+    var t0 = function (s) { return s.replace(/\.?0+$/, ''); };
+    return n >= 1e9 ? t0((n / 1e9).toFixed(2)) + 'B'
+      : n >= 1e6 ? t0((n / 1e6).toFixed(2)) + 'M'
+      : t0((n / 1e3).toFixed(1)) + 'K';
+  }
+  function apply() {
+    var bad = false;
+    inputs.forEach(function (inp) {
+      var v = parseTok(inp.value);
+      inp.classList.toggle('bad', v == null);
+      if (v == null) bad = true; else vals[inp.dataset.tier] = v;
+    });
+    if (!bad && !(vals[1] < vals[2] && vals[2] < vals[3] && vals[3] < vals[4])) {
+      bad = true;
+      inputs.forEach(function (inp) { inp.classList.add('bad'); });
+      errEl.textContent = '档位要递增：蓝移 < 紫外 < 鎏金 < 棱镜';
+    } else {
+      errEl.textContent = bad ? '看不懂这个数 —— 试试 800K / 10M / 1.5B' : '';
+    }
+    if (bad) return;
+    document.querySelectorAll('[data-th]').forEach(function (el) {
+      el.textContent = fmtTok(vals[el.dataset.th]);
+    });
+  }
+  inputs.forEach(function (inp) { inp.addEventListener('input', apply); });
+  document.getElementById('reset').onclick = function () {
+    inputs.forEach(function (inp) { inp.value = fmtTok(DEFAULTS[inp.dataset.tier]); inp.classList.remove('bad'); });
+    vals = Object.assign({}, DEFAULTS);
+    errEl.textContent = '';
+    apply();
+  };
+</script>
+</body>
+</html>

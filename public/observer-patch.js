@@ -14,9 +14,11 @@
  *     自动冒出一张带「外部」章的卡（如单开的 Codex 客户端），安静后自动收走。
  *   · 格子 = 该终端实时输出事件（fanboxPty.onData 旁听分类），与 v2.11 相同。
  *
- * 色阶天梯（今日口径，用户定案，v2.12.1 降档）：点火 <1M 素白 → 蓝移 1M（--info）
- *   → 鎏金 500M（--yellow）→ 棱镜 1B（五色流光）。跨阶一次性闪光；环境极光跟着色阶换色。
- *   仓位卡也按「该项目今日消耗」换里程边框（1M 蓝 / 500M 金 / 1B 彩虹渐变）。
+ * 色阶天梯（今日口径，v2.13 起四档阈值全可自定义：footer ⚙ 小浮层，存 rb_obs_tiers）：
+ *   默认 点火 <1M 素白 → 蓝移 1M（--info）→ 紫外 10M（固定紫罗兰——皮肤没有紫色状态色，
+ *   --accent 每套皮肤颜色都不同，挂不得）→ 鎏金 100M（--yellow）→ 棱镜 500M（五色流光）。
+ *   跨阶一次性闪光；环境极光跟着色阶换色。仓位卡也按「该项目今日消耗」走同一套阈值
+ *   换里程边框（蓝 / 紫 / 金 / 彩虹渐变）。
  *
  * 读数三模式（rb_obs_nummode，切换器在精确行右侧）：
  *   简写 = 三位有效数字+单位恒定超大；K = 只除 1000 其余位全滚；全显 = 记分牌两行堆叠。
@@ -29,7 +31,8 @@
  *   面板关闭或窗口隐藏 → 定时器与 rAF 全停；浅色皮肤停用辉光/噪点（screen 叠加会出色斑）。
  * 布局不入侵：#app 打开时加 padding-right，面板自身 fixed 靠右。
  * web 版无终端不装载；?rbobs=demo 演示数据（无头验收），&rbtok=N 预置今日量，
- * &win=N 窗口数，&rbdone=1 预置一张收工卡，&rbmode=compact|kilo|full 预置读数模式。
+ * &win=N 窗口数，&rbdone=1 预置一张收工卡，&rbmode=compact|kilo|full 预置读数模式，
+ * &rbcfg=1 预置打开档位设置浮层。
  */
 (function () {
   'use strict';
@@ -60,9 +63,14 @@
     '  border-left: 1px solid var(--border); color: var(--text);',
     '  transform: translateX(100%); transition: transform 340ms cubic-bezier(.77,0,.175,1);',
     '  -webkit-app-region: no-drag; }',
+    // 紫外档专色：皮肤没有紫色状态色（--accent 每套皮肤颜色都不同，挂不得），固定紫罗兰；
+    // 浅色皮肤换深一档保证可读。.ro-cfg 档位浮层挂在 body 下，需要同一份变量。
+    '#rb-obs, .ro-cfg { --rb-uv: #a991ff; }',
+    'html[data-mode="light"] #rb-obs, html[data-mode="light"] .ro-cfg { --rb-uv: #7a4fe0; }',
     '#rb-obs.t1 { --rbg: var(--info); }',
-    '#rb-obs.t2 { --rbg: var(--yellow); }',
-    '#rb-obs.t3 { --rbg: var(--accent); }',
+    '#rb-obs.t2 { --rbg: var(--rb-uv); }',
+    '#rb-obs.t3 { --rbg: var(--yellow); }',
+    '#rb-obs.t4 { --rbg: var(--accent); }',
     'html[data-mode="light"] #rb-obs { background: radial-gradient(130% 42% at 50% -12%, color-mix(in srgb, var(--rbg) 7%, transparent), transparent 66%), var(--bg); }',
     '.desktop #rb-obs { top: 40px; }',
     '#app.rb-obs-open #rb-obs { transform: none; }',
@@ -97,7 +105,7 @@
     '  transition: color 500ms ease, border-color 500ms ease, background 500ms ease; }',
     '.ro-badge i { width: 6px; height: 6px; background: currentColor; }',
     '.ro-badge.pop { animation: ro-badgepop 620ms cubic-bezier(.23,1,.32,1); }',
-    '#rb-obs.t3 .ro-badge { color: var(--text); border-color: transparent;',
+    '#rb-obs.t4 .ro-badge { color: var(--text); border-color: transparent;',
     '  background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(100deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)) border-box; border: 1px solid transparent; }',
     // 跨阶闪光（预烘焙光斑，只动 opacity；浅色皮肤停用——screen 叠加在浅底出色斑）
     '.ro-bloom { position: absolute; inset: -6px -14px 20px; opacity: 0; pointer-events: none; mix-blend-mode: screen; filter: blur(18px); transition: opacity 1200ms ease;',
@@ -113,8 +121,8 @@
     // 强制数字字体：soft-patch 有 body * { font-family: Maple !important } 全局兜底，
     // 会把大数字碾成 Maple（圆体+巨逗号）。这里用 #id+class 更高特异性的 !important 抢回来。
     '#rb-obs .rb-big, #rb-obs .rb-big *, #rb-obs .ro-subnum, #rb-obs .ro-subnum * { font-family: var(--rb-num) !important; }',
-    '#rb-obs.t1 .rb-big, #rb-obs.t2 .rb-big { filter: drop-shadow(0 0 16px color-mix(in srgb, var(--rbg) 38%, transparent)); }',
-    '#rb-obs.t3 .rb-big { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--yellow) 30%, transparent)) drop-shadow(0 0 22px color-mix(in srgb, var(--info) 30%, transparent)); }',
+    '#rb-obs.t1 .rb-big, #rb-obs.t2 .rb-big, #rb-obs.t3 .rb-big { filter: drop-shadow(0 0 16px color-mix(in srgb, var(--rbg) 38%, transparent)); }',
+    '#rb-obs.t4 .rb-big { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--yellow) 30%, transparent)) drop-shadow(0 0 22px color-mix(in srgb, var(--info) 30%, transparent)); }',
     'html[data-mode="light"] #rb-obs .rb-big { filter: none; }',
     '.rb-big.stack { display: none; flex-direction: column; align-items: flex-end; line-height: 1.06; font-size: 92px; }',
     '.rb-big .row { display: inline-flex; }',
@@ -124,8 +132,9 @@
     '.ro-hero.mode-compact #rb-kilo, .ro-hero.mode-kilo #rb-compact { display: none; }',
     '.rb-unit { font-size: .38em; margin-left: .08em; transform: translateY(-.06em); color: var(--text-dim); }',
     '#rb-obs.t1 .rb-unit { color: var(--info); }',
-    '#rb-obs.t2 .rb-unit { color: var(--yellow); }',
-    '#rb-obs.t3 .rb-unit { background-image: linear-gradient(120deg, var(--yellow), var(--ok), var(--info)); background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }',
+    '#rb-obs.t2 .rb-unit { color: var(--rb-uv); }',
+    '#rb-obs.t3 .rb-unit { color: var(--yellow); }',
+    '#rb-obs.t4 .rb-unit { background-image: linear-gradient(120deg, var(--yellow), var(--ok), var(--info)); background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }',
     // 滚轮构件（大字与精确行共用）：容器一律 inline-flex——inline-block 的 baseline 对齐
     // 会拿 overflow:hidden 盒子的底边当基线，整行错位（真实壳里踩过的坑）
     '.rb-digits, #rb-sub, #rb-rowhi, #rb-rowlo { display: inline-flex; }',
@@ -135,15 +144,26 @@
     '.rb-pt { display: inline-block; vertical-align: top; width: .3em; height: 1em; transition: width 300ms cubic-bezier(.23,1,.32,1), opacity 300ms ease; }',
     '.rb-reel { display: block; will-change: transform; }',
     '.rb-reel b, .rb-sep b, .rb-pt b { display: block; height: 1em; line-height: 1; font-weight: 600; text-align: center; color: var(--text); }',
-    // 色阶配色：t0 素色 → t1 蓝移 → t2 鎏金 → t3 棱镜（渐变文字缓慢流动，只作用于大字）
+    // 色阶配色：t0 素色 → t1 蓝移 → t2 紫外 → t3 鎏金 → t4 棱镜（渐变文字缓慢流动，只作用于大字）
     // 千分位逗号（.rb-sep）与数字/小数点一起吃渐变——白逗号夹在渐变数字里太跳（用户报的 bug）
-    '#rb-obs.t1 .rb-big .rb-reel b, #rb-obs.t1 .rb-big .rb-pt b, #rb-obs.t1 .rb-big .rb-sep b, #rb-obs.t2 .rb-big .rb-reel b, #rb-obs.t2 .rb-big .rb-pt b, #rb-obs.t2 .rb-big .rb-sep b, #rb-obs.t3 .rb-big .rb-reel b, #rb-obs.t3 .rb-big .rb-pt b, #rb-obs.t3 .rb-big .rb-sep b {',
-    '  color: transparent; background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-size: 64px 100%; animation: ro-flow 5.6s linear infinite; }',
-    '#rb-obs.t1 .rb-big .rb-reel b, #rb-obs.t1 .rb-big .rb-pt b, #rb-obs.t1 .rb-big .rb-sep b { background-image: linear-gradient(100deg, color-mix(in srgb, var(--info) 55%, #fff) 0%, var(--info) 32%, color-mix(in srgb, var(--info) 72%, #003) 60%, var(--info) 82%, color-mix(in srgb, var(--info) 55%, #fff) 100%); }',
-    '#rb-obs.t2 .rb-big .rb-reel b, #rb-obs.t2 .rb-big .rb-pt b, #rb-obs.t2 .rb-big .rb-sep b { background-image: linear-gradient(100deg, color-mix(in srgb, var(--yellow) 55%, #fff) 0%, var(--yellow) 34%, color-mix(in srgb, var(--yellow) 70%, #530) 62%, var(--yellow) 82%, color-mix(in srgb, var(--yellow) 55%, #fff) 100%); }',
-    '#rb-obs.t3 .rb-big .rb-reel b, #rb-obs.t3 .rb-big .rb-pt b, #rb-obs.t3 .rb-big .rb-sep b { background-image: linear-gradient(100deg, var(--err) 0%, var(--yellow) 22%, var(--ok) 44%, var(--info) 64%, var(--accent) 84%, var(--err) 100%); }',
-    'html[data-mode="light"] #rb-obs.t1 .rb-big .rb-reel b, html[data-mode="light"] #rb-obs.t1 .rb-big .rb-pt b, html[data-mode="light"] #rb-obs.t1 .rb-big .rb-sep b { background-image: linear-gradient(100deg, var(--info) 0%, color-mix(in srgb, var(--info) 70%, #003) 50%, var(--info) 100%); }',
-    'html[data-mode="light"] #rb-obs.t2 .rb-big .rb-reel b, html[data-mode="light"] #rb-obs.t2 .rb-big .rb-pt b, html[data-mode="light"] #rb-obs.t2 .rb-big .rb-sep b { background-image: linear-gradient(100deg, var(--yellow) 0%, color-mix(in srgb, var(--yellow) 70%, #530) 50%, var(--yellow) 100%); }',
+    (function () {
+      var sel = function (t, pre) {
+        return ['.rb-reel', '.rb-pt', '.rb-sep'].map(function (p) { return (pre || '') + '#rb-obs.' + t + ' .rb-big ' + p + ' b'; }).join(', ');
+      };
+      var flow = function (c, dk) { return 'linear-gradient(100deg, color-mix(in srgb, ' + c + ' 55%, #fff) 0%, ' + c + ' 32%, color-mix(in srgb, ' + c + ' 70%, ' + dk + ') 60%, ' + c + ' 82%, color-mix(in srgb, ' + c + ' 55%, #fff) 100%)'; };
+      var flowLight = function (c, dk) { return 'linear-gradient(100deg, ' + c + ' 0%, color-mix(in srgb, ' + c + ' 70%, ' + dk + ') 50%, ' + c + ' 100%)'; };
+      var L = 'html[data-mode="light"] ';
+      return [
+        [sel('t1'), sel('t2'), sel('t3'), sel('t4')].join(', ') + ' { color: transparent; background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-size: 64px 100%; animation: ro-flow 5.6s linear infinite; }',
+        sel('t1') + ' { background-image: ' + flow('var(--info)', '#003') + '; }',
+        sel('t2') + ' { background-image: ' + flow('var(--rb-uv)', '#103') + '; }',
+        sel('t3') + ' { background-image: ' + flow('var(--yellow)', '#530') + '; }',
+        sel('t4') + ' { background-image: linear-gradient(100deg, var(--err) 0%, var(--yellow) 22%, var(--ok) 44%, var(--info) 64%, var(--accent) 84%, var(--err) 100%); }',
+        sel('t1', L) + ' { background-image: ' + flowLight('var(--info)', '#003') + '; }',
+        sel('t2', L) + ' { background-image: ' + flowLight('var(--rb-uv)', '#103') + '; }',
+        sel('t3', L) + ' { background-image: ' + flowLight('var(--yellow)', '#530') + '; }',
+      ].join('\n');
+    })(),
     // 精确行 + 模式切换
     '.ro-subrow { display: flex; align-items: center; gap: 8px; margin: 9px 0 0; }',
     '.ro-subcap { color: var(--text-faint); font: 9px/1 var(--font-mono, monospace); letter-spacing: .14em; }',
@@ -157,7 +177,7 @@
     '.ro-meterrow { display: flex; align-items: center; gap: 9px; margin: 12px 0 0; }',
     '.ro-meter { position: relative; flex: 1; height: 6px; background: color-mix(in srgb, var(--text) 8%, transparent); border-radius: 2px; overflow: hidden; }',
     '.ro-meter i { display: block; height: 100%; width: 0; background: color-mix(in srgb, var(--rbg) 92%, transparent); transition: width 500ms cubic-bezier(.23,1,.32,1), background 500ms ease; }',
-    '#rb-obs.t3 .ro-meter i { background: linear-gradient(90deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)); }',
+    '#rb-obs.t4 .ro-meter i { background: linear-gradient(90deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)); }',
     '.ro-meter::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1.5px), var(--bg) calc(10% - 1.5px) 10%); }',
     '.ro-meternext { color: var(--text-faint); font: 10px/1 var(--font-mono, monospace); letter-spacing: .08em; flex: 0 0 auto; }',
     '.ro-meternext b { color: var(--rbg); font-weight: 600; transition: color 500ms ease; }',
@@ -175,15 +195,18 @@
     '.ro-flow::-webkit-scrollbar { width: 0; }',
     '.ro-mod { position: relative; min-width: 0; padding: 10px 11px 11px; border: 1px solid var(--border); border-radius: 13px; background: var(--panel); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent); }',
     'html[data-mode="light"] .ro-mod { box-shadow: none; }',
-    // 里程边框：该项目今日消耗 1M 蓝 / 1B 金 / 3B 彩虹（常驻荣誉；收工的旋转流光是临时庆典）
+    // 里程边框：该项目今日消耗走同一套自定义阈值（默认 1M 蓝 / 10M 紫 / 100M 金 / 500M 彩虹；
+    // 常驻荣誉，收工的旋转流光是临时庆典）
     '.ro-mod.m1 { border-color: color-mix(in srgb, var(--info) 52%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent), 0 0 18px -7px color-mix(in srgb, var(--info) 50%, transparent); }',
-    '.ro-mod.m2 { border-color: color-mix(in srgb, var(--yellow) 55%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent), 0 0 18px -7px color-mix(in srgb, var(--yellow) 55%, transparent); }',
-    '.ro-mod.m3 { border: 1px solid transparent; background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(120deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)) border-box;',
+    '.ro-mod.m2 { border-color: color-mix(in srgb, var(--rb-uv) 55%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent), 0 0 18px -7px color-mix(in srgb, var(--rb-uv) 55%, transparent); }',
+    '.ro-mod.m3 { border-color: color-mix(in srgb, var(--yellow) 55%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent), 0 0 18px -7px color-mix(in srgb, var(--yellow) 55%, transparent); }',
+    '.ro-mod.m4 { border: 1px solid transparent; background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(120deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)) border-box;',
     '  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent), 0 0 16px -7px color-mix(in srgb, var(--err) 38%, transparent), 0 0 20px -8px color-mix(in srgb, var(--info) 38%, transparent); }',
-    'html[data-mode="light"] .ro-mod.m1, html[data-mode="light"] .ro-mod.m2, html[data-mode="light"] .ro-mod.m3 { box-shadow: none; }',
+    'html[data-mode="light"] .ro-mod.m1, html[data-mode="light"] .ro-mod.m2, html[data-mode="light"] .ro-mod.m3, html[data-mode="light"] .ro-mod.m4 { box-shadow: none; }',
     '.ro-mod.m1 .ro-cnt { color: var(--info); }',
-    '.ro-mod.m2 .ro-cnt { color: var(--yellow); }',
-    '.ro-mod.m3 .ro-cnt { background-image: linear-gradient(100deg, var(--yellow), var(--ok), var(--info)); background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; font-weight: 700; }',
+    '.ro-mod.m2 .ro-cnt { color: var(--rb-uv); }',
+    '.ro-mod.m3 .ro-cnt { color: var(--yellow); }',
+    '.ro-mod.m4 .ro-cnt { background-image: linear-gradient(100deg, var(--yellow), var(--ok), var(--info)); background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; font-weight: 700; }',
     '.ro-mod-head { position: relative; z-index: 2; display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }',
     '.ro-st { width: 7px; height: 7px; border-radius: 2px; background: var(--text-faint); flex: 0 0 auto; transition: background 300ms ease, box-shadow 300ms ease; }',
     '.ro-st.working { background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: ro-breathe 2.4s steps(24) infinite; }',
@@ -229,8 +252,12 @@
     '.ro-mod.done .ro-st { background: var(--text); box-shadow: 0 0 10px var(--text); animation: none; }',
     '.ro-cnt.winpop { animation: ro-pop 340ms cubic-bezier(.23,1,.32,1); }',
     '.ro-empty { grid-column: 1 / -1; padding: 30px 10px; color: var(--text-faint); font: 12px/1.8 var(--font-mono, monospace); text-align: center; }',
-    '.ro-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; flex: 0 0 auto; padding: 11px 16px; border-top: 1px solid var(--border); color: var(--text-faint); font: 9.5px/1.5 var(--font-mono, monospace); position: relative; z-index: 3; }',
-    '.ro-ladder { display: flex; gap: 9px; align-items: center; }',
+    '.ro-foot { margin-top: auto; display: flex; align-items: center; gap: 9px; row-gap: 4px; flex-wrap: wrap; flex: 0 0 auto; padding: 10px 14px; border-top: 1px solid var(--border); color: var(--text-faint); font: 9.5px/1.5 var(--font-mono, monospace); position: relative; z-index: 3; }',
+    '.ro-ladder { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; row-gap: 3px; }',
+    '.ro-gear { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); color: var(--text-dim); cursor: pointer; font-size: 11px; flex: 0 0 auto; transition: color 160ms ease, background 160ms ease, transform 200ms cubic-bezier(.23,1,.32,1); }',
+    '.ro-gear:hover { color: var(--text); background: var(--accent-soft, rgba(128,128,128,.12)); transform: rotate(30deg); }',
+    '.ro-gear:active { transform: rotate(30deg) scale(.9); }',
+    '.ro-motto { margin-left: auto; }', // 图例挤到换行时靠右，不吊在左边
     '.ro-ladder span { display: flex; align-items: center; gap: 4px; }',
     '.ro-ladder i { width: 7px; height: 7px; border-radius: 2px; }',
     '.ro-foot .sp { flex: 1; }',
@@ -241,6 +268,25 @@
     '.ro-menu button:hover { background: var(--accent-soft, rgba(128,128,128,.12)); }',
     '.ro-menu button .sq { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }',
     '.ro-menu button .now { margin-left: auto; color: var(--ok); font: 8px/1 var(--font-mono, monospace); }',
+    // 色阶档位设置浮层（footer ⚙ 点开，往上弹）：四档颜色固定，只开放阈值；递增校验，实时生效
+    '.ro-cfg { position: fixed; z-index: 320; width: 240px; padding: 9px 9px 7px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); box-shadow: var(--shadow, 0 18px 60px rgba(0,0,0,.4)); transform-origin: bottom right; transform: scale(.97); opacity: 0; transition: transform 150ms cubic-bezier(.23,1,.32,1), opacity 150ms cubic-bezier(.23,1,.32,1); }',
+    '.ro-cfg.open { transform: scale(1); opacity: 1; }',
+    '.ro-cfg-t { padding: 0 3px; color: var(--text); font-size: 12px; font-weight: 700; }',
+    '.ro-cfg-h { padding: 4px 3px 8px; border-bottom: 1px solid var(--border); color: var(--text-faint); font: 9px/1.6 var(--font-mono, monospace); }',
+    '.ro-cfg-row { display: flex; align-items: center; gap: 7px; padding: 7px 3px; border-bottom: 1px solid var(--border); }',
+    '.ro-cfg-row i { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }',
+    '.ro-cfg-row b { font-size: 12px; font-weight: 650; }',
+    '.ro-cfg-row small { margin-left: auto; color: var(--text-faint); font: 9px/1 var(--font-mono, monospace); }',
+    '.ro-cfg-row input { width: 76px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--text); font-size: 12.5px; font-weight: 600; text-align: right; outline: none; transition: border-color 160ms ease, box-shadow 160ms ease; }',
+    // 数字字体抢回 Chakra Petch：soft-patch 有 body * !important 全局兜底（老坑），要同级 !important + 更高特异性
+    '.ro-cfg .ro-cfg-row input { font-family: "Chakra Petch", var(--font-mono, monospace) !important; }',
+    '.ro-cfg-row input:focus { border-color: color-mix(in srgb, var(--info) 60%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--info) 14%, transparent); }',
+    '.ro-cfg-row input.bad { border-color: color-mix(in srgb, var(--err) 70%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--err) 12%, transparent); }',
+    '.ro-cfg-err { min-height: 13px; padding: 5px 3px 0; color: var(--err); font: 9px/1.4 var(--font-mono, monospace); }',
+    '.ro-cfg-f { display: flex; align-items: center; gap: 8px; padding: 7px 3px 2px; }',
+    '.ro-cfg-reset { padding: 5px 10px; border: 1px solid var(--border); border-radius: 7px; background: none; color: var(--text-dim); font: 10px/1 var(--font-mono, monospace); cursor: pointer; transition: color 140ms ease, background 140ms ease; }',
+    '.ro-cfg-reset:hover { color: var(--text); background: var(--accent-soft, rgba(128,128,128,.12)); }',
+    '.ro-cfg-f small { margin-left: auto; color: var(--text-faint); font: 8.5px/1 var(--font-mono, monospace); }',
     '@keyframes ro-breathe { 0%,100% { opacity: 1; } 50% { opacity: .45; } }',
     '@keyframes ro-train { to { left: 100%; } }',
     '@keyframes ro-flow { to { background-position: 64px 0; } }',
@@ -252,9 +298,9 @@
     '@keyframes ro-sweep { to { transform: translateX(320%) skewX(-12deg); } }',
     '@keyframes ro-modwin { 0% { transform: scale(1); } 26% { transform: scale(1.03); } 100% { transform: scale(1); } }',
     // ?shot 截图模式：无头 Chrome 的 virtual-time 会把过渡冻在起点，截图时过渡全瞬时
-    (/[?&]shot/.test(location.search) ? '#rb-obs, #rb-obs * { transition-duration: 0ms !important; }' : ''),
+    (/[?&]shot/.test(location.search) ? '#rb-obs, #rb-obs *, .ro-cfg, .ro-cfg * { transition-duration: 0ms !important; }' : ''),
     '@media (prefers-reduced-motion: reduce) { .ro-train, .ro-dot, .ro-st, .ro-cell.pop, .ro-badge.pop, .ro-hero.flash .ro-bigwrap, .ro-mod.done .ro-grid, .ro-rim::before, .ro-mod.celebrate, .ro-mod.celebrate .ro-flash i, .ro-cnt.winpop,',
-    '  #rb-obs.t1 .rb-big .rb-reel b, #rb-obs.t2 .rb-big .rb-reel b, #rb-obs.t3 .rb-big .rb-reel b { animation: none !important; } #rb-obs, #app { transition-duration: 1ms; } }',
+    '  #rb-obs .rb-big .rb-reel b, #rb-obs .rb-big .rb-pt b, #rb-obs .rb-big .rb-sep b { animation: none !important; } #rb-obs, #app { transition-duration: 1ms; } }',
   ].join('\n');
   document.head.appendChild(st);
 
@@ -287,11 +333,9 @@
     '</div>' +
     '<div class="ro-rule"></div>' +
     '<div class="ro-flow"></div>' +
-    '<footer class="ro-foot"><span class="ro-ladder">' +
-    '<span style="color:var(--info)"><i style="background:var(--info)"></i>1M 蓝移</span>' +
-    '<span style="color:var(--yellow)"><i style="background:var(--yellow)"></i>500M 鎏金</span>' +
-    '<span style="color:var(--accent)"><i style="background:linear-gradient(135deg,var(--err),var(--yellow),var(--ok),var(--info),var(--accent))"></i>1B 棱镜</span>' +
-    '</span><span class="sp"></span><span>只观察 · 不接管</span></footer>';
+    '<footer class="ro-foot"><span class="ro-ladder"></span><span class="sp"></span>' +
+    '<button class="ro-gear" title="自定义色阶档位">⚙</button>' +
+    '<span class="ro-motto">只观察 · 不接管</span></footer>';
   app.appendChild(aside);
   var flow = aside.querySelector('.ro-flow');
   var hero = aside.querySelector('.ro-hero');
@@ -504,20 +548,44 @@
   });
   applyMode();
 
-  // ---------- 色阶天梯（今日口径）：1M 蓝 → 500M 金 → 1B 彩虹 ----------
-  var TIERS = [
-    { at: 0, cls: 't0', name: '点火', next: 1e6, nextLabel: '1M' },
-    { at: 1e6, cls: 't1', name: '蓝移 1M', next: 5e8, nextLabel: '500M' },
-    { at: 5e8, cls: 't2', name: '鎏金 500M', next: 1e9, nextLabel: '1B' },
-    { at: 1e9, cls: 't3', name: '棱镜 1B', next: null, nextLabel: 'MAX' },
+  // ---------- 色阶天梯（今日口径，v2.13 四档阈值可自定义）：蓝 → 紫 → 金 → 彩虹 ----------
+  var TIER_KEY = 'rb_obs_tiers';
+  var TIER_DEF = [1e6, 1e7, 1e8, 5e8]; // 蓝移 / 紫外 / 鎏金 / 棱镜 默认阈值
+  var RAINBOW_CHIP = 'linear-gradient(135deg,var(--err),var(--yellow),var(--ok),var(--info),var(--accent))';
+  var TIER_META = [
+    { cls: 't1', ms: 'm1', name: '蓝移', c: 'var(--info)' },
+    { cls: 't2', ms: 'm2', name: '紫外', c: 'var(--rb-uv)' },
+    { cls: 't3', ms: 'm3', name: '鎏金', c: 'var(--yellow)' },
+    { cls: 't4', ms: 'm4', name: '棱镜', c: 'var(--accent)', rainbow: true },
   ];
+  function validTiers(a) {
+    return Array.isArray(a) && a.length === 4 && a.every(function (v, i) {
+      return typeof v === 'number' && isFinite(v) && v >= 1000 && (i === 0 || v > a[i - 1]);
+    });
+  }
+  var tierAt = (function () {
+    try { var s = JSON.parse(localStorage.getItem(TIER_KEY) || 'null'); if (validTiers(s)) return s; } catch (e) { /* */ }
+    return TIER_DEF.slice();
+  })();
+  // 阈值标签：800K / 1M / 10M / 1.5B（一元 + 顺手吃掉小数尾零）
+  function fmtTh(n) {
+    return n >= 1e9 ? +(n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? +(n / 1e6).toFixed(2) + 'M' : +(n / 1e3).toFixed(1) + 'K';
+  }
+  var TIERS = [];
+  function rebuildTiers() {
+    TIERS = [{ at: 0, cls: 't0', name: '点火', next: tierAt[0], nextLabel: fmtTh(tierAt[0]) }];
+    TIER_META.forEach(function (tm, i) {
+      TIERS.push({ at: tierAt[i], cls: tm.cls, name: tm.name + ' ' + fmtTh(tierAt[i]), next: i < 3 ? tierAt[i + 1] : null, nextLabel: i < 3 ? fmtTh(tierAt[i + 1]) : 'MAX' });
+    });
+  }
+  rebuildTiers();
   var tierOf = function (v) { var t = TIERS[0]; for (var i = 0; i < TIERS.length; i++) { if (v >= TIERS[i].at) t = TIERS[i]; } return t; };
-  var msOf = function (v) { return v >= 1e9 ? 'm3' : v >= 5e8 ? 'm2' : v >= 1e6 ? 'm1' : ''; };
+  var msOf = function (v) { for (var i = 3; i >= 0; i--) { if (v >= tierAt[i]) return TIER_META[i].ms; } return ''; };
   var curTier = null;
   function paintTier(v, silent) {
     var t = tierOf(v);
     if (t !== curTier) {
-      aside.classList.remove('t0', 't1', 't2', 't3');
+      aside.classList.remove('t0', 't1', 't2', 't3', 't4');
       aside.classList.add(t.cls);
       badgeTextEl.textContent = t.name;
       if (curTier && !silent && !reduceMotion) {
@@ -534,6 +602,100 @@
     meterFillEl.style.width = (Math.max(0, Math.min(1, p)) * 100).toFixed(1) + '%';
     meterNextEl.innerHTML = t.next ? '→ <b>' + t.nextLabel + '</b>' : '<b>MAX</b>';
   }
+
+  // ---------- footer 图例 + 档位设置浮层（阈值自定义，颜色固定四档） ----------
+  var ladderEl = aside.querySelector('.ro-ladder');
+  function renderLadder() {
+    ladderEl.innerHTML = TIER_META.map(function (tm, i) {
+      return '<span style="color:' + tm.c + '"><i style="background:' + (tm.rainbow ? RAINBOW_CHIP : tm.c) + '"></i>' + fmtTh(tierAt[i]) + ' ' + tm.name + '</span>';
+    }).join('');
+  }
+  renderLadder();
+  paintTier(0, true); // 初始里程标签吃自定义阈值（默认 innerHTML 里的 1M 只是占位）
+  function applyTiers(arr) {
+    tierAt = arr.slice();
+    try { localStorage.setItem(TIER_KEY, JSON.stringify(tierAt)); } catch (e) { /* */ }
+    rebuildTiers();
+    curTier = null; // 强制重挂色阶 class（paintTier 用引用比较）
+    paintTier(heroV, true); // silent：改档位不放跨阶闪光
+    renderLadder();
+    mods.forEach(function (m) { m.ms = null; });
+    Object.keys(extMods).forEach(function (k) {
+      // syncExtBays 只重算活跃卡：先清旧边框，免得濒退场的卡挂错色阶
+      extMods[k].ms = null; extMods[k].el.classList.remove('m1', 'm2', 'm3', 'm4');
+    });
+    paintBayMilestones();
+    syncExtBays();
+    placeCfg(); // 图例变长可能把 footer 挤到换行、⚙ 挪位，浮层跟着重锚定
+  }
+  function parseTh(s) {
+    var m = /^\s*(\d+(?:\.\d+)?)\s*([kmb])?\s*$/i.exec(String(s));
+    if (!m) return null;
+    var v = Math.round(parseFloat(m[1]) * ({ k: 1e3, m: 1e6, b: 1e9 }[(m[2] || '').toLowerCase()] || 1));
+    return v >= 1000 ? v : null; // 至少 1K，防手滑
+  }
+  var gearEl = aside.querySelector('.ro-gear');
+  var cfgEl = null;
+  function closeCfg() {
+    if (!cfgEl) return; var c = cfgEl; cfgEl = null;
+    c.classList.remove('open'); setTimeout(function () { c.remove(); }, 160);
+    document.removeEventListener('mousedown', onCfgOut, true);
+  }
+  function onCfgOut(ev) { if (cfgEl && !cfgEl.contains(ev.target) && ev.target !== gearEl) closeCfg(); }
+  function placeCfg() {
+    if (!cfgEl) return;
+    var r = gearEl.getBoundingClientRect();
+    cfgEl.style.right = Math.max(10, window.innerWidth - r.right) + 'px';
+    cfgEl.style.bottom = (window.innerHeight - r.top + 6) + 'px';
+  }
+  function openCfg() {
+    if (cfgEl) { closeCfg(); return; }
+    cfgEl = document.createElement('div');
+    cfgEl.className = 'ro-cfg';
+    cfgEl.innerHTML = '<div class="ro-cfg-t">色阶档位</div>' +
+      '<div class="ro-cfg-h">烧到多少换什么颜色，自己定<br>支持 800K / 10M / 1.5B / 1200000 写法</div>' +
+      TIER_META.map(function (tm, i) {
+        return '<label class="ro-cfg-row"><i style="background:' + (tm.rainbow ? RAINBOW_CHIP : tm.c) + '"></i>' +
+          '<b style="color:' + (tm.rainbow ? 'var(--text)' : tm.c) + '">' + tm.name + '</b>' +
+          '<small>亮起 ≥</small><input data-i="' + i + '" value="' + fmtTh(tierAt[i]) + '" spellcheck="false"></label>';
+      }).join('') +
+      '<div class="ro-cfg-err"></div>' +
+      '<div class="ro-cfg-f"><button class="ro-cfg-reset">恢复默认</button><small>实时生效 · 只存本机</small></div>';
+    document.body.appendChild(cfgEl);
+    placeCfg();
+    requestAnimationFrame(function () { if (cfgEl) cfgEl.classList.add('open'); });
+    var inputs = [].slice.call(cfgEl.querySelectorAll('input'));
+    var errEl = cfgEl.querySelector('.ro-cfg-err');
+    // 只解析被编辑的那格：输入框回填的是 fmtTh 舍入标签（1234567 显示 1.23M），
+    // 没动过的档位一律保留 cur 里的精确存值，不许被回填值悄悄改写
+    var cur = tierAt.slice();
+    function editAt(idx) {
+      var inp = inputs[idx];
+      var v = parseTh(inp.value);
+      inp.classList.toggle('bad', v == null);
+      if (v == null) { errEl.textContent = '看不懂或太小（至少 1K）——试试 800K / 10M / 1.5B'; return; }
+      var next = cur.slice(); next[idx] = v;
+      if (!validTiers(next)) {
+        inp.classList.add('bad');
+        errEl.textContent = '档位要递增：蓝移 < 紫外 < 鎏金 < 棱镜';
+        return;
+      }
+      cur = next;
+      errEl.textContent = '';
+      applyTiers(cur);
+    }
+    inputs.forEach(function (inp) {
+      inp.addEventListener('input', function () { editAt(+inp.dataset.i); });
+    });
+    cfgEl.querySelector('.ro-cfg-reset').onclick = function () {
+      inputs.forEach(function (inp, i) { inp.value = fmtTh(TIER_DEF[i]); inp.classList.remove('bad'); });
+      errEl.textContent = '';
+      cur = TIER_DEF.slice();
+      applyTiers(TIER_DEF.slice());
+    };
+    document.addEventListener('mousedown', onCfgOut, true);
+  }
+  gearEl.onclick = function (ev) { ev.stopPropagation(); openCfg(); };
 
   // ---------- 大数字引擎：轮询目标 + rAF 匀速滚近（追上后 ~300ms 落位归整再停，零常驻） ----------
   var heroV = 0, heroTarget = 0, heroRate = 0, heroRaf = 0, heroLastT = 0, firstFeed = true;
@@ -568,6 +730,15 @@
   function feedTotal(total) {
     if (firstFeed || reduceMotion) {
       firstFeed = false;
+      heroV = heroTarget = total;
+      paintHeroNumber(1); paintTier(heroV, true);
+      return;
+    }
+    // 跨零点/后端重算导致回落（>1K 都当真——真实状态就是变小了）：直接落位重画。
+    // 旧逻辑只许向上，面板开过夜会卡在昨日总量一整个上午（2.13 修复）。
+    if (total < heroTarget - 1000) {
+      if (heroRaf) { cancelAnimationFrame(heroRaf); heroRaf = 0; }
+      heroSettleT = 0; lastTokSpeed = 0;
       heroV = heroTarget = total;
       paintHeroNumber(1); paintTier(heroV, true);
       return;
@@ -932,7 +1103,7 @@
       var ms = msOf(tok);
       if (ms !== m.ms) {
         m.ms = ms;
-        m.el.classList.remove('m1', 'm2', 'm3');
+        m.el.classList.remove('m1', 'm2', 'm3', 'm4');
         if (ms) m.el.classList.add(ms);
       }
     });
@@ -959,7 +1130,7 @@
       var cnt = x.el.querySelector('.ro-cnt');
       if (cnt) cnt.textContent = fmtTok(cs.todayTokens || 0);
       var ms = msOf(cs.todayTokens || 0);
-      if (ms !== x.ms) { x.ms = ms; x.el.classList.remove('m1', 'm2', 'm3'); if (ms) x.el.classList.add(ms); }
+      if (ms !== x.ms) { x.ms = ms; x.el.classList.remove('m1', 'm2', 'm3', 'm4'); if (ms) x.el.classList.add(ms); }
       x.el.classList.add('working');
     });
     // 安静太久的外部卡收走
@@ -1013,7 +1184,7 @@
   function stopAll() {
     timers.forEach(clearInterval); timers = [];
     if (heroRaf) { cancelAnimationFrame(heroRaf); heroRaf = 0; }
-    closeMenu();
+    closeMenu(); closeCfg();
   }
   document.addEventListener('visibilitychange', function () {
     if (!isOpen()) return;
@@ -1024,8 +1195,11 @@
   var saved = null;
   try { saved = localStorage.getItem(OPEN_KEY); } catch (e) { /* */ }
   if (DEMO || saved === '1') setOpen(true);
-  // 无头验收：?rbdone=1 预置一张收工卡
+  // 无头验收：?rbdone=1 预置一张收工卡；&rbcfg=1 预置打开档位浮层
   if (DEMO && /[?&]rbdone=1/.test(location.search)) {
     setTimeout(function () { if (mods[0]) bayDone(mods[0], actOf(mods[0].sid)); }, 900);
+  }
+  if (DEMO && /[?&]rbcfg=1/.test(location.search)) {
+    setTimeout(openCfg, 600);
   }
 })();
