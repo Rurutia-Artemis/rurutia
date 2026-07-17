@@ -12,7 +12,9 @@
  *   · 仓位 = 打开的终端 tab（term.sessions），右上角显示该项目今日消耗（perCwd 归属）；
  *     外加「外部仓位」：Codex 会话 45s 内活跃、但 cwd 不属于任何打开的终端 →
  *     自动冒出一张带「外部」章的卡（如单开的 Codex 客户端），安静后自动收走。
- *   · 格子 = 该终端实时输出事件（fanboxPty.onData 旁听分类），与 v2.11 相同。
+ *   · 格子 = 该终端实时输出事件（fanboxPty.onData 旁听）：红=报错、黄=警告有语义，
+ *     其余输出彩纸四色随机轮转（蓝/绿/强调/紫外）——工作时五颜六色地跳。
+ *     （旧版「其它全归蓝」蓝海淹屏、「进度翻绿」把整卡刷成纯绿，v2.13.1 都撤了。）
  *
  * 色阶天梯（今日口径，v2.13 起四档阈值全可自定义：footer ⚙ 小浮层，存 rb_obs_tiers）：
  *   默认 点火 <1M 素白 → 蓝移 1M（--info）→ 紫外 10M（固定紫罗兰——皮肤没有紫色状态色，
@@ -24,12 +26,15 @@
  *   简写 = 三位有效数字+单位恒定超大；K = 只除 1000 其余位全滚；全显 = 记分牌两行堆叠。
  *   任一模式下方都有 11 位「精确」小滚轮（全显模式隐藏，它本身就是精确值）。
  *
- * 收工庆典（回合机与 v2.11 相同：安静 6.5s 判收工）：闪光扫过 + 旋转彩虹流光边框 +
- *   格子对角彩虹（hue-rotate 合成器流动），8.5s 后恢复原格子色。子任务完成庆祝保留。
+ * 收工庆典（安静 6.5s 且本轮输出覆盖 ≥5 个活跃秒才判收工——tab 切换/resize 的整屏重绘
+ *   是 1-2 秒的瞬时爆发，不算工作，防彩虹来回横跳）：闪光扫过 + 旋转彩虹流光 8.5s，
+ *   谢幕后转入**常驻彩虹**（rest 态：静态渐变边框 + 对角彩虹格慢速流动 + 白点「已收工」），
+ *   直到下一轮真实工作（活跃 ≥3 秒）开始才复原格子。子任务完成庆祝保留。
  *
  * 资源纪律（不变）：持续动效只碰 transform/opacity/合成器 filter；辉光全部预烘焙；
  *   面板关闭或窗口隐藏 → 定时器与 rAF 全停；浅色皮肤停用辉光/噪点（screen 叠加会出色斑）。
- * 布局不入侵：#app 打开时加 padding-right，面板自身 fixed 靠右。
+ * 布局不入侵：#app 打开时加 padding-right，面板自身 fixed 悬浮——12px 边距圆角卡，
+ *   随 soft-patch 的卡片语言（18px 圆角 + 发丝边 + 柔光），与左侧终端/导航同一族。
  * web 版无终端不装载；?rbobs=demo 演示数据（无头验收），&rbtok=N 预置今日量，
  * &win=N 窗口数，&rbdone=1 预置一张收工卡，&rbmode=compact|kilo|full 预置读数模式，
  * &rbcfg=1 预置打开档位设置浮层。
@@ -54,14 +59,17 @@
   st.textContent = [
     '@font-face { font-family: "Chakra Petch"; font-style: normal; font-weight: 600; font-display: swap; src: url("vendor/fonts/chakra-petch-600-latin.woff2") format("woff2"); }',
     '#app { transition: padding-right 340ms cubic-bezier(.77,0,.175,1); }',
-    '#app.rb-obs-open { padding-right: ' + PANEL_W + 'px; }',
-    '#rb-obs { position: fixed; z-index: 45; top: 0; right: 0; bottom: 0; width: ' + PANEL_W + 'px;',
+    // 12(边) + 面板 + 12(与主界面卡片的缝)：跟 #app 自己的 12px 间隙节奏一致
+    '#app.rb-obs-open { padding-right: ' + (PANEL_W + 24) + 'px; }',
+    // 悬浮圆角卡：随 soft-patch 的卡片语言（18px 圆角 + 发丝边 + 柔光 + 亮一档底），不再贴边直角
+    '#rb-obs { position: fixed; z-index: 45; top: 12px; right: 12px; bottom: 12px; width: ' + PANEL_W + 'px;',
     '  display: flex; flex-direction: column; overflow: hidden;',
     '  --rbg: var(--text-dim); --rb-num: "Chakra Petch", var(--font-mono, monospace);',
     '  background: radial-gradient(130% 42% at 50% -12%, color-mix(in srgb, var(--rbg) 14%, transparent), transparent 66%),',
-    '    radial-gradient(80% 30% at 96% 106%, color-mix(in srgb, var(--rbg) 6%, transparent), transparent 62%), var(--bg);',
-    '  border-left: 1px solid var(--border); color: var(--text);',
-    '  transform: translateX(100%); transition: transform 340ms cubic-bezier(.77,0,.175,1);',
+    '    radial-gradient(80% 30% at 96% 106%, color-mix(in srgb, var(--rbg) 6%, transparent), transparent 62%), color-mix(in srgb, var(--bg-2) 50%, var(--bg));',
+    '  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); border-radius: 18px;',
+    '  box-shadow: 0 16px 40px -24px rgba(0,0,0,.4), 0 2px 8px -4px rgba(0,0,0,.24); color: var(--text);',
+    '  transform: translateX(calc(100% + 26px)); transition: transform 340ms cubic-bezier(.77,0,.175,1);',
     '  -webkit-app-region: no-drag; }',
     // 紫外档专色：皮肤没有紫色状态色（--accent 每套皮肤颜色都不同，挂不得），固定紫罗兰；
     // 浅色皮肤换深一档保证可读。.ro-cfg 档位浮层挂在 body 下，需要同一份变量。
@@ -71,7 +79,7 @@
     '#rb-obs.t2 { --rbg: var(--rb-uv); }',
     '#rb-obs.t3 { --rbg: var(--yellow); }',
     '#rb-obs.t4 { --rbg: var(--accent); }',
-    'html[data-mode="light"] #rb-obs { background: radial-gradient(130% 42% at 50% -12%, color-mix(in srgb, var(--rbg) 7%, transparent), transparent 66%), var(--bg); }',
+    'html[data-mode="light"] #rb-obs { background: radial-gradient(130% 42% at 50% -12%, color-mix(in srgb, var(--rbg) 7%, transparent), transparent 66%), color-mix(in srgb, var(--bg-2) 50%, var(--bg)); }',
     '.desktop #rb-obs { top: 40px; }',
     '#app.rb-obs-open #rb-obs { transform: none; }',
     // 细颗粒噪点（深色皮肤专属材质；浅色会显脏，停用）
@@ -232,6 +240,9 @@
       return '.ro-cell.' + t + ' { color: ' + v + '; border-color: color-mix(in srgb, ' + v + ' 78%, transparent); background: color-mix(in srgb, ' + v + ' 66%, transparent); }\n' +
         'html[data-mode="light"] .ro-cell.' + t + ' { border-color: ' + v + '; background: color-mix(in srgb, ' + v + ' 90%, transparent); }';
     }).join('\n'),
+    // 第六色：紫外（--rb-uv 专色）——彩纸轮转的第四张牌，皮肤状态色里没有紫
+    '.ro-cell.uv { color: var(--rb-uv); border-color: color-mix(in srgb, var(--rb-uv) 78%, transparent); background: color-mix(in srgb, var(--rb-uv) 66%, transparent); }',
+    'html[data-mode="light"] .ro-cell.uv { border-color: var(--rb-uv); background: color-mix(in srgb, var(--rb-uv) 90%, transparent); }',
     '.ro-cell.chasing { outline: 1px solid color-mix(in srgb, var(--text) 55%, transparent); outline-offset: 1px; transform: translateY(-2px) scale(1.08); }',
     '.ro-cell.pop { animation: ro-pop 340ms cubic-bezier(.23,1,.32,1); }',
     // ===== 收工 = 彩虹流光（一次性庆典 + 8.5s 持续流光后自动恢复） =====
@@ -244,6 +255,15 @@
     '.ro-mod.done .ro-grid { animation: ro-huerun 4s linear infinite; }',
     '.ro-mod.done .ro-cell { border-color: transparent; box-shadow: 0 0 10px -1px currentColor; }',
     'html[data-mode="light"] .ro-mod.done .ro-cell { box-shadow: none; }',
+    // ===== 常驻收工（rest）：庆典谢幕后不再打回原形，静静保持彩虹荣誉态，直到下一轮真实工作 =====
+    // 写在 .m1-.m4 之后：同特异性靠顺序压过里程边框（反正 rest 本身就是满级彩虹）
+    '.ro-mod.rest { border: 1px solid transparent; background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(120deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)) border-box;',
+    '  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent), 0 0 16px -7px color-mix(in srgb, var(--err) 30%, transparent), 0 0 20px -8px color-mix(in srgb, var(--info) 30%, transparent); }',
+    'html[data-mode="light"] .ro-mod.rest { box-shadow: none; }',
+    '.ro-mod.rest .ro-grid { animation: ro-huerun 14s linear infinite; }', // 慢速流动：完成了，但还活着
+    '.ro-mod.rest .ro-cell { border-color: transparent; }',
+    '.ro-st.rest { background: var(--text); box-shadow: 0 0 10px var(--text); }',
+    '.ro-mod.rest .ro-run { background-image: linear-gradient(90deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)); }',
     '.ro-flash { position: absolute; inset: 0; z-index: 3; border-radius: 13px; overflow: hidden; pointer-events: none; display: none; }',
     '.ro-flash i { position: absolute; top: -30%; bottom: -30%; left: 0; width: 46%; background: linear-gradient(105deg, transparent, color-mix(in srgb, #fff 32%, transparent), transparent); transform: translateX(-130%) skewX(-12deg); }',
     '.ro-mod.celebrate .ro-flash { display: block; }',
@@ -299,7 +319,7 @@
     '@keyframes ro-modwin { 0% { transform: scale(1); } 26% { transform: scale(1.03); } 100% { transform: scale(1); } }',
     // ?shot 截图模式：无头 Chrome 的 virtual-time 会把过渡冻在起点，截图时过渡全瞬时
     (/[?&]shot/.test(location.search) ? '#rb-obs, #rb-obs *, .ro-cfg, .ro-cfg * { transition-duration: 0ms !important; }' : ''),
-    '@media (prefers-reduced-motion: reduce) { .ro-train, .ro-dot, .ro-st, .ro-cell.pop, .ro-badge.pop, .ro-hero.flash .ro-bigwrap, .ro-mod.done .ro-grid, .ro-rim::before, .ro-mod.celebrate, .ro-mod.celebrate .ro-flash i, .ro-cnt.winpop,',
+    '@media (prefers-reduced-motion: reduce) { .ro-train, .ro-dot, .ro-st, .ro-cell.pop, .ro-badge.pop, .ro-hero.flash .ro-bigwrap, .ro-mod.done .ro-grid, .ro-mod.rest .ro-grid, .ro-rim::before, .ro-mod.celebrate, .ro-mod.celebrate .ro-flash i, .ro-cnt.winpop,',
     '  #rb-obs .rb-big .rb-reel b, #rb-obs .rb-big .rb-pt b, #rb-obs .rb-big .rb-sep b { animation: none !important; } #rb-obs, #app { transition-duration: 1ms; } }',
   ].join('\n');
   document.head.appendChild(st);
@@ -383,21 +403,29 @@
   }
 
   // ---------- 活动旁听（面板关着时只记时间戳） ----------
-  var act = {}; // sid -> { last, pend:[], proc, cells:[], ptr, turn, ema, emaKey, open, done }
-  function actOf(sid) { return act[sid] || (act[sid] = { last: 0, pend: [], proc: '', cells: null, ptr: 0, open: null, done: 0, turn: null, ema: 0, emaKey: '', demoHold: 0 }); }
+  var act = {}; // sid -> { last, pend:[], proc, cells:[], ptr, turn, ema, emaKey, open, done, rest }
+  function actOf(sid) { return act[sid] || (act[sid] = { last: 0, pend: [], proc: '', cells: null, ptr: 0, open: null, done: 0, rest: 0, turn: null, ema: 0, emaKey: '', demoHold: 0 }); }
+  // 报错/警告保留语义（红/黄），其余输出不装懂：彩纸四色随机轮转——工作时五颜六色地跳
+  // （旧版把「其它一切」都归蓝色，蓝海淹屏；「成功词翻绿」+ 进度翻绿又把整卡刷成纯绿，都撤了）
+  var CONFETTI = ['info', 'ok', 'accent', 'uv'];
   function classify(chunk) {
     var s = String(chunk).slice(0, 400);
     if (/error|failed|✗|✘|exception|fatal/i.test(s)) return 'err';
     if (/warn/i.test(s)) return 'yellow';
-    if (/✓|✔|⏺|passed|success|committed| done/i.test(s)) return 'ok';
-    if (/✻|✽|✢|✳|thinking|esc to interrupt/i.test(s)) return 'accent';
-    return 'info';
+    return CONFETTI[Math.floor(Math.random() * CONFETTI.length)];
   }
   if (!DEMO && window.fanboxPty && window.fanboxPty.onData) {
     window.fanboxPty.onData(function (m) {
       var a = actOf(m.id);
-      a.last = Date.now();
-      if (a.turn) a.turn.spentB += (m.data && m.data.length) || 0;
+      var now = Date.now();
+      a.last = now;
+      if (a.turn) {
+        a.turn.spentB += (m.data && m.data.length) || 0;
+        // 活跃秒计数：本轮输出落在多少个不同的秒里。tab 切换/resize 触发的整屏重绘
+        // 是一次性爆发（1-2 秒），真实工作会一路涨——这是收工判定的防抖依据
+        var sec = (now / 1000) | 0;
+        if (sec !== a.turn.lastSec) { a.turn.lastSec = sec; a.turn.secs++; }
+      }
       if (!isOpen() || document.hidden) return;
       if (a.pend.length < 4) a.pend.push(classify(m.data));
     });
@@ -810,6 +838,7 @@
       flow.appendChild(el);
       var m = { sid: s.id, cwd: s.cwd || s.startDir || '', el: el, cellEls: [].slice.call(el.querySelectorAll('.ro-cell')), runEl: el.querySelector('.ro-run'), cols: L.cols, ms: null, doneUntil: 0 };
       a.cells.forEach(function (tone, i) { if (tone && m.cellEls[i]) m.cellEls[i].classList.add(tone); });
+      if (a.rest) applyRest(m, a, true); // 常驻彩虹挂在 act 上，重建后原样接回
       mods.push(m);
     });
     // 外部仓位：DOM 节点常驻复用，重建布局时重新挂回
@@ -854,28 +883,28 @@
     if (force || key !== lastKey) { lastKey = key; rebuildModules(); }
   }
 
-  // ---------- 格子事件消化 + 进度翻绿 + 巡场 ----------
-  var DEMO_TONES = ['info', 'info', 'info', 'info', 'ok', 'ok', 'accent', 'accent', 'yellow', 'err'];
+  // ---------- 格子事件消化 + 巡场 ----------
+  var DEMO_TONES = ['info', 'uv', 'info', 'uv', 'ok', 'ok', 'accent', 'accent', 'yellow', 'err'];
+  var TONES_ALL = ['err', 'yellow', 'accent', 'ok', 'info', 'uv'];
   function paintCell(m, a, i, tone) {
     if (a) a.cells[i] = tone;
     var c = m.cellEls[i];
     if (!c) return;
-    c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'pop');
+    c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'uv', 'pop');
     c.classList.add(tone);
     if (!reduceMotion) { void c.offsetWidth; c.classList.add('pop'); }
   }
   function drainTick() {
     var now = Date.now();
     mods.forEach(function (m, idx) {
-      if (m.doneUntil > now) return; // 收工流光期间格子定格彩虹
       var a = actOf(m.sid);
+      if (m.doneUntil > now || a.rest) return; // 收工流光/常驻彩虹期间格子定格
       var tone = a.pend.shift();
       if (DEMO) {
         var live = demoStatus(idx) === 'working' && !(a.demoHold && now < a.demoHold);
         tone = live && Math.random() < .8 ? DEMO_TONES[Math.floor(Math.random() * DEMO_TONES.length)] : null;
       }
       if (tone) { paintCell(m, a, a.ptr % a.cells.length, tone); a.ptr++; }
-      greenTick(m, a);
     });
     // 外部仓位：按活跃状态低频吐事件（没有 pty 流，节奏是合成的）
     Object.keys(extMods).forEach(function (k) {
@@ -885,7 +914,7 @@
       if (x.active && Math.random() < .5) {
         var c = x.cellEls[x.ptr % x.cellEls.length];
         if (c) {
-          c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'pop');
+          c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'uv', 'pop');
           c.classList.add(DEMO_TONES[Math.floor(Math.random() * DEMO_TONES.length)]);
           if (!reduceMotion) { void c.offsetWidth; c.classList.add('pop'); }
         }
@@ -893,26 +922,12 @@
       }
     });
   }
-  function greenTick(m, a) {
-    var p = null;
-    if (a.turn && a.turn.spent >= TURN_MIN) p = Math.min(1, a.turn.spent / a.turn.est);
-    if (p == null) return;
-    var landed = Math.min(a.ptr, a.cells.length);
-    if (!landed) return;
-    var target = Math.round(p * landed), greens = 0, oldest = -1;
-    for (var k = 0; k < landed; k++) {
-      var i = ((a.ptr - landed + k) % a.cells.length + a.cells.length) % a.cells.length;
-      if (a.cells[i] === 'ok') greens++;
-      else if (oldest < 0) oldest = i;
-    }
-    if (greens < target && oldest >= 0) paintCell(m, a, oldest, 'ok');
-  }
   function chaseTick() {
     var now = Date.now();
     mods.forEach(function (m, i) {
       var prev = m.el.querySelector('.ro-cell.chasing');
       if (prev) prev.classList.remove('chasing');
-      if (m.doneUntil > now) return;
+      if (m.doneUntil > now || actOf(m.sid).rest) return;
       var step = Math.floor(Date.now() / 640) + i * 5;
       var c = m.cellEls[step % m.cellEls.length];
       if (c) c.classList.add('chasing');
@@ -922,6 +937,8 @@
   // ---------- 状态 + 回合机（进度丝 + 收工庆典；EMA 校准估算，按项目持久化） ----------
   var UNIT = 64;
   var TURN_MIN = 40;
+  var TURN_SECS = 5; // 收工资格：本轮输出至少覆盖 5 个活跃秒——点 tab 触发的重绘爆发只有 1-2 秒，够不着
+  var REST_SECS = 3; // 常驻彩虹退场：新一轮活跃 ≥3 秒才算真开工，才把格子复原
   var QUIET_MS = 6500;
   var DEFAULT_EST = 1800;
   var EMA_KEY = 'rb_obs_ema';
@@ -938,7 +955,7 @@
       if (DEMO && demoStatus(idx) === 'working') {
         if (a.demoHold && now < a.demoHold) { /* 收工静默期 */ }
         else if (a.turn && a.turn.spent >= a.turn.est) { a.demoHold = now + 9000; }
-        else { a.last = now; if (a.turn) a.turn.spentB += 9600; }
+        else { a.last = now; if (a.turn) { a.turn.spentB += 9600; a.turn.secs++; } }
       }
       var stEl = m.el.querySelector('.ro-st');
       var working = now - a.last < 4000;
@@ -952,24 +969,34 @@
           a.emaKey = mungeCwd((sx && (sx.cwd || sx.startDir)) || '');
           a.ema = emaStore[a.emaKey] || 0;
         }
-        a.turn = { spentB: 0, spent: 0, t0: now, est: a.ema || (DEMO ? 2400 : DEFAULT_EST) };
+        a.turn = { spentB: 0, spent: 0, secs: 0, lastSec: 0, t0: now, est: a.ema || (DEMO ? 2400 : DEFAULT_EST) };
       }
       if (a.turn) {
         a.turn.spent = Math.round(a.turn.spentB / UNIT);
-        m.runEl.style.backgroundSize = (a.turn.spent >= TURN_MIN ? Math.min(100, a.turn.spent / a.turn.est * 100).toFixed(1) : 0) + '% 100%';
+        // 常驻彩虹期间进度丝定格满格彩虹（applyRest 管），别被本轮进度覆写
+        if (!a.rest) m.runEl.style.backgroundSize = (a.turn.spent >= TURN_MIN ? Math.min(100, a.turn.spent / a.turn.est * 100).toFixed(1) : 0) + '% 100%';
         if (now - a.last > QUIET_MS) {
           var t = a.turn; a.turn = null;
-          m.runEl.style.backgroundSize = '0% 100%';
-          if (t.spent >= TURN_MIN) {
+          // 够量 + 够久才算真收工：tab 切换/resize 的重绘爆发字节量够大但只占 1-2 个活跃秒，
+          // 旧版把它当一轮工作 → 安静 6.5s 后又放一遍庆典，彩虹来回横跳（用户报的 bug）
+          if (t.spent >= TURN_MIN && t.secs >= TURN_SECS) {
             a.ema = Math.max(TURN_MIN, a.ema ? Math.round(a.ema * .6 + t.spent * .4) : t.spent);
             if (!DEMO && a.emaKey) { emaStore[a.emaKey] = a.ema; try { localStorage.setItem(EMA_KEY, JSON.stringify(emaStore)); } catch (e) { /* */ } }
-            bayDone(m, a); // 收工庆典：闪光 + 旋转流光 + 对角彩虹
+            bayDone(m, a); // 收工庆典：闪光 + 旋转流光 + 对角彩虹，谢幕后转常驻
+          } else if (!a.rest) {
+            m.runEl.style.backgroundSize = '0% 100%';
           }
         }
       }
+      // 常驻彩虹的退场：只认真实新一轮（活跃 ≥REST_SECS 秒）——瞬时重绘不打扰荣誉态
+      if (a.rest && a.turn && a.turn.secs >= REST_SECS && m.doneUntil <= now) {
+        a.rest = 0;
+        applyRest(m, a, false);
+      }
       if (m.doneUntil > now) cls = 'working';
+      else if (a.rest && cls === 'idle') cls = 'rest';
       stEl.className = 'ro-st ' + cls;
-      stEl.title = cls === 'working' ? '工作中' : cls === 'waiting' ? (a.proc + ' 在等你回话') : '空闲';
+      stEl.title = cls === 'working' ? '工作中' : cls === 'waiting' ? (a.proc + ' 在等你回话') : cls === 'rest' ? '已收工' : '空闲';
       m.el.classList.toggle('waiting', cls === 'waiting');
       m.el.classList.toggle('working', cls === 'working' && m.doneUntil <= now);
       if (cls === 'working') wc++;
@@ -986,20 +1013,33 @@
     });
   }
 
-  // ---------- 收工庆典 / 子任务庆祝 ----------
+  // ---------- 收工庆典（谢幕转常驻）/ 子任务庆祝 ----------
   var RAINBOW5 = ['err', 'yellow', 'ok', 'info', 'accent'];
+  // rest 开关一步到位：开 = 对角彩虹格 + 满格彩虹进度丝；关 = 复原事件格子的历史色。
+  // 独立成函数是因为三处要用：庆典谢幕、模块重建（rest 存在 act 上，扛得住重建）、新一轮开工
+  function applyRest(m, a, on) {
+    if (!m || !m.el) return;
+    m.el.classList.toggle('rest', !!on);
+    m.runEl.style.backgroundSize = on ? '100% 100%' : '0% 100%';
+    m.cellEls.forEach(function (c, ci) {
+      c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'uv', 'pop');
+      var tone = on ? RAINBOW5[(Math.floor(ci / m.cols) + ci % m.cols) % 5] : (a && a.cells ? a.cells[ci] : null);
+      if (tone) c.classList.add(tone);
+    });
+  }
   function bayDone(m, a) {
     var now = Date.now();
     m.doneUntil = now + 8500;
     m.el.classList.add('done');
     m.el.classList.remove('celebrate'); void m.el.offsetWidth; m.el.classList.add('celebrate');
+    m.runEl.style.backgroundSize = '100% 100%'; // 满格彩虹丝（.done 的 background-image 由 CSS 给）
     var prev = m.el.querySelector('.ro-cell.chasing');
     if (prev) prev.classList.remove('chasing');
     m.cellEls.forEach(function (c, ci) {
       var row = Math.floor(ci / m.cols), col = ci % m.cols;
       var delay = reduceMotion ? 0 : (row + col) * 40;
       setTimeout(function () {
-        c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'pop');
+        c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'uv', 'pop');
         c.classList.add(RAINBOW5[(row + col) % 5]);
         if (!reduceMotion) { void c.offsetWidth; c.classList.add('pop'); }
       }, delay);
@@ -1007,13 +1047,17 @@
     setTimeout(function () {
       m.el.classList.remove('done', 'celebrate');
       m.doneUntil = 0;
-      // 恢复事件格子的历史色
-      if (a && a.cells) a.cells.forEach(function (tone, i) {
-        var c = m.cellEls[i];
-        if (!c) return;
-        c.classList.remove('err', 'yellow', 'accent', 'ok', 'info', 'pop');
-        if (tone) c.classList.add(tone);
-      });
+      // 谢幕不散场：转入常驻彩虹（rest），存在 act 上以扛住模块重建；
+      // 重建过的话 m 可能已是弃子，找当前挂在同 sid 上的模块来挂 rest 态
+      if (a) {
+        a.rest = 1;
+        // 庆典期间若已冒出新回合，把它的活跃秒清零：退场判定只数 rest 之后的新活动，
+        // 否则带着存量秒数的回合会让 rest 秒退（上场即被判「在工作」）
+        if (a.turn) { a.turn.secs = 0; a.turn.lastSec = 0; }
+      }
+      var cur = null;
+      for (var i = 0; i < mods.length; i++) { if (mods[i].sid === m.sid) { cur = mods[i]; break; } }
+      applyRest(cur || m, a, true);
     }, 8700);
   }
   function celebrateModule(m) {
