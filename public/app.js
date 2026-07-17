@@ -3848,6 +3848,14 @@ const term = {
       setTimeout(() => this.refreshCwd(s), 600);
     }
   },
+  // 关闭前确认：✕ 一下就杀会话，误触时里面跑着的 agent 就没了（Enter 确定 / Esc 取消）
+  async confirmClose(id) {
+    const s = this.sessions.find((x) => x.id === id);
+    if (!s) return;
+    const what = s.title || 'shell';
+    const msg = (s.status === 'busy' && !s.dead) ? `「${what}」正在运行，确定关闭这个终端？` : `关闭终端「${what}」？`;
+    if (await confirmDialog(msg)) this.closeTab(id);
+  },
   closeTab(id) {
     const i = this.sessions.findIndex((x) => x.id === id);
     if (i < 0) return;
@@ -4129,7 +4137,7 @@ const term = {
       t.title = followed ? '文件跟随正盯着这个终端 · 双击跳到它所在目录' : '双击：文件区跳到该终端所在目录';
       const eye = followed ? `<span class="tab-eye" title="文件跟随盯着它">${ic('eye', 'currentColor', 11)}</span>` : '';
       t.innerHTML = `<span class="tab-dot ${dotState}" title="${dotTitle}"></span>${eye}${ic('term', `hsl(${hue} 62% 48%)`, 12)}<span>${escapeHtml(s.title)}</span><span class="tab-x" title="关闭">✕</span>`;
-      t.onclick = (e) => { if (e.target.classList.contains('tab-x')) { this.closeTab(s.id); return; } this.activate(s.id); };
+      t.onclick = (e) => { if (e.target.classList.contains('tab-x')) { this.confirmClose(s.id); return; } this.activate(s.id); };
       t.ondblclick = (e) => { if (e.target.classList.contains('tab-x')) return; this.locateCwd(); };
       bar.appendChild(t);
     });
@@ -4181,15 +4189,20 @@ const usagePanel = {
     for (let i = 0; i < N; i++) s += `<i class="${i < on ? ('on' + (i === on - 1 ? ' head' : '')) : ''}"></i>`;
     return s;
   },
+  // 方案 B「并线紧凑」：重置时间/提示并进标签行（每表 2 行），不再有独立脚注行。
+  // footL/footR 各自成 span（独立文本节点），i18n 词典按整节点匹配才翻得动
   meter(label, pct, footL, footR) {
     const v = Math.max(0, Math.min(100, Math.round(pct)));
-    return `<div class="ux-meter"><div class="ux-meter-top"><span class="ux-meter-label">${label}</span><span class="ux-meter-val">${v}<small>%</small></span></div>`
+    const when = (footL || footR) ? `<span class="ux-meter-when">${footL ? `<span>${footL}</span>` : ''}${footR ? `<span>${footR}</span>` : ''}</span>` : '';
+    return `<div class="ux-meter"><div class="ux-meter-top"><span class="ux-meter-label">${label}</span>${when}<span class="ux-meter-val">${v}<small>%</small></span></div>`
       + `<div class="ux-ticks${v >= 85 ? ' danger' : ''}">${this.ticks(v)}</div>`
-      + ((footL || footR) ? `<div class="ux-meter-foot"><span>${footL || ''}</span><span>${footR || ''}</span></div>` : '')
       + `</div>`;
   },
   // 把 "139M" 拆成数字 + 小单位，给里程表读数用
   splitTok(n) { const t = this.fmtTok(n); const m = t.match(/^([\d.]+)([A-Za-z]*)$/); return m ? `${m[1]}<u>${m[2]}</u>` : t; },
+  // Codex 窗口标签跟数据走：window_minutes < 2 天才是 5h 滚动窗，否则（含拿不到时长）
+  // 一律周配额——Codex 现行各档的主窗口就是周配额，5h 窗口已成历史，不能再写死
+  codexWinLabel(w) { return (w && w.windowMinutes && w.windowMinutes < 2880) ? '5h 窗口' : '周配额'; },
   reasonText(code) {
     return ({
       'no-oauth': '官方限额需 Claude 订阅登录（用 API key 时取不到）',
@@ -4198,55 +4211,34 @@ const usagePanel = {
       'no-windows': '当前账号没有 5h / 周窗口数据',
     })[code] || '官方限额取不到';
   },
-  // 订阅档位徽章：把 Claude 的 rateLimitTier / Codex 的 plan_type 映射成好看的标签 + 档位 class（tier-max/pro/free）
+  // 订阅档位徽章（鎏光名牌）：任何带倍率（×）的档一律彩虹流转，Free 素灰，
+  // 其余无倍率订阅（Plus / Claude Pro / Max / Team / Enterprise）鎏金扫光
   planBadge(raw, isClaude) {
     if (!raw) return '';
     const r = String(raw).toLowerCase();
-    let label; let tier;
-    if (/max[_-]?20/.test(r)) { label = 'Max 20×'; tier = 'max'; }
-    else if (/max[_-]?5/.test(r)) { label = 'Max 5×'; tier = 'max'; }
-    else if (/max/.test(r)) { label = 'Max'; tier = 'max'; }
-    else if (/team|business|enterprise/.test(r)) { label = r[0].toUpperCase() + r.slice(1); tier = 'max'; }
-    else if (/pro[_\- ]?lite|prolite/.test(r)) { label = isClaude ? 'Pro' : 'Pro 5×'; tier = 'pro'; } // ChatGPT Pro Lite ≈ Plus 的 5x（CodexBar 约定）
-    else if (/pro/.test(r)) { label = isClaude ? 'Pro' : 'Pro 20×'; tier = isClaude ? 'pro' : 'max'; } // ChatGPT Pro ≈ Plus 的 20x（CodexBar 约定）；Claude Pro 无倍率
-    else if (/plus/.test(r)) { label = 'Plus'; tier = 'pro'; }
-    else if (/free/.test(r)) { label = 'Free'; tier = 'free'; }
-    else { label = isClaude ? '订阅' : (r[0].toUpperCase() + r.slice(1)); tier = 'pro'; }
+    let label;
+    if (/max[_-]?20/.test(r)) label = 'Max 20×';
+    else if (/max[_-]?5/.test(r)) label = 'Max 5×';
+    else if (/max/.test(r)) label = 'Max';
+    else if (/team|business|enterprise/.test(r)) label = r[0].toUpperCase() + r.slice(1);
+    else if (/pro[_\- ]?lite|prolite/.test(r)) label = isClaude ? 'Pro' : 'Pro 5×'; // ChatGPT Pro Lite ≈ Plus 的 5x（CodexBar 约定）
+    else if (/pro/.test(r)) label = isClaude ? 'Pro' : 'Pro 20×'; // ChatGPT Pro ≈ Plus 的 20x（CodexBar 约定）；Claude Pro 无倍率
+    else if (/plus/.test(r)) label = 'Plus';
+    else if (/free/.test(r)) label = 'Free';
+    else label = isClaude ? '订阅' : (r[0].toUpperCase() + r.slice(1));
+    const tier = label.includes('×') ? 'rainbow' : (/free/.test(r) ? 'plain' : 'gold');
     return `<span class="ux-plan tier-${tier}">${escapeHtml(label)}</span>`;
-  },
-  // 用量接近上限时桌面通知，按内容 + 30 分钟节流，避免反复打扰
-  notifyHigh(warns) {
-    try {
-      const key = warns.join('|');
-      if (key === this._notifKey && Date.now() - (this._notifAt || 0) < 1800000) return;
-      this._notifKey = key; this._notifAt = Date.now();
-      if (!('Notification' in window)) return;
-      const fire = () => new Notification('Rurutia · 用量接近上限', { body: warns.join('\n') });
-      if (Notification.permission === 'granted') fire();
-      else if (Notification.permission !== 'denied') Notification.requestPermission().then((p) => { if (p === 'granted') fire(); });
-    } catch { /* 通知失败不影响面板 */ }
   },
   render(d) {
     const box = $('#usage-body');
     if (!d || !d.ok) { box.innerHTML = '<div class="usage-sub">读取失败</div>'; return; }
     let h = '';
-    // 接近上限警告：任一官方窗口 ≥85% → 顶部醒目警告条 + 桌面通知（节流）
-    const warns = [];
-    const ck = (label, w) => { if (w && w.usedPercent != null && w.usedPercent >= 85) warns.push(`${label} ${Math.round(w.usedPercent)}%`); };
-    if (d.claude && d.claude.official) {
-      ck('5h 窗口', d.claude.official.fiveHour); ck('周配额', d.claude.official.sevenDay);
-      (d.claude.official.scoped || []).forEach((s) => ck(`${s.label}${s.weekly ? ' 周' : ''}`, s));
-    }
-    if (d.codex) { ck('Codex 5h', d.codex.primary); ck('Codex 周', d.codex.secondary); }
-    if (warns.length) { h += `<div class="usage-warn">⚠ 用量接近上限 · ${warns.join(' / ')}</div>`; this.notifyHigh(warns); }
+    // 接近上限不再单发警告条/桌面通知：≥85% 时刻度整条翻红（ux-ticks.danger）已是警示
     if (d.codex) {
       const c = d.codex;
-      h += `<div class="ux-chan"><div class="ux-chan-head"><span class="ux-chan-name">Codex</span>`
-        + this.planBadge(c.planType, false)
-        + (c.live ? '<span class="ux-live"><span class="dot"></span>实时</span>' : '')
-        + `</div>`;
-      if (c.primary) h += this.meter('5h 窗口', c.primary.usedPercent, c.primary.stale ? '已重置' : '', c.primary.stale ? '跑一次 Codex 刷新' : this.fmtReset(c.primary.resetsAt));
-      if (c.secondary) h += this.meter('周配额', c.secondary.usedPercent, c.secondary.stale ? '已重置' : '', c.secondary.stale ? '跑一次 Codex 刷新' : this.fmtReset(c.secondary.resetsAt));
+      h += `<div class="ux-chan"><div class="ux-chan-head"><span class="ux-chan-name">Codex</span>${this.planBadge(c.planType, false)}</div>`;
+      if (c.primary) h += this.meter(this.codexWinLabel(c.primary), c.primary.usedPercent, c.primary.stale ? '已重置' : '', c.primary.stale ? '跑一次 Codex 刷新' : this.fmtReset(c.primary.resetsAt));
+      if (c.secondary) h += this.meter(this.codexWinLabel(c.secondary), c.secondary.usedPercent, c.secondary.stale ? '已重置' : '', c.secondary.stale ? '跑一次 Codex 刷新' : this.fmtReset(c.secondary.resetsAt));
       if (!c.live) h += `<div class="ux-note">快照：${this.ago(c.capturedAt)}的会话（旧值）</div>`;
       h += `</div>`;
     }
@@ -4260,7 +4252,7 @@ const usagePanel = {
         if (o.sevenDay) h += this.meter('周配额', o.sevenDay.usedPercent, '', this.fmtReset(o.sevenDay.resetsAt));
         // 模型专属窗口（如 Fable 的独立周配额）：接口给就画在总配额下面，接口撤就自动消失
         for (const s of (o.scoped || [])) {
-          h += this.meter(`${escapeHtml(s.label)}${s.weekly ? ' 周' : ''}`, s.usedPercent, '', this.fmtReset(s.resetsAt));
+          h += this.meter(`${escapeHtml(s.label)}${s.weekly ? ' 周配额' : ''}`, s.usedPercent, '', this.fmtReset(s.resetsAt));
         }
       } else if (o && o.unavailable) {
         h += `<div class="ux-empty">${this.reasonText(o.unavailable)} <a class="usage-retry" onclick="usagePanel.refresh()">重试</a></div>`;

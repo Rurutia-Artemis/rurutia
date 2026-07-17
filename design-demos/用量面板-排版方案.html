@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent 用量面板 · 彩虹名牌定稿 + 布局对比</title>
+<style>
+  :root {
+    --font-ui: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, "JetBrains Mono", monospace;
+    --page: #17120c;
+    --panel: #251d12;
+    --panel-edge: rgba(255, 224, 178, 0.09);
+    --text: #f2e8d5;
+    --dim: #b6a486;
+    --faint: #83725a;
+    --accent: #f28f33;
+    --accent-soft: #ffc07a;
+    --tick-off: rgba(242, 224, 194, 0.10);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--page); color: var(--text); font-family: var(--font-ui); padding: 40px 44px 72px; }
+
+  /* ---------- 页面骨架 ---------- */
+  .hd { max-width: 1200px; margin: 0 auto 30px; }
+  .hd h1 { font-size: 21px; font-weight: 700; letter-spacing: 0.01em; }
+  .hd p { margin-top: 9px; font-size: 12.5px; line-height: 1.75; color: var(--dim); max-width: 780px; }
+  .hd p b { color: var(--text); font-weight: 600; }
+  .row { display: flex; gap: 26px; max-width: 1200px; margin: 0 auto; align-items: flex-start; flex-wrap: wrap; }
+  .col { width: 316px; flex: none; }
+  .col > h3 { font-size: 12px; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: var(--faint); margin-bottom: 11px; padding-left: 2px; }
+  .col.rec > h3 { color: var(--accent); }
+  .notes { list-style: none; margin-top: 13px; padding: 0 3px; }
+  .notes li { font-size: 11.5px; line-height: 1.68; color: var(--dim); padding-left: 15px; position: relative; margin-bottom: 5px; }
+  .notes li::before { content: "·"; position: absolute; left: 3px; color: var(--faint); }
+  .notes li.good::before { content: "✓"; font-size: 9px; top: 2px; color: #93b878; }
+  .notes li code { font-family: var(--font-mono); font-size: 10.5px; color: var(--text); background: rgba(255,255,255,0.05); padding: 0 4px; border-radius: 4px; }
+
+  /* ---------- 面板壳 + 方案 B 版式（已定稿） ---------- */
+  .panel { background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 14px; padding: 15px 15px 17px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+  .sec-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: var(--dim); }
+  .sec-title .arrow { color: var(--faint); font-size: 9px; }
+  .divider { border-top: 1px solid rgba(242, 224, 194, 0.09); margin: 13px 0 14px; }
+  .ticks { display: flex; gap: 3px; height: 10px; }
+  .ticks i { flex: 1; border-radius: 3px; background: var(--tick-off); }
+  .ticks i.on { background: linear-gradient(180deg, var(--accent-soft), var(--accent)); }
+  .ticks i.head { box-shadow: 0 0 8px 0 var(--accent); }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+  .chan-head { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
+  .chan-name { font-size: 13.5px; font-weight: 650; letter-spacing: 0.01em; }
+  .live { margin-left: auto; display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--dim); }
+  /* 布局 B：名牌右置当舞台位，实时点收进名字侧 */
+  .chan-head.head-b .live { margin-left: 0; }
+  .chan-head.head-b .plan { margin-left: auto; }
+  .meter { margin-bottom: 15px; }
+  .meter:last-of-type { margin-bottom: 0; }
+  .m-top { display: flex; align-items: baseline; margin-bottom: 8px; }
+  .m-label { font-size: 11.5px; font-weight: 500; color: #cdbb9e; letter-spacing: 0.02em; }
+  .m-when { font-size: 10px; color: var(--faint); margin-left: 8px; }
+  .m-when .t { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .m-val { margin-left: auto; font-family: var(--font-mono); font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .m-val .pc { font-size: 10px; font-weight: 500; color: var(--faint); margin-left: 2px; }
+  .odo-cap { font-size: 9.5px; font-weight: 500; letter-spacing: 0.08em; color: var(--faint); margin: 14px 0 7px 2px; }
+  .odo { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+  .odo > div { border-radius: 11px; padding: 10px 3px 9px; text-align: center; background: rgba(255,240,214,0.035); border: 1px solid var(--panel-edge); }
+  .odo .n { font-family: var(--font-mono); font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .odo .n u { text-decoration: none; font-size: 9.5px; font-weight: 500; color: var(--dim); margin-left: 1px; }
+  .odo .k { font-size: 9.5px; color: var(--faint); margin-top: 4px; }
+
+  /* ============================================================
+     鎏光名牌 · 定稿档位映射（紫色已取消）：
+     · 任何倍率档（20× / 10× / 5×）→ 彩虹 · 连续流转（版本①）
+     · Plus / Claude Pro / Team    → 鎏金 · 斜光扫过
+     · Free                        → 素灰 · 静止
+     名牌 1.5×（.xl 16px），外圈晕光 + 3.4s 轻浮动；频道名配平到 15.5px/700
+     ============================================================ */
+  .plan { position: relative; overflow: hidden; flex: none; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; padding: 5px 15px; border-radius: 999px; }
+  .plan.xl { font-size: 16px; padding: 6px 18px; } /* 1.5×（原版 10.5px 的 1.5 倍） */
+  .chan-name.big { font-size: 15.5px; font-weight: 700; letter-spacing: 0; } /* 配平：频道名跟上名牌量级 */
+  /* 顶部亮面：立体感来源 */
+  .plan::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+                 background: linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0.08) 46%, transparent 62%); }
+  /* 轻浮动：整枚名牌 3.4s 一起一落 ±1.2px，transform 不占布局 */
+  @keyframes bd-float { from { transform: translateY(1.2px); } to { transform: translateY(-1.2px); } }
+
+  /* 彩虹（版本① 连续流转）：首尾同色循环渐变 + 150% 底图匀速平移（300% 恰为一个平铺周期）；
+     眩光 = 暖色近晕 + 淡紫外圈双层 box-shadow */
+  .plan.rainbow { color: #fff; text-shadow: 0 1px 2px rgba(40, 20, 5, 0.45);
+    background: linear-gradient(100deg, #ff5f6d, #ffa53d 20%, #ffd93d 38%, #5bd97a 56%, #4fc3f7 74%, #a06bff 90%, #ff5f6d);
+    background-size: 150% 100%;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 10px rgba(255, 110, 90, 0.48), 0 0 22px rgba(160, 107, 255, 0.26);
+    animation: bd-flow 5.5s linear infinite, bd-float 3.4s ease-in-out infinite alternate; }
+  @keyframes bd-flow { to { background-position: 300% 0; } }
+
+  .plan.gold { color: #4a3413;
+    background: linear-gradient(160deg, #ffe0ae, #eda04b 55%, #d98a35);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 2px 8px rgba(0,0,0,0.28), 0 0 16px rgba(237, 160, 75, 0.35);
+    animation: bd-float 3.4s ease-in-out 1.7s infinite alternate; } /* 与彩虹错拍浮动 */
+  .plan.gold::before { content: ""; position: absolute; top: -2px; bottom: -2px; width: 34%; left: -60%;
+    transform: skewX(-20deg);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+    animation: bd-sheen 4.5s ease-in-out infinite; }
+  @keyframes bd-sheen { 0% { left: -60%; } 26% { left: 135%; } 100% { left: 135%; } }
+
+  .plan.plain { color: var(--dim); background: rgba(255, 240, 214, 0.06); border: 1px solid var(--panel-edge); box-shadow: none; }
+  .plan.plain::after { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .plan, .plan::before { animation: none !important; }
+    .plan.gold::before { display: none; }
+  }
+
+  /* ---------- 名牌图鉴 ---------- */
+  .gallery { max-width: 1200px; margin: 44px auto 0; }
+  .gallery > h2 { font-size: 12px; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: var(--faint); margin-bottom: 16px; }
+  .swatches { display: flex; gap: 22px; flex-wrap: wrap; }
+  .sw { background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 14px; padding: 22px 24px 16px; width: 320px; }
+  .sw .demo { display: flex; align-items: center; gap: 12px; min-height: 56px; }
+  .sw .demo .big { transform: scale(1.6); transform-origin: left center; }
+  .sw h4 { font-size: 12.5px; font-weight: 650; margin-top: 12px; }
+  .sw p { font-size: 11px; line-height: 1.65; color: var(--dim); margin-top: 5px; }
+  .sw p code { font-family: var(--font-mono); font-size: 10px; color: var(--text); background: rgba(255,255,255,0.05); padding: 0 4px; border-radius: 4px; }
+
+  .spec { max-width: 1200px; margin: 40px auto 0; border-top: 1px solid rgba(242,224,194,0.09); padding-top: 22px; }
+  .spec h2 { font-size: 13px; font-weight: 650; letter-spacing: 0.06em; color: var(--dim); margin-bottom: 10px; }
+  .spec p { font-size: 12px; line-height: 1.8; color: var(--dim); max-width: 880px; }
+  .spec code { font-family: var(--font-mono); font-size: 11px; color: var(--text); background: rgba(255,255,255,0.05); padding: 0 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <h1>名牌 1.5× · 频道名配平前后对比</h1>
+  <p>名牌放大到你定的 <b>1.5×（16px 胶囊）</b>后，你指出的问题确实在：左边 13.5px 的频道名被衬得太小、头排头重脚轻。我的配平方案：<b>频道名升到 15.5px / 加粗 700</b>——名牌靠彩色和体量赢，名字靠字重站稳，两边同一量级。左边是配平前（问题现状），右边是配平后。彩虹流转 / 鎏金 / 素灰、眩光和轻浮动都维持定稿。</p>
+</div>
+
+<div class="row">
+
+  <!-- 配平前：1.5× 名牌 + 13.5px 频道名 -->
+  <section class="col">
+    <h3>配平前 · 名字被衬小了</h3>
+    <div class="panel">
+      <div class="sec-title"><span>AGENT 用量</span><span class="arrow">▾</span></div>
+      <div class="chan-head head-b"><span class="chan-name">Codex</span><span class="live"><span class="live-dot"></span>实时</span><span class="plan rainbow xl">Pro 20×</span></div>
+      <div class="meter">
+        <div class="m-top"><span class="m-label">周配额</span><span class="m-when"><span class="t">周四 15:42</span> 重置</span><span class="m-val">50<span class="pc">%</span></span></div>
+        <div class="ticks tk" data-p="50"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="chan-head head-b"><span class="chan-name">Claude Code</span><span class="plan rainbow xl">Max 20×</span></div>
+      <div class="meter">
+        <div class="m-top"><span class="m-label">5h 窗口</span><span class="m-when"><span class="t">00:49</span> 重置</span><span class="m-val">84<span class="pc">%</span></span></div>
+        <div class="ticks tk" data-p="84"></div>
+      </div>
+      <div class="meter">
+        <div class="m-top"><span class="m-label">周配额</span><span class="m-when"><span class="t">周日 13:59</span> 重置</span><span class="m-val">44<span class="pc">%</span></span></div>
+        <div class="ticks tk" data-p="44"></div>
+      </div>
+      <div class="meter">
+        <div class="m-top"><span class="m-label">Fable 周配额</span><span class="m-when"><span class="t">周日 13:59</span> 重置</span><span class="m-val">80<span class="pc">%</span></span></div>
+        <div class="ticks tk" data-p="80"></div>
+      </div>
+      <div class="odo-cap">TOKEN 总量 · 本地会话日志</div>
+      <div class="odo">
+        <div><div class="n">123<u>M</u></div><div class="k">近 5h</div></div>
+        <div><div class="n">4.9<u>M</u></div><div class="k">今日</div></div>
+        <div><div class="n">1.7<u>B</u></div><div class="k">本周</div></div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li>名牌 16px、频道名还是 13.5px/650：一眼看过去名字像注脚，主次颠倒</li>
+      <li>这就是你说的「左边那个字特别小」——对比失衡，不是字真的变小了</li>
+    </ul>
+  </section>
+
+  <!-- 配平后：1.5× 名牌 + 15.5px/700 频道名 -->
+  <section class="col rec">
+    <h3>配平后 · 频道名 15.5px/700 ★</h3>
+    <div class="panel">
+      <div class="sec-title"><span>AGENT 用量</span><span class="arrow">▾</span></div>
+      <div class="chan-head head-b"><span class="chan-name big">Codex</span><span class="live"><span class="live-dot"></span>实时</span><span class="plan rainbow xl">Pro 20×</span></div>
+      <div class="meter">
+        <div class="m-top"><span class="m-label">周配额</span><span class="m-when"><span class="t">周四 15:42</span> 重置</span><span class="m-val">50<span class="pc">%</span></span></div>
+        <div class="ticks tk" data-p="50"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="chan-head head-b"><span class="chan-name big">Claude Code</span><span class="plan rainbow xl">Max 20×</span></div>
+      <div class="meter">
+        <div class="m-top"><span class="m-label">5h 窗口</span><span class="m-when"><span class="t">00:49</span> 重置</span><span class="m-val">84<span class="pc">%</span></span></div>
+        <div class="ticks tk" data-p="84"></div>
+      </div>
+      <div class="meter">
+        <div class="m-top"><span class="m-label">周配额</span><span class="m-when"><span class="t">周日 13:59</span> 重置</span><span class="m-val">44<span class="pc">%</span></span></div>
+        <div class="ticks tk" data-p="44"></div>
+      </div>
+      <div class="meter">
+        <div class="m-top"><span class="m-label">Fable 周配额</span><span class="m-when"><span class="t">周日 13:59</span> 重置</span><span class="m-val">80<span class="pc">%</span></span></div>
+        <div class="ticks tk" data-p="80"></div>
+      </div>
+      <div class="odo-cap">TOKEN 总量 · 本地会话日志</div>
+      <div class="odo">
+        <div><div class="n">123<u>M</u></div><div class="k">近 5h</div></div>
+        <div><div class="n">4.9<u>M</u></div><div class="k">今日</div></div>
+        <div><div class="n">1.7<u>B</u></div><div class="k">本周</div></div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li class="good">频道名 15.5px/700：字重扛住名牌的彩色体量，头排两端平衡</li>
+      <li class="good">名牌 16px 仍是全场最大元素，主角地位不变</li>
+      <li class="good">名牌右缘与百分比读数同轴，竖向一条视觉线</li>
+    </ul>
+  </section>
+
+</div>
+
+<!-- ---------- 名牌图鉴：放大细看 ---------- -->
+<div class="gallery">
+  <h2>名牌图鉴（左侧约 1.6× 放大）</h2>
+  <div class="swatches">
+    <div class="sw">
+      <div class="demo"><span class="plan rainbow big">Max 20×</span><span class="plan rainbow" style="margin-left:96px;">Pro 5×</span></div>
+      <h4>彩虹 · 连续流转（所有倍率档）</h4>
+      <p>20× / 10× / 5× 一律彩虹：循环渐变 <code>5.5s</code> 匀速流过盘面，暖色近晕 + 淡紫外圈眩光，整枚 <code>3.4s</code> 轻浮动。</p>
+    </div>
+    <div class="sw">
+      <div class="demo"><span class="plan gold big">Plus</span><span class="plan gold" style="margin-left:66px;">Pro</span></div>
+      <h4>鎏金 · 斜光扫过（Plus / Pro）</h4>
+      <p>Plus / Claude Pro（无倍率订阅）用金标：斜白光 <code>4.5s</code> 扫一趟，浮动与彩虹错 1.7s 起拍。紫色已取消。</p>
+    </div>
+    <div class="sw">
+      <div class="demo"><span class="plan plain big">Free</span></div>
+      <h4>素灰 · 静止</h4>
+      <p>免费档不发光不浮动，和面板底色融为一体。</p>
+    </div>
+  </div>
+</div>
+
+<div class="spec">
+  <h2>落地说明</h2>
+  <p>档位映射进 <code>planBadge()</code>：标签含任意倍率（<code>×</code>）→ 彩虹；Plus / Claude Pro / Team / Enterprise → 鎏金；Free → 素灰。名牌基准 1.3×（13px / 5×15px 圆角胶囊），布局 B 选定的话头排改「名字 + 实时靠左、名牌 <code>margin-left:auto</code> 右置」并用 15px 档。浮动只动 <code>transform</code>、眩光只动 <code>box-shadow</code>，不引发重排；<code>prefers-reduced-motion</code> 下全停。改动落 <code>soft-patch.css</code> + <code>app.js</code>（<code>planBadge()</code> / <code>meter()</code> / 头排模板）。</p>
+</div>
+
+<script>
+  document.querySelectorAll('.tk').forEach((el) => {
+    const N = 18, v = Math.max(0, Math.min(100, Math.round(+el.dataset.p)));
+    let on = Math.round((v / 100) * N); if (v > 0 && on === 0) on = 1;
+    let h = '';
+    for (let i = 0; i < N; i++) h += `<i class="${i < on ? ('on' + (i === on - 1 ? ' head' : '')) : ''}"></i>`;
+    el.innerHTML = h;
+  });
+</script>
+</body>
+</html>

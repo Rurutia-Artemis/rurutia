@@ -318,6 +318,8 @@ window.FANBOX_DICT = {
   '5h 窗口': '5h window',
   '周配额': 'Weekly quota',
   '窗口已重置，跑一次 Codex 才有新数': 'Window reset — run Codex once for fresh numbers',
+  '已重置': 'Reset',
+  '跑一次 Codex 刷新': 'Run Codex once to refresh',
   '近5h': 'last 5h',
   '今日': 'today',
   '本周': 'this week',
@@ -560,6 +562,8 @@ window.FANBOX_DICT_RULES = [
   [/^当前目录 (.+)$/, (m) => `This folder ${m[1]}`],
   // 终端
   [/^已在终端启动 (.+)$/, (m) => `Started ${m[1]} in terminal`],
+  [/^关闭终端「(.+)」？$/, (m) => `Close terminal "${m[1]}"?`],
+  [/^「(.+)」正在运行，确定关闭这个终端？$/, (m) => `"${m[1]}" is still running — close this terminal?`],
   [/^没找到「(.+)」$/, (m) => `Couldn't find "${m[1]}"`],
   [/^未精确命中，已打开最接近的「(.+)」$/, (m) => `No exact match — opened the closest "${m[1]}"`],
   [/^（来自 (.+) 的片段）$/, (m) => `(snippet from ${m[1]})`],
@@ -569,6 +573,7 @@ window.FANBOX_DICT_RULES = [
   // 用量面板：重置时间
   [/^(\d{1,2}:\d{2}) 重置$/, (m) => `Resets ${m[1]}`],
   [/^周([日一二三四五六]) (\d{1,2}:\d{2}) 重置$/, (m) => `Resets ${({ 日: 'Sun', 一: 'Mon', 二: 'Tue', 三: 'Wed', 四: 'Thu', 五: 'Fri', 六: 'Sat' })[m[1]]} ${m[2]}`],
+  [/^(.+) 周配额$/, (m) => `${m[1]} weekly quota`], // 模型专属周配额（如「Fable 周配额」）
   [/^快照：(.+)的 Codex 会话$/, (m) => {
     const t = m[1] === '刚刚' ? 'just now' : m[1].replace(/^(\d+) 分钟前$/, '$1 min ago').replace(/^(\d+) 小时前$/, '$1 hr ago').replace(/^(\d+) 天前$/, '$1 days ago');
     return `Snapshot: Codex session from ${t}`;

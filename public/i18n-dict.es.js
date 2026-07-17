@@ -299,6 +299,8 @@
     '5h 窗口': 'Ventana de 5 h',
     '周配额': 'Cuota semanal',
     '窗口已重置，跑一次 Codex 才有新数': 'Ventana reiniciada: ejecuta Codex una vez para tener cifras nuevas',
+    '已重置': 'Reiniciada',
+    '跑一次 Codex 刷新': 'Ejecuta Codex una vez para actualizar',
     '近5h': 'últimas 5 h',
     '今日': 'hoy',
     '本周': 'esta semana',
@@ -552,6 +554,8 @@
     [/^当前目录 (.+)$/, (m) => `Esta carpeta ${m[1]}`],
     // Terminal
     [/^已在终端启动 (.+)$/, (m) => `${m[1]} iniciado en la terminal`],
+    [/^关闭终端「(.+)」？$/, (m) => `¿Cerrar el terminal «${m[1]}»?`],
+    [/^「(.+)」正在运行，确定关闭这个终端？$/, (m) => `«${m[1]}» sigue en ejecución. ¿Cerrar este terminal?`],
     [/^没找到「(.+)」$/, (m) => `No se encontró "${m[1]}"`],
     [/^未精确命中，已打开最接近的「(.+)」$/, (m) => `Sin coincidencia exacta: se abrió el "${m[1]}" más cercano`],
     [/^（来自 (.+) 的片段）$/, (m) => `(fragmento de ${m[1]})`],
@@ -561,6 +565,7 @@
     // Panel de uso: hora de reinicio
     [/^(\d{1,2}:\d{2}) 重置$/, (m) => `Se reinicia a las ${m[1]}`],
     [/^周([日一二三四五六]) (\d{1,2}:\d{2}) 重置$/, (m) => `Se reinicia el ${({ 日: 'dom', 一: 'lun', 二: 'mar', 三: 'mié', 四: 'jue', 五: 'vie', 六: 'sáb' })[m[1]]} a las ${m[2]}`],
+    [/^(.+) 周配额$/, (m) => `Cuota semanal de ${m[1]}`], // cuota semanal por modelo (p. ej. Fable)
     [/^快照：(.+)的 Codex 会话$/, (m) => {
       const t = m[1] === '刚刚' ? 'ahora mismo' : m[1].replace(/^(\d+) 分钟前$/, 'hace $1 min').replace(/^(\d+) 小时前$/, 'hace $1 h').replace(/^(\d+) 天前$/, 'hace $1 d');
       return `Instantánea: sesión de Codex de ${t}`;

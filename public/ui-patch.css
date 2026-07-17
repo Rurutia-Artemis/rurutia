@@ -383,17 +383,6 @@
   text-decoration: underline; text-underline-offset: 2px;
 }
 .usage-retry:hover { color: var(--accent-bright); }
-.usage-warn {
-  display: flex; align-items: center; gap: 6px;
-  margin: 0 0 9px; padding: 7px 10px;
-  font-size: 12px; font-weight: 600; line-height: 1.35;
-  color: #e8584d;
-  background: color-mix(in srgb, #e8584d 13%, transparent);
-  border: 1px solid color-mix(in srgb, #e8584d 34%, transparent);
-  border-radius: 9px;
-}
-
-
 /* 终端动作按钮：重绘图标(位图)统一尺寸 */
 .term-ico-img { height: 17px; width: 17px; object-fit: contain; display: block; pointer-events: none; }
 

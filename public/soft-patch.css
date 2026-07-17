@@ -81,55 +81,82 @@
 #usage-body { font-size: 12px; padding-top: 4px; }
 #usage-body .ux-chan { padding: 0 2px 4px; }
 #usage-body .ux-chan + .ux-chan { border-top: 1px solid color-mix(in srgb, var(--text) 9%, transparent); margin-top: 10px; padding-top: 12px; }
-#usage-body .ux-chan-head { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
-#usage-body .ux-chan-name { font-size: 13px; font-weight: 600; color: var(--text); }
-/* 订阅档位徽章：渐变 + 内高光 + 一抹斜向流光，做出"质感"。tier-pro 跟随强调色、tier-max 金质感、tier-free 低调灰 */
+/* 头排（方案 B·名牌右置）：频道名 15.5px/700 配平 1.5× 名牌，名牌 margin-left:auto 独占右侧舞台位 */
+#usage-body .ux-chan-head { display: flex; align-items: center; gap: 9px; margin-bottom: 13px; }
+#usage-body .ux-chan-name { font-size: 15.5px; font-weight: 700; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 汉字标签/说明回 UI 字体（mono 排 CJK 字距发散是排版丑的主因）；全局 body * 的 Maple 强制
+ * 是 !important，这里必须 ID 特异性 + !important 才抢得回来。数字读数仍走 --font-mono。 */
+#usage-body .ux-chan-name, #usage-body .ux-meter-label, #usage-body .ux-meter-when, #usage-body .ux-note,
+#usage-body .ux-empty, #usage-body .ux-odo-cap, #usage-body .ux-odo .k, #usage-body .ux-plan {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif !important;
+}
+#usage-body .ux-meter-val, #usage-body .ux-odo .n { font-family: var(--font-mono) !important; }
+/* 鎏光名牌（1.5× 立体亮面胶囊）：倍率档彩虹连续流转 / 无倍率订阅鎏金扫光 / Free 素灰。
+ * 三档同享顶部亮面(::after)与 3.4s 轻浮动；动效只碰 background-position/box-shadow/transform，不引发重排 */
 #usage-body .ux-plan {
-  position: relative; overflow: hidden; isolation: isolate;
-  font-family: var(--font-mono); font-size: 9px; font-weight: 800; letter-spacing: 0.04em;
-  padding: 3px 9px; border-radius: 8px; color: var(--accent-ink);
-  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 56%, #fff));
-  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
-  box-shadow: 0 3px 10px -3px var(--accent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  position: relative; overflow: hidden; flex: none; margin-left: auto;
+  font-size: 16px; font-weight: 700; letter-spacing: 0.02em;
+  padding: 6px 18px; border-radius: 999px;
 }
 #usage-body .ux-plan::after {
-  content: ""; position: absolute; inset: 0; z-index: -1;
-  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.45) 50%, transparent 58%);
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.08) 46%, transparent 62%);
 }
-#usage-body .ux-plan.tier-max {
-  color: #3a2607;
-  background: linear-gradient(135deg, #ffd97a, #f0ab3d 52%, #d98324);
-  border-color: #f0ab3d;
-  box-shadow: 0 3px 12px -3px rgba(240, 171, 61, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+@keyframes uxfloat { from { transform: translateY(1.2px); } to { transform: translateY(-1.2px); } }
+/* 彩虹·连续流转：首尾同色循环渐变 + 150% 底图匀速平移（300% 恰为一个平铺周期，无缝）；
+ * 眩光 = 暖色近晕 + 淡紫外圈双层 */
+#usage-body .ux-plan.tier-rainbow {
+  color: #fff; text-shadow: 0 1px 2px rgba(40, 20, 5, 0.45);
+  background: linear-gradient(100deg, #ff5f6d, #ffa53d 20%, #ffd93d 38%, #5bd97a 56%, #4fc3f7 74%, #a06bff 90%, #ff5f6d);
+  background-size: 150% 100%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 10px rgba(255, 110, 90, 0.48), 0 0 22px rgba(160, 107, 255, 0.26);
+  animation: uxflow 5.5s linear infinite, uxfloat 3.4s ease-in-out infinite alternate;
 }
-#usage-body .ux-plan.tier-free {
-  color: var(--text-dim); background: var(--bg-3); border-color: var(--border); box-shadow: none;
+@keyframes uxflow { to { background-position: 300% 0; } }
+/* 鎏金·斜光扫过：4.5s 一趟（含停顿），浮动与彩虹错 1.7s 起拍 */
+#usage-body .ux-plan.tier-gold {
+  color: #4a3413;
+  background: linear-gradient(160deg, #ffe0ae, #eda04b 55%, #d98a35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 2px 8px rgba(0, 0, 0, 0.28), 0 0 16px rgba(237, 160, 75, 0.35);
+  animation: uxfloat 3.4s ease-in-out 1.7s infinite alternate;
 }
-#usage-body .ux-plan.tier-free::after { display: none; }
-#usage-body .ux-live { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 9.5px; letter-spacing: 0.05em; color: var(--text-dim); text-transform: uppercase; }
-#usage-body .ux-live .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: uxpulse 2.6s var(--soft-ease) infinite; }
-@keyframes uxpulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent); } 70% { box-shadow: 0 0 0 6px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
-#usage-body .ux-meter { margin-bottom: 12px; }
-#usage-body .ux-meter-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; }
-#usage-body .ux-meter-label { font-size: 11.5px; color: var(--text-dim); }
-#usage-body .ux-meter-val { font-family: var(--font-mono); font-size: 13.5px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--text); }
-#usage-body .ux-meter-val small { font-size: 9px; color: var(--text-faint); }
+#usage-body .ux-plan.tier-gold::before {
+  content: ""; position: absolute; top: -2px; bottom: -2px; width: 34%; left: -60%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: uxsheen 4.5s ease-in-out infinite;
+}
+@keyframes uxsheen { 0% { left: -60%; } 26% { left: 135%; } 100% { left: 135%; } }
+#usage-body .ux-plan.tier-plain { color: var(--text-dim); background: var(--bg-3); border: 1px solid var(--border); box-shadow: none; }
+#usage-body .ux-plan.tier-plain::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  #usage-body .ux-plan, #usage-body .ux-plan::before { animation: none !important; }
+  #usage-body .ux-plan.tier-gold::before { display: none; }
+}
+/* 表（方案 B·并线紧凑）：标签 · 重置时间 → 读数，一行读完；下面就是刻度，无独立脚注行 */
+#usage-body .ux-meter { margin-bottom: 14px; }
+#usage-body .ux-meter-top { display: flex; align-items: baseline; margin-bottom: 8px; }
+#usage-body .ux-meter-label { flex: none; font-size: 11.5px; font-weight: 500; color: var(--text-dim); letter-spacing: 0.02em; white-space: nowrap; }
+/* 侧栏可以拖得很窄：时间簇不换行、放不下就省略号截断，绝不把一行表头折成两行 */
+#usage-body .ux-meter-when { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-left: 8px; font-size: 10px; color: var(--text-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#usage-body .ux-meter-when > span + span { margin-left: 6px; }
+#usage-body .ux-meter-val { margin-left: auto; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--text); }
+#usage-body .ux-meter-val small { font-size: 10px; font-weight: 500; color: var(--text-faint); margin-left: 1px; }
 /* 签名元素：18 格分段刻度表 */
 #usage-body .ux-ticks { display: flex; gap: 3px; height: 10px; }
 #usage-body .ux-ticks i { flex: 1; border-radius: 3px; background: color-mix(in srgb, var(--text) 9%, transparent); transition: 0.5s var(--soft-ease); }
 #usage-body .ux-ticks i.on { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 65%, #fff), var(--accent)); }
 #usage-body .ux-ticks i.head { box-shadow: 0 0 8px 0 var(--accent); }
 #usage-body .ux-ticks.danger i.on { background: linear-gradient(180deg, #ff8a80, #e2453a); }
-#usage-body .ux-meter-foot { display: flex; justify-content: space-between; margin-top: 6px; font-size: 9.5px; color: var(--text-faint); }
 #usage-body .ux-note, #usage-body .ux-empty { font-size: 10.5px; color: var(--text-faint); line-height: 1.6; padding: 1px 0 3px; }
 /* token 里程表三连 */
-#usage-body .ux-odo-cap { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin: 9px 0 6px 2px; }
+#usage-body .ux-odo-cap { font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin: 14px 0 7px 2px; }
 #usage-body .ux-odo { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
 #usage-body .ux-odo > div { position: relative; overflow: hidden; border-radius: 11px; padding: 10px 3px 8px; text-align: center; background: var(--bg-2); border: 1px solid var(--border); }
 #usage-body .ux-odo > div::before { content: ""; position: absolute; inset: 0 22% auto; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0.45; }
 #usage-body .ux-odo .n { font-family: var(--font-mono); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: var(--text); }
 #usage-body .ux-odo .n u { text-decoration: none; font-size: 9px; color: var(--text-dim); }
-#usage-body .ux-odo .k { font-size: 8.5px; color: var(--text-faint); margin-top: 3px; }
+#usage-body .ux-odo .k { font-size: 9.5px; color: var(--text-faint); margin-top: 4px; }
 /* 浅色皮肤可读性补丁：弱字两档(标签 / 重置倒计时 / 单位 / 小注)在浅紫底上对比塌到 ~2:1，数据基本读不出。
  * 在本卡内局部把 dim/faint 重定义得更深(往 --text 靠)，下面所有 .ux-* 自动继承新值，深色皮肤不受影响。 */
 [data-mode="light"] #usage-sec {
@@ -372,6 +399,18 @@ body * { font-family: 'Maple Mono', ui-monospace, -apple-system, 'PingFang SC', 
 }
 ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--accent) 58%, transparent); background-clip: content-box; }
 ::-webkit-scrollbar-corner { background: transparent; }
+/* xterm 6 弃用原生滚动条、自绘 VS Code 式滑块（方角灰条，主题不给 scrollbarSlider* 色值时
+ * 用前景色 20% 透明度）——终端往回滚历史时它就冒出来，和全局细圆滚动条格格不入。
+ * 内联样式压不过带 !important 的规则，这里直接把滑块整成同款：细、圆、跟皮肤强调色、贴右。 */
+.xterm .xterm-scrollable-element > .scrollbar.vertical > .slider {
+  left: auto !important; right: 2px !important; width: 5px !important;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 40%, transparent) !important;
+}
+.xterm .xterm-scrollable-element > .scrollbar.vertical > .slider:hover,
+.xterm .xterm-scrollable-element > .scrollbar.vertical > .slider.active {
+  background: color-mix(in srgb, var(--accent) 62%, transparent) !important;
+}
 /* 列表内拖动重排的落点插入线 */
 .nav-list li.sort-insert { box-shadow: inset 0 2px 0 var(--accent); }
 .nav-list li.sort-insert-end { box-shadow: inset 0 -2px 0 var(--accent); }
