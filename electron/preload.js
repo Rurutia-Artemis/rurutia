@@ -111,3 +111,11 @@ contextBridge.exposeInMainWorld('fanboxWechat', {
   onExpired: (cb) => { const h = (e, m) => cb(m); ipcRenderer.on('wechat:expired', h); return () => ipcRenderer.removeListener('wechat:expired', h); },
   onPower: (cb) => { const h = (e, m) => cb(m); ipcRenderer.on('wechat:power', h); return () => ipcRenderer.removeListener('wechat:power', h); },
 });
+
+// Rurutia：窗口拖拽兜底（public/drag-patch.js 用）——macOS 原生 app-region 拖拽间歇失灵时，
+// 渲染层把指针相对按下点的位移发给主进程手动移窗。只有主窗有此桥（预览窗顶部有系统标题栏）。
+contextBridge.exposeInMainWorld('fanboxWinDrag', {
+  start: () => ipcRenderer.send('win:drag', { phase: 'start' }),
+  move: (dx, dy) => ipcRenderer.send('win:drag', { phase: 'move', dx, dy }),
+  end: () => ipcRenderer.send('win:drag', { phase: 'end' }),
+});

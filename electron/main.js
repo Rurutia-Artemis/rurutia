@@ -351,6 +351,18 @@ ipcMain.handle('win:focus', () => {
   win.focus();
 });
 
+// Rurutia：窗口拖拽兜底通道（见 public/drag-patch.js）。macOS 上 -webkit-app-region 的
+// 原生拖拽会间歇失灵（聚焦态命中缓存过期，Electron 上游 bug：表现为「点别的窗口回来
+// 能拖一次，之后又锁死」）。渲染层检测到「按住拖拽条但窗口没跟着动」时改走这里手动移窗。
+let dragBase = null; // start 时的窗口位置；move 报文只带相对按下点的位移
+ipcMain.on('win:drag', (e, m = {}) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  if (!w || w.isDestroyed()) return;
+  if (m.phase === 'start') { const [x, y] = w.getPosition(); dragBase = { x, y }; }
+  else if (m.phase === 'move' && dragBase) w.setPosition(Math.round(dragBase.x + (+m.dx || 0)), Math.round(dragBase.y + (+m.dy || 0)));
+  else if (m.phase === 'end') dragBase = null;
+});
+
 // 预览全屏时藏掉左上角红黄绿系统按钮——它和右侧自家关闭图标太像，容易让人误点
 ipcMain.handle('win:traffic', (e, { show }) => {
   if (!win || win.isDestroyed() || typeof win.setWindowButtonVisibility !== 'function') return;
@@ -511,7 +523,12 @@ function buildMenu() {
 }
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  else if (win && !win.isDestroyed()) { win.show(); win.focus(); } // 从 Dock 点回来：显示隐藏的窗口，状态原样还在
+  else if (win && !win.isDestroyed()) {
+    win.show(); win.focus(); // 从 Dock 点回来：显示隐藏的窗口，状态原样还在
+    // Rurutia：预览小窗跟着浮到最前——⌘Tab/点 Dock 切回时它常被大主窗整个盖住，
+    // 用户以为窗口丢了只能靠调度中心找。主窗先拿焦点，小窗只提层不抢键盘。
+    require('./pv-window').raise();
+  }
 });
 // ⌘Q 兜底：还有终端在跑时（agent 任务），退出前确认，避免手滑全灭
 let quitConfirmed = false;

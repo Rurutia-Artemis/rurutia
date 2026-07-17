@@ -3803,12 +3803,21 @@ const term = {
           this._vCache = this._vCache || new Map();
           const need = r2.filter((x) => !this._vCache.has(cwd0 + ' ' + x.cand + ' ' + x.tail));
           const apply = () => {
-            r2.forEach((x) => { if (this._vCache.get(cwd0 + ' ' + x.cand + ' ' + x.tail)) push(x.s, x.e, x.cand, x.tail); });
+            r2.forEach((x) => {
+              const v = this._vCache.get(cwd0 + ' ' + x.cand + ' ' + x.tail);
+              if (!v) return;
+              // 空格扩展命中（服务端 used>0）：把整条含空格的路径连成一条链接再划线。
+              // 以前只划到第一个空格，用户点的常是后半段（文件名），走裸名搜索时
+              // 「~/Library/Application Support」这类 Spotlight 不索引的目录就报「没找到」
+              const ext = Math.max(0, Math.min(v.used || 0, t.length - x.e));
+              const end = x.e + ext;
+              push(x.s, end, ext ? t.slice(x.s, end) : x.cand, ext ? t.slice(end).split(/['"`]/)[0].slice(0, 160) : x.tail);
+            });
             finish();
           };
           if (!need.length) { apply(); return; }
           apiPost('/api/term-verify', { cwd: cwd0, items: need.map((x) => ({ cand: x.cand, tail: x.tail })) }).then((res) => {
-            need.forEach((x, i) => this._vCache.set(cwd0 + ' ' + x.cand + ' ' + x.tail, !!(res.results && res.results[i])));
+            need.forEach((x, i) => this._vCache.set(cwd0 + ' ' + x.cand + ' ' + x.tail, (res.results && res.results[i]) || false));
             if (this._vCache.size > 600) { for (const k of this._vCache.keys()) { this._vCache.delete(k); if (this._vCache.size <= 400) break; } }
             apply();
           }).catch(() => finish()); // 验证不可用：宁可不划线，不要误标

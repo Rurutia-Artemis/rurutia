@@ -1,6 +1,6 @@
 {
   "name": "fanbox",
-  "version": "2.13.1",
+  "version": "2.13.2",
   "description": "Rurutia — the cockpit for coding agents. Command Claude Code or Codex, watch every file and line they change, and take over anytime.",
   "bin": {
     "fanbox": "server.js"
@@ -31,6 +31,13 @@
       "buildResources": "build",
       "output": "dist"
     },
+    "files": [
+      "electron/**/*",
+      "public/**/*",
+      "server.js",
+      "package.json",
+      "!node_modules/@xterm/**"
+    ],
     "asar": true,
     "npmRebuild": false,
     "asarUnpack": [

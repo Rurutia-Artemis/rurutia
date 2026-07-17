@@ -98,6 +98,7 @@
 
     var READABLE = { text: 1, pdf: 1 };
     var wantPop = function () { try { return localStorage.getItem('rb_pv_default') !== '0'; } catch { return true; } };
+    var poppedAt = 0; // 最近一次改道去独立窗的时刻（吞掉紧跟的 setPreviewMax(true) 用）
 
     window.openPreview = function (e) {
       try {
@@ -107,6 +108,7 @@
         var pop = lastAlt ? !wantPop() : wantPop(); // ⌥点击 = 临时用相反方式
         if (e && !e.isDir && READABLE[e.kind] && pop && !rerender && !followOn && Date.now() - lastGesture < 800) {
           window.fanboxWin.openPv(e.path);
+          poppedAt = Date.now();
           hintOnce();
           return Promise.resolve();
         }
@@ -114,6 +116,18 @@
       shownPath = e && e.path;
       return rawOpen(e);
     };
+
+    // 【主窗拖拽锁死的元凶】openTermPath 点开 md/html 后会习惯性 setPreviewMax(true)——
+    // 预览已改道独立窗时内嵌预览根本没开，preview-maxed 却挂上 <html>，
+    // CSS `.desktop.preview-maxed #app { app-region: no-drag }` 把主窗拖拽区整个静默关死。
+    // 改道后短窗内的 setPreviewMax(true) 一律吞掉；内嵌流程（默认关弹窗 / ⌥反向）不受影响。
+    var rawMax = window.setPreviewMax;
+    if (typeof rawMax === 'function') {
+      window.setPreviewMax = function (on) {
+        if (on && Date.now() - poppedAt < 800) return;
+        return rawMax(on);
+      };
+    }
 
     // 内嵌预览头部加 ↗：左键=本文件弹独立窗；右键=切换默认打开方式
     var rawActions = window.renderPreviewActions;

@@ -941,7 +941,7 @@ async function statWithTail(p, tail) {
   };
   if (!p) return null;
   const direct = await tryStat(p);
-  if (direct) return direct;
+  if (direct) return { ...direct, used: 0 };
   if (tail) {
     const t = String(tail).slice(0, 160).split(/['"`]/)[0];
     const cands = [];
@@ -950,8 +950,11 @@ async function statWithTail(p, tail) {
     if (t.trim() && cands.length < 6) cands.push(p + t.replace(/\s+$/, ''));
     cands.sort((a, b) => b.length - a.length); // 长优先：偏向完整文件名
     for (const c of cands) {
-      const hit = await tryStat(c.replace(/[)\]'"`,.:;。，]+$/, ''));
-      if (hit) return hit;
+      const cc = c.replace(/[)\]'"`,.:;。，]+$/, '');
+      const hit = await tryStat(cc);
+      // used = 从 tail 里吃掉的字符数：前端靠它把「Application Support」这类含空格
+      // 路径的整条下划线连起来（以前只划到第一个空格，点后半段常搜不到）
+      if (hit) return { ...hit, used: Math.max(0, cc.length - p.length) };
     }
   }
   return null;
@@ -965,7 +968,8 @@ async function termVerify(b) {
     if (!it || typeof it.cand !== 'string') return false;
     let p = it.cand;
     if (!p.startsWith('/') && !p.startsWith('~')) p = cwd.replace(/\/$/, '') + '/' + p.replace(/^\.\//, '');
-    return !!(await statWithTail(p, it.tail || ''));
+    const hit = await statWithTail(p, it.tail || '');
+    return hit ? { used: hit.used || 0 } : false; // 对象仍是 truthy，老前端布尔用法兼容
   }));
   return { ok: true, results };
 }

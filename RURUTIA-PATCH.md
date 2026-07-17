@@ -4,6 +4,8 @@
 
 基线：`c93a486`（v2.3.1）。
 
+> 🔎 **排查 bug 先看 [`docs/模块指引.md`](docs/模块指引.md)**：症状 → 模块的速查地图 + 各文件一句话职责。本文件专注上游同步的账本。
+
 ---
 
 ## 一、改动清单
@@ -18,10 +20,13 @@
 | `electron/shot-hotkey.js` | 截图直通车·热键版主进程：全局快捷键（可设、≤2 组）→ `screencapture -i` 落盘 userData/shots → 推 `shot:insert` → 48h 定期清理；IPC `shot:keys-get/set`、`shot:capture` |
 | `public/shot-patch.js` | 截图直通车渲染层：`shot:insert` → `term.insertPath()` 自动插进当前终端 + 弹直通卡；快捷键录入面板 `window.rbShotSettings()` |
 | `electron/pv-window.js` | 独立预览窗主进程：IPC `pv:open` → 弹/复用普通 BrowserWindow 加载 `?pv=<路径>`，`--rurutia-pv` 启动参数，位置大小记忆 |
-| `public/pv-patch.js` | 独立预览窗渲染层双身份：主窗把「点开可读文件」默认改弹独立窗（⌥点击反向、↗ 按钮右键切默认）；`?pv=` 时本页进纯预览模式（#preview 铺满、⌘W 关窗） |
+| `public/pv-patch.js` | 独立预览窗渲染层双身份：主窗把「点开可读文件」默认改弹独立窗（⌥点击反向、↗ 按钮右键切默认）；`?pv=` 时本页进纯预览模式（#preview 铺满、⌘W 关窗）；**v2.13.2**：改道独立窗后吞掉紧跟的 `setPreviewMax(true)`（防 `preview-maxed` 僵尸类关死主窗拖拽区） |
 | `public/toolbar-patch.js` | 终端工具条折叠：自选常驻按钮（localStorage `rb_toolbar_pins`），其余原地隐藏 + ⋯ 溢出菜单代理行；含「自定义工具条…/截图快捷键…/截个图」入口 |
 | `public/assets/agents/grok.svg` | Grok CLI 图标（X 风格单色，currentColor 跟皮肤） |
 | `public/observer-patch.js` | 观察舱：右侧终端工作状态面板（任务归零大数字 + 活动格子 + 状态点，数量自适应布局，皮肤变量全接管；⋯ 菜单开合，关闭零成本） |
+| `public/prompt-patch.js` | 终端提示符（starship）选择器渲染层：药丸/单行/两行/纯文本预设 + 叠加修饰 |
+| `electron/starship-config.js` | starship 注入主进程：ZDOTDIR 点文件生成 + TOML 合并（打包态用 `Resources/starship`，开发态 `vendor/starship`） |
+| `public/drag-patch.js` | 窗口拖拽兜底：macOS 原生 app-region 拖拽间歇失灵（上游 bug）时，检测「按住拖拽条但窗口没跟手」→ 渲染层经 `win:drag` IPC 手动移窗；每次窗口聚焦轻推一次拖拽区重算 |
 | `design-demos/观察舱-glintgrid-样例.html` | 观察舱视觉定稿样例（GlintGrid 风格，模拟数据，`?total= / ?n= / #half / #zero` 预览钩子） |
 | `public/vendor/fonts/maple/*.woff2` | Maple Mono CN 字体（中文+日文假名，4 字重，约 22MB） |
 | `public/vendor/icons/` | 早期位图图标（现已改用内联 SVG，可保留或删除） |
@@ -33,11 +38,11 @@
 | 文件 | 改了什么 | 冲突风险 |
 |---|---|---|
 | `public/index.html` | `<title>`、favicon/preload/ui-patch.css/themes-patch.js 引用、侧栏品牌块换 logo+改名、快速入口/Agent 分区加 `+` 按钮、终端 10 个动作按钮换内联 SVG；**本轮新增**：尾部 +3 行补丁 script（shot-patch / toolbar-patch / pv-patch） | 中 |
-| `public/app.js` | 用量面板（官方区恒显+原因+重试+≥85% 警告条+桌面通知+45s 刷新）、快速入口/Agent 增删 UI、`SVG.folder` 形状、`syncMute` 铃铛改 SVG；**本轮新增**：`tintTheme` 终端背景跟随 `--bg`、`startTabDrag` 终端标签指针弹性拖拽、`makeDropZone` 拖目录进收藏/快速入口、`makeSortable`+`applyAgentOrder` Agent 列表内拖动排序（localStorage 持久化） | 中 |
-| `server.js` | `/api/roots` 与 `/api/agent-projects` 加 POST 增删 + 持久化（config.json 的 quickRoots/agentHidden/agentPinned）、`claudeOfficialLimits` 返回原因对象、`agentUsage` claudeOut 逻辑；**本轮新增**：`claudeOfficialLimits` 加 10 分钟缓存 + `rate_limit_error` 时沿用上次缓存（修复 Claude 用量「无数据」根因） | 中 |
-| `electron/main.js` | `app.setName`、菜单「关于 Rurutia」；**本轮新增**：whenReady 里 2 行 require 接线 shot-hotkey / pv-window | 低 |
-| `electron/preload.js` | **本轮新增**：顶部 `--rurutia-pv` 早退（预览窗零桥跑 web 版）；`fanboxShot` 加 onInsert/capture/getKeys/setKeys；`fanboxWin` 加 openPv | 低 |
-| `package.json` | productName / dmg 标题 / description 改 Rurutia | 低 |
+| `public/app.js` | 用量面板（官方区恒显+原因+重试+≥85% 警告条+桌面通知+45s 刷新）、快速入口/Agent 增删 UI、`SVG.folder` 形状、`syncMute` 铃铛改 SVG；**本轮新增**：`tintTheme` 终端背景跟随 `--bg`、`startTabDrag` 终端标签指针弹性拖拽、`makeDropZone` 拖目录进收藏/快速入口、`makeSortable`+`applyAgentOrder` Agent 列表内拖动排序（localStorage 持久化）；**v2.13.2**：终端链接验证命中空格扩展时整条含空格路径连成一条链接（apply 段） | 中 |
+| `server.js` | `/api/roots` 与 `/api/agent-projects` 加 POST 增删 + 持久化（config.json 的 quickRoots/agentHidden/agentPinned）、`claudeOfficialLimits` 返回原因对象、`agentUsage` claudeOut 逻辑；**本轮新增**：`claudeOfficialLimits` 加 10 分钟缓存 + `rate_limit_error` 时沿用上次缓存（修复 Claude 用量「无数据」根因）；**v2.13.2**：`statWithTail` 返回 `used`（tail 吃掉的字符数）、`termVerify` 返回对象 | 中 |
+| `electron/main.js` | `app.setName`、菜单「关于 Rurutia」；**本轮新增**：whenReady 里 2 行 require 接线 shot-hotkey / pv-window；**v2.13.2**：`win:drag` 拖拽兜底通道 + `activate` 时 `pv-window.raise()` 提层预览窗 | 低 |
+| `electron/preload.js` | **本轮新增**：顶部 `--rurutia-pv` 早退（预览窗零桥跑 web 版）；`fanboxShot` 加 onInsert/capture/getKeys/setKeys；`fanboxWin` 加 openPv；**v2.13.2**：尾部追加 `fanboxWinDrag`（拖拽兜底桥） | 低 |
+| `package.json` | productName / dmg 标题 / description 改 Rurutia；**v2.13.2**：`build.files` 白名单（只打 electron/public/server.js，app 瘦身 ~58MB） | 低 |
 | `build/icon*` | 应用图标（二进制） | 低 |
 
 > **内部标识刻意未改**：`~/.fanbox` 配置目录、`appId`、npm 包名、preload 的 `fanbox*` 桥接名——动了会丢配置/断渲染层。

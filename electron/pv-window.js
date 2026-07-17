@@ -71,4 +71,13 @@ function init(getPort) {
   });
 }
 
-module.exports = { init };
+// ⌘Tab/Dock 切回 app 时把预览窗提到主窗上面（main.js 的 activate 调用）：
+// 它不是独立 app，切走再切回常被大主窗盖住，用户找不到会以为它没了。
+// moveTop 只提层不抢焦点——键盘焦点留在主窗，小窗露脸即可。最小化的不硬拽出来。
+function raise() {
+  if (pvWin && !pvWin.isDestroyed() && pvWin.isVisible() && !pvWin.isMinimized()) {
+    try { pvWin.moveTop(); } catch { /* */ }
+  }
+}
+
+module.exports = { init, raise };

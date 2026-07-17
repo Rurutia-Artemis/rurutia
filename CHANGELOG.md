@@ -11,6 +11,22 @@
 
 ## [Unreleased]
 
+## [2.13.2] - 2026-07-17
+
+### Fixed
+- **主窗拖拽间歇性锁死**（用户报的：拖拽时灵时不灵，得点一下别的窗口才能拖一回，松手又锁）。查出**主根因是自家状态泄漏**：在终端里点开 md/html 路径时，`openTermPath` 习惯性 `setPreviewMax(true)` 全屏内嵌预览——但预览早被 pv-patch 改道去独立小窗了，内嵌预览根本没开，`preview-maxed` 却挂上了 `<html>`，CSS 里 `.desktop.preview-maxed #app { app-region: no-drag }` 随即把主窗拖拽区**整个静默关死**、界面毫无征兆（点 Claude 打印的 md 路径 → 弹小窗 → 主窗拖不动，正是这条链）。修三层（全部真环境端到端验证过）：
+  - **源头**（`pv-patch.js`）：改道独立窗后 800ms 内紧跟的 `setPreviewMax(true)` 一律吞掉，内嵌流程不受影响；
+  - **自愈**（`drag-patch.js`）：窗口每次聚焦检查「`preview-maxed` 挂着但内嵌预览根本没显示」的僵尸态，发现即摘；
+  - **兜底**（`drag-patch.js` 新增 + `main.js` 的 `win:drag` 通道）：针对 Electron 上游另一处 macOS 拖拽区缓存间歇失灵——聚焦时轻推拖拽区逼 Blink 重发；按住拖拽条后窗口若没跟手（原生拖拽没接管），渲染层立刻接手经 IPC 手动移窗。无论底层什么状态，拖拽永远可用；
+- **终端里点含空格的路径报「没找到」**（用户报的：`~/Library/Application Support/fanbox/shots/直通截图-….png` 这类路径，Claude 明明说文件就在那，点了却说找不到）：路径识别按空格切 token，这类路径被切成两半——前半段有服务端「空格扩展」验证兜着，但用户点的常是后半段（文件名段），走裸文件名搜索：项目根下搜不到、Spotlight 又不索引 `~/Library`，于是报没找到。修复：服务端 `statWithTail` 验证命中时返回吃掉的字符数（`used`），前端据此把**整条含空格的路径连成一条下划线链接**，点哪一段都按完整路径直开（已 curl 实测：`used:46` 恰好吃到 `.png` 为止，中文散文不误报）；
+- **预览小窗切走就找不到**（用户报的：小窗忘了关、切去别的 app 再回来，它被大主窗整个盖住，只能靠调度中心翻）：⌘Tab / 点 Dock 切回 Rurutia 时（`app.on('activate')`），主窗聚焦后把预览窗 `moveTop()` 提到最前——小窗露脸但不抢键盘焦点。它不是独立 app 进不了 ⌘Tab 列表，这是同一 app 内能做到的最接近形态。
+
+### Changed
+- **客户端瘦身 ~58MB**：`package.json` 加 `build.files` 白名单，只打包 `electron/ + public/ + server.js` 和生产依赖。之前没有白名单，整个仓库都被塞进 app：32MB 的 `rurutia.patch`、README 宣传图、`docs/` 截图、`experiments/`，starship 还因 extraResources 存了双份，运行时不用的 `@xterm` 源码也在。app.asar 105MB → 46MB，.app 350MB → 292MB。剩下的大头是 Electron 框架 231MB（固定成本）+ Maple Mono CN 四字重 22MB（界面/终端字体，值得留）+ Monaco 编辑器 13MB。
+
+### Docs
+- 新增 **`docs/模块指引.md`**——bug 排查地图：症状 → 第一落点文件的速查表（拖拽/路径点击/皮肤/字体/观察舱/截图直通/用量……）+ 全模块一句话职责 + 查案惯例（分叉文件要 `grep -a`、web/桌面判别、验证套路）。`RURUTIA-PATCH.md` 顶部已挂链接，A/B 表同步补齐 prompt-patch / starship-config / drag-patch 与本轮改动。
+
 ## [2.13.1] - 2026-07-17
 
 ### Fixed
