@@ -22,7 +22,7 @@
 - **预览小窗切走就找不到**（用户报的：小窗忘了关、切去别的 app 再回来，它被大主窗整个盖住，只能靠调度中心翻）：⌘Tab / 点 Dock 切回 Rurutia 时（`app.on('activate')`），主窗聚焦后把预览窗 `moveTop()` 提到最前——小窗露脸但不抢键盘焦点。它不是独立 app 进不了 ⌘Tab 列表，这是同一 app 内能做到的最接近形态。
 
 ### Changed
-- **客户端瘦身 ~58MB**：`package.json` 加 `build.files` 白名单，只打包 `electron/ + public/ + server.js` 和生产依赖。之前没有白名单，整个仓库都被塞进 app：32MB 的 `rurutia.patch`、README 宣传图、`docs/` 截图、`experiments/`，starship 还因 extraResources 存了双份，运行时不用的 `@xterm` 源码也在。app.asar 105MB → 46MB，.app 350MB → 292MB。剩下的大头是 Electron 框架 231MB（固定成本）+ Maple Mono CN 四字重 22MB（界面/终端字体，值得留）+ Monaco 编辑器 13MB。
+- **客户端瘦身 ~58MB**：`package.json` 加 `build.files` 白名单，只打包 `electron/ + public/ + server.js` 和生产依赖。之前没有白名单，整个仓库都被塞进 app：32MB 的 `rurutia.patch`、README 宣传图、`docs/` 截图、`experiments/`，starship 还因 extraResources 存了双份，运行时不用的 `@xterm` 源码也在。app.asar 105MB → 46MB，.app 350MB → 292MB，DMG 169MB → 129MB。剩下的大头是 Electron 框架 231MB（固定成本）+ Maple Mono CN 四字重 22MB（界面/终端字体，值得留）+ Monaco 编辑器 13MB。
 
 ### Docs
 - 新增 **`docs/模块指引.md`**——bug 排查地图：症状 → 第一落点文件的速查表（拖拽/路径点击/皮肤/字体/观察舱/截图直通/用量……）+ 全模块一句话职责 + 查案惯例（分叉文件要 `grep -a`、web/桌面判别、验证套路）。`RURUTIA-PATCH.md` 顶部已挂链接，A/B 表同步补齐 prompt-patch / starship-config / drag-patch 与本轮改动。
