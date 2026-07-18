@@ -91,36 +91,50 @@
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif !important;
 }
 #usage-body .ux-meter-val, #usage-body .ux-odo .n { font-family: var(--font-mono) !important; }
-/* 名牌基座（紧凑档：11px，从 v2.14 的 16px 大胶囊一路收回、再 -15%；三档共享，各自覆盖填充与字色）
+/* 名牌基座（12px：v2.14.1 定稿 11px 紧凑档整体 +10%；三档共享，各自覆盖填充与字色）
  * 动效只碰 background-position / box-shadow / transform，不引发重排 */
 #usage-body .ux-plan {
   position: relative; overflow: hidden; flex: none; margin-left: auto; isolation: isolate;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.02em; line-height: 1;
-  padding: 4px 11px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.02em; line-height: 1;
+  padding: 4.5px 12px; border-radius: 999px;
 }
 @keyframes uxfloat { from { transform: translateY(1.2px); } to { transform: translateY(-1.2px); } }
-/* 彩虹倍率名牌（Pro/Max ××）：饱和全息膜——① 斜向膜光高光 ② 衍射细彩条 ③ 主彩虹(首尾同色·无缝)
- * 三层叠加匀速流转；字走 W2 白字描边(paint-order 让描边垫在字底、字内保持纯白 + 一圈深 halo，
- * 11px 小字流到亮色段也不糊)；::before 一道白光斜扫。 */
+/* 彩虹倍率名牌（Pro/Max ××）：幻彩流沙——① 斜向膜光高光 ② 主彩虹(首尾同色·无缝)顺流
+ * ③ ::after 反向第二彩虹以 soft-light 叠底，两层干涉出慢变色(同一位置粉→金→绿轮转)，全程无白条；
+ * 字走 W2 白字描边(paint-order 让描边垫在字底、字内保持纯白 + 一圈深 halo)；
+ * ::before 镜面扫光(亮芯+宽柔肩+轻模糊的减重版，6.5s 一闪)。 */
 #usage-body .ux-plan.tier-rainbow {
   color: #fff; paint-order: stroke fill; -webkit-text-stroke: 0.5px rgba(45, 18, 32, 0.85);
   text-shadow: 0 0 2px rgba(30, 10, 22, 0.7), 0 1px 1px rgba(30, 10, 22, 0.6);
   background:
     linear-gradient(74deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 40%),
-    repeating-linear-gradient(70deg, rgba(255, 255, 255, 0.14) 0 3px, rgba(255, 255, 255, 0) 3px 8px),
     linear-gradient(100deg, #ff3d84, #ff9e3d 14%, #ffe23d 28%, #3de86b 46%, #3dc6ff 64%, #a24dff 82%, #ff3d84);
-  background-size: 100% 100%, 200% 100%, 200% 100%;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 2px rgba(140, 60, 170, 0.45),
-              0 2px 12px rgba(255, 80, 150, 0.5), 0 0 18px rgba(90, 190, 255, 0.4);
+  background-size: 100% 100%, 200% 100%;
+  /* clip-path 强制把扫光(mix-blend 的 composited 子层)裁进胶囊圆角：GPU 合成下 overflow:hidden 的圆角
+   * 对 blend 子层失效，扫光扫到两端会露出方角白(左端露左上/左下、右端露右上/右下)。clip-path 的圆角裁剪
+   * 对 composited 子层可靠生效——代价是它会连外发光 box-shadow 一起裁掉，所以外发光改走 filter:drop-shadow，
+   * 内高光/内阴影仍留 box-shadow(在圆角内、不受 clip 影响)。 */
+  clip-path: inset(0 round 999px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 2px rgba(140, 60, 170, 0.45);
+  filter: drop-shadow(0 2px 12px rgba(255, 80, 150, 0.5)) drop-shadow(0 0 18px rgba(90, 190, 255, 0.4));
   animation: uxflow 5s linear infinite, uxfloat 3.4s ease-in-out infinite alternate;
 }
-@keyframes uxflow { to { background-position: 0 0, 120% 0, 200% 0; } }
-#usage-body .ux-plan.tier-rainbow::before {
-  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 36%; pointer-events: none;
-  mix-blend-mode: overlay; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
-  animation: uxsweep 4.8s ease-in-out infinite;
+@keyframes uxflow { to { background-position: 0 0, 200% 0; } }
+/* 反向第二彩虹：负 z-index 垫在文字下、soft-light 叠在主彩虹上；7s vs 主层 5s，互质出长干涉周期 */
+#usage-body .ux-plan.tier-rainbow::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1;
+  background: linear-gradient(100deg, #ff3d84, #ff9e3d 14%, #ffe23d 28%, #3de86b 46%, #3dc6ff 64%, #a24dff 82%, #ff3d84);
+  background-size: 200% 100%; mix-blend-mode: soft-light;
+  animation: uxflowr 7s linear infinite;
 }
-@keyframes uxsweep { 0% { transform: translateX(-140%) skewX(-18deg); } 55%, 100% { transform: translateX(260%) skewX(-18deg); } }
+@keyframes uxflowr { to { background-position: -200% 0; } }
+#usage-body .ux-plan.tier-rainbow::before {
+  content: ""; position: absolute; top: -20%; bottom: -20%; left: 0; width: 46%; pointer-events: none;
+  mix-blend-mode: overlay; filter: blur(2px);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16) 32%, rgba(255, 255, 255, 0.55) 50%, rgba(255, 255, 255, 0.16) 68%, transparent);
+  animation: uxsweep 6.5s ease-in-out infinite;
+}
+@keyframes uxsweep { 0% { transform: translateX(-170%) skewX(-18deg); } 42%, 100% { transform: translateX(270%) skewX(-18deg); } }
 /* 鎏金·斜光扫过：无倍率订阅(Plus / Claude Pro / Max / Team / Enterprise)，深棕字不戳眼；浮动与彩虹错 1.7s 起拍 */
 #usage-body .ux-plan.tier-gold {
   color: #4a3413;
@@ -137,7 +151,7 @@
 @keyframes uxsheen { 0% { left: -60%; } 26% { left: 135%; } 100% { left: 135%; } }
 #usage-body .ux-plan.tier-plain { color: var(--text-dim); background: var(--bg-3); border: 1px solid var(--border); box-shadow: none; }
 @media (prefers-reduced-motion: reduce) {
-  #usage-body .ux-plan, #usage-body .ux-plan::before { animation: none !important; }
+  #usage-body .ux-plan, #usage-body .ux-plan::before, #usage-body .ux-plan::after { animation: none !important; }
   #usage-body .ux-plan.tier-gold::before { display: none; }
 }
 /* 表（方案 B·并线紧凑）：标签 · 重置时间 → 读数，一行读完；下面就是刻度，无独立脚注行 */
