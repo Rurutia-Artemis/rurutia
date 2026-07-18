@@ -99,12 +99,10 @@
   padding: 4.5px 12px; border-radius: 999px;
 }
 @keyframes uxfloat { from { transform: translateY(1.2px); } to { transform: translateY(-1.2px); } }
-/* 彩虹倍率名牌（Pro/Max ××）：幻彩流沙·定稿——彩虹底完全不位移，靠 hue-rotate 让每个点的颜色
- * 原地缓缓轮转(粉→金→绿→蓝→紫→粉，14s 一整圈)。保住「盯着看颜色在变」的幻彩感，同时杜绝一切
- * 「光条在平移」的观感(用户二轮点名：从右往左的移动光带也要砍)。彩虹+膜光都放 ::after(负 z-index
- * 垫在字底)，hue-rotate 只转彩虹、白膜光不受色相旋转影响；内高光也随 ::after 走(元素本体没了背景，
- * 元素上的 inset shadow 会被不透明的 ::after 盖住)；字走 W2 白字描边；::before 镜面扫光
- * (亮芯+宽柔肩+轻模糊，6.5s 一闪)是画面里唯一平移的光。 */
+/* 彩虹倍率名牌（Pro/Max ××）：帕青哥中奖灯·定稿——六色纯正光谱**全部同时在场**并整条持续
+ * 横向流动(双份光谱打包进 200% 底图,任意时刻整条胶囊六色横贯,2.5s 流过一整条光谱)，
+ * 像柏青哥出大奖的追灯。没有白条纹、没有白光带(前几轮被砍的都是"白"，不是"流动")；
+ * 字走 W2 白字描边；::before 镜面扫光(亮芯+宽柔肩+轻模糊，6.5s 一闪)。 */
 #usage-body .ux-plan.tier-rainbow {
   color: #fff; paint-order: stroke fill; -webkit-text-stroke: 0.5px rgba(45, 18, 32, 0.85);
   text-shadow: 0 0 2px rgba(30, 10, 22, 0.7), 0 1px 1px rgba(30, 10, 22, 0.6);
@@ -112,24 +110,20 @@
    * 对 blend 子层失效，扫光扫到两端会露出方角白(左端露左上/左下、右端露右上/右下)。clip-path 的圆角裁剪
    * 对 composited 子层可靠生效——代价是它会连外发光 box-shadow 一起裁掉，所以外发光改走 filter:drop-shadow。 */
   clip-path: inset(0 round 999px);
-  filter: drop-shadow(0 2px 14px rgba(255, 80, 150, 0.65)) drop-shadow(0 0 22px rgba(90, 190, 255, 0.55));
+  filter: drop-shadow(0 2px 16px rgba(255, 80, 150, 0.75)) drop-shadow(0 0 26px rgba(90, 190, 255, 0.65));
   animation: uxfloat 3.4s ease-in-out infinite alternate;
 }
-/* 静止彩虹 + 膜光 + 内高光，整层做 hue-rotate 原地轮转（白色高光转不动色相，天然免疫）。
- * 六色全光谱横贯整条胶囊(不再 200% 只露一半)；hue-rotate 的色彩矩阵会把部分色段转灰，
- * 动画里全程带 saturate(1.45) 补偿；膜光减半让彩虹透出来。 */
+/* 双份光谱底图：一份光谱恰好占满整条胶囊(六色全在)，流走一份接上下一份，无缝循环 */
 #usage-body .ux-plan.tier-rainbow::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1; border-radius: 999px;
   background:
     linear-gradient(74deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 40%),
-    linear-gradient(100deg, #ff3d84, #ff9e3d 14%, #ffe23d 28%, #3de86b 46%, #3dc6ff 64%, #a24dff 82%, #ff3d84);
+    linear-gradient(100deg, #ff2d78, #ff8a00 8%, #ffe600 17%, #2dff6b 25%, #00cfff 33%, #b04dff 42%, #ff2d78 50%, #ff8a00 58%, #ffe600 67%, #2dff6b 75%, #00cfff 83%, #b04dff 92%, #ff2d78);
+  background-size: 100% 100%, 200% 100%;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 2px rgba(140, 60, 170, 0.45);
-  animation: uxhue 10s linear infinite;
+  animation: uxflow 5s linear infinite;
 }
-@keyframes uxhue {
-  from { filter: hue-rotate(0deg) saturate(1.85) brightness(1.05); }
-  to { filter: hue-rotate(360deg) saturate(1.85) brightness(1.05); }
-}
+@keyframes uxflow { to { background-position: 0 0, 200% 0; } }
 #usage-body .ux-plan.tier-rainbow::before {
   content: ""; position: absolute; top: -20%; bottom: -20%; left: 0; width: 46%; pointer-events: none;
   mix-blend-mode: overlay; filter: blur(2px);
