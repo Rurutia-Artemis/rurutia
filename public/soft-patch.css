@@ -99,35 +99,37 @@
   padding: 4.5px 12px; border-radius: 999px;
 }
 @keyframes uxfloat { from { transform: translateY(1.2px); } to { transform: translateY(-1.2px); } }
-/* 彩虹倍率名牌（Pro/Max ××）：幻彩流沙——① 斜向膜光高光 ② 主彩虹(首尾同色·无缝)顺流
- * ③ ::after 反向第二彩虹以 soft-light 叠底，两层干涉出慢变色(同一位置粉→金→绿轮转)，全程无白条；
- * 字走 W2 白字描边(paint-order 让描边垫在字底、字内保持纯白 + 一圈深 halo)；
- * ::before 镜面扫光(亮芯+宽柔肩+轻模糊的减重版，6.5s 一闪)。 */
+/* 彩虹倍率名牌（Pro/Max ××）：幻彩流沙·定稿——彩虹底完全不位移，靠 hue-rotate 让每个点的颜色
+ * 原地缓缓轮转(粉→金→绿→蓝→紫→粉，14s 一整圈)。保住「盯着看颜色在变」的幻彩感，同时杜绝一切
+ * 「光条在平移」的观感(用户二轮点名：从右往左的移动光带也要砍)。彩虹+膜光都放 ::after(负 z-index
+ * 垫在字底)，hue-rotate 只转彩虹、白膜光不受色相旋转影响；内高光也随 ::after 走(元素本体没了背景，
+ * 元素上的 inset shadow 会被不透明的 ::after 盖住)；字走 W2 白字描边；::before 镜面扫光
+ * (亮芯+宽柔肩+轻模糊，6.5s 一闪)是画面里唯一平移的光。 */
 #usage-body .ux-plan.tier-rainbow {
   color: #fff; paint-order: stroke fill; -webkit-text-stroke: 0.5px rgba(45, 18, 32, 0.85);
   text-shadow: 0 0 2px rgba(30, 10, 22, 0.7), 0 1px 1px rgba(30, 10, 22, 0.6);
-  background:
-    linear-gradient(74deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 40%),
-    linear-gradient(100deg, #ff3d84, #ff9e3d 14%, #ffe23d 28%, #3de86b 46%, #3dc6ff 64%, #a24dff 82%, #ff3d84);
-  background-size: 100% 100%, 200% 100%;
   /* clip-path 强制把扫光(mix-blend 的 composited 子层)裁进胶囊圆角：GPU 合成下 overflow:hidden 的圆角
    * 对 blend 子层失效，扫光扫到两端会露出方角白(左端露左上/左下、右端露右上/右下)。clip-path 的圆角裁剪
-   * 对 composited 子层可靠生效——代价是它会连外发光 box-shadow 一起裁掉，所以外发光改走 filter:drop-shadow，
-   * 内高光/内阴影仍留 box-shadow(在圆角内、不受 clip 影响)。 */
+   * 对 composited 子层可靠生效——代价是它会连外发光 box-shadow 一起裁掉，所以外发光改走 filter:drop-shadow。 */
   clip-path: inset(0 round 999px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 2px rgba(140, 60, 170, 0.45);
-  filter: drop-shadow(0 2px 12px rgba(255, 80, 150, 0.5)) drop-shadow(0 0 18px rgba(90, 190, 255, 0.4));
-  animation: uxflow 5s linear infinite, uxfloat 3.4s ease-in-out infinite alternate;
+  filter: drop-shadow(0 2px 14px rgba(255, 80, 150, 0.65)) drop-shadow(0 0 22px rgba(90, 190, 255, 0.55));
+  animation: uxfloat 3.4s ease-in-out infinite alternate;
 }
-@keyframes uxflow { to { background-position: 0 0, 200% 0; } }
-/* 反向第二彩虹：负 z-index 垫在文字下、soft-light 叠在主彩虹上；7s vs 主层 5s，互质出长干涉周期 */
+/* 静止彩虹 + 膜光 + 内高光，整层做 hue-rotate 原地轮转（白色高光转不动色相，天然免疫）。
+ * 六色全光谱横贯整条胶囊(不再 200% 只露一半)；hue-rotate 的色彩矩阵会把部分色段转灰，
+ * 动画里全程带 saturate(1.45) 补偿；膜光减半让彩虹透出来。 */
 #usage-body .ux-plan.tier-rainbow::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1;
-  background: linear-gradient(100deg, #ff3d84, #ff9e3d 14%, #ffe23d 28%, #3de86b 46%, #3dc6ff 64%, #a24dff 82%, #ff3d84);
-  background-size: 200% 100%; mix-blend-mode: soft-light;
-  animation: uxflowr 7s linear infinite;
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1; border-radius: 999px;
+  background:
+    linear-gradient(74deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 40%),
+    linear-gradient(100deg, #ff3d84, #ff9e3d 14%, #ffe23d 28%, #3de86b 46%, #3dc6ff 64%, #a24dff 82%, #ff3d84);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 2px rgba(140, 60, 170, 0.45);
+  animation: uxhue 10s linear infinite;
 }
-@keyframes uxflowr { to { background-position: -200% 0; } }
+@keyframes uxhue {
+  from { filter: hue-rotate(0deg) saturate(1.85) brightness(1.05); }
+  to { filter: hue-rotate(360deg) saturate(1.85) brightness(1.05); }
+}
 #usage-body .ux-plan.tier-rainbow::before {
   content: ""; position: absolute; top: -20%; bottom: -20%; left: 0; width: 46%; pointer-events: none;
   mix-blend-mode: overlay; filter: blur(2px);
