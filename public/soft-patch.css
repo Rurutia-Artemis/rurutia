@@ -91,29 +91,37 @@
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif !important;
 }
 #usage-body .ux-meter-val, #usage-body .ux-odo .n { font-family: var(--font-mono) !important; }
-/* 鎏光名牌（1.5× 立体亮面胶囊）：倍率档彩虹连续流转 / 无倍率订阅鎏金扫光 / Free 素灰。
- * 三档同享顶部亮面(::after)与 3.4s 轻浮动；动效只碰 background-position/box-shadow/transform，不引发重排 */
+/* 名牌基座（紧凑档：11px，从 v2.14 的 16px 大胶囊一路收回、再 -15%；三档共享，各自覆盖填充与字色）
+ * 动效只碰 background-position / box-shadow / transform，不引发重排 */
 #usage-body .ux-plan {
-  position: relative; overflow: hidden; flex: none; margin-left: auto;
-  font-size: 16px; font-weight: 700; letter-spacing: 0.02em;
-  padding: 6px 18px; border-radius: 999px;
-}
-#usage-body .ux-plan::after {
-  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.08) 46%, transparent 62%);
+  position: relative; overflow: hidden; flex: none; margin-left: auto; isolation: isolate;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.02em; line-height: 1;
+  padding: 4px 11px; border-radius: 999px;
 }
 @keyframes uxfloat { from { transform: translateY(1.2px); } to { transform: translateY(-1.2px); } }
-/* 彩虹·连续流转：首尾同色循环渐变 + 150% 底图匀速平移（300% 恰为一个平铺周期，无缝）；
- * 眩光 = 暖色近晕 + 淡紫外圈双层 */
+/* 彩虹倍率名牌（Pro/Max ××）：饱和全息膜——① 斜向膜光高光 ② 衍射细彩条 ③ 主彩虹(首尾同色·无缝)
+ * 三层叠加匀速流转；字走 W2 白字描边(paint-order 让描边垫在字底、字内保持纯白 + 一圈深 halo，
+ * 11px 小字流到亮色段也不糊)；::before 一道白光斜扫。 */
 #usage-body .ux-plan.tier-rainbow {
-  color: #fff; text-shadow: 0 1px 2px rgba(40, 20, 5, 0.45);
-  background: linear-gradient(100deg, #ff5f6d, #ffa53d 20%, #ffd93d 38%, #5bd97a 56%, #4fc3f7 74%, #a06bff 90%, #ff5f6d);
-  background-size: 150% 100%;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 10px rgba(255, 110, 90, 0.48), 0 0 22px rgba(160, 107, 255, 0.26);
-  animation: uxflow 5.5s linear infinite, uxfloat 3.4s ease-in-out infinite alternate;
+  color: #fff; paint-order: stroke fill; -webkit-text-stroke: 0.5px rgba(45, 18, 32, 0.85);
+  text-shadow: 0 0 2px rgba(30, 10, 22, 0.7), 0 1px 1px rgba(30, 10, 22, 0.6);
+  background:
+    linear-gradient(74deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 40%),
+    repeating-linear-gradient(70deg, rgba(255, 255, 255, 0.14) 0 3px, rgba(255, 255, 255, 0) 3px 8px),
+    linear-gradient(100deg, #ff3d84, #ff9e3d 14%, #ffe23d 28%, #3de86b 46%, #3dc6ff 64%, #a24dff 82%, #ff3d84);
+  background-size: 100% 100%, 200% 100%, 200% 100%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 2px rgba(140, 60, 170, 0.45),
+              0 2px 12px rgba(255, 80, 150, 0.5), 0 0 18px rgba(90, 190, 255, 0.4);
+  animation: uxflow 5s linear infinite, uxfloat 3.4s ease-in-out infinite alternate;
 }
-@keyframes uxflow { to { background-position: 300% 0; } }
-/* 鎏金·斜光扫过：4.5s 一趟（含停顿），浮动与彩虹错 1.7s 起拍 */
+@keyframes uxflow { to { background-position: 0 0, 120% 0, 200% 0; } }
+#usage-body .ux-plan.tier-rainbow::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 36%; pointer-events: none;
+  mix-blend-mode: overlay; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  animation: uxsweep 4.8s ease-in-out infinite;
+}
+@keyframes uxsweep { 0% { transform: translateX(-140%) skewX(-18deg); } 55%, 100% { transform: translateX(260%) skewX(-18deg); } }
+/* 鎏金·斜光扫过：无倍率订阅(Plus / Claude Pro / Max / Team / Enterprise)，深棕字不戳眼；浮动与彩虹错 1.7s 起拍 */
 #usage-body .ux-plan.tier-gold {
   color: #4a3413;
   background: linear-gradient(160deg, #ffe0ae, #eda04b 55%, #d98a35);
@@ -128,7 +136,6 @@
 }
 @keyframes uxsheen { 0% { left: -60%; } 26% { left: 135%; } 100% { left: 135%; } }
 #usage-body .ux-plan.tier-plain { color: var(--text-dim); background: var(--bg-3); border: 1px solid var(--border); box-shadow: none; }
-#usage-body .ux-plan.tier-plain::after { display: none; }
 @media (prefers-reduced-motion: reduce) {
   #usage-body .ux-plan, #usage-body .ux-plan::before { animation: none !important; }
   #usage-body .ux-plan.tier-gold::before { display: none; }
