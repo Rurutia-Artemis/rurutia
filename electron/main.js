@@ -78,6 +78,15 @@ function ensureActiveStarship() {
   catch { /* 失败就让 starship 走内置默认，不挡终端 */ }
   return STARSHIP_ACTIVE;
 }
+// ---------- Agent 控制接口状态（/api/agent/*，见 docs/12）----------
+// token 每次启动随机生成、不落盘：只注入翻箱自己开的 pty 环境变量（FANBOX_CTL_TOKEN），
+// 能力边界 = FanBox 进程树——只有跑在翻箱终端里的 agent 拿得到门票，本机其他进程无从读取。
+// FANBOX_AGENT_TOKEN 环境变量可覆盖，供本地开发/自动化测试注入已知 token。
+const crypto = require('crypto');
+const AGENT_TOKEN = process.env.FANBOX_AGENT_TOKEN || crypto.randomBytes(24).toString('hex');
+const termBufs = new Map();    // id -> 去 ANSI 滚动缓冲（~200KB），/api/agent/read 的数据源
+const termLastOut = new Map(); // id -> 最近输出时间戳，wait 的 idle 判定
+const termWaiters = new Map(); // id -> Set<fn(text)>，wait 的增量输出订阅
 
 // ---------- 窗口尺寸/位置记忆 ----------
 const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
@@ -668,7 +677,11 @@ ipcMain.handle('pty:spawn', (e, { id, cwd, cols, rows, theme }) => {
   // 走 login shell 把这些路径带进来。Windows 的 powershell 无此机制，保持空参数。
   const shellArgs = process.platform === 'win32' ? [] : ['-l'];
   // GUI 启动的 app 不继承 shell 的 locale，zsh 会把中文路径按字节转义成 \M-^@ 乱码 → 兜底 UTF-8
-  const env = { ...process.env, TERM: 'xterm-256color', FANBOX: '1' };
+  const env = {
+    ...process.env, TERM: 'xterm-256color', FANBOX: '1',
+    // 终端里的 agent 天生知道自己是几号窗口、控制接口在哪、门票是啥——skill 零配置（见 docs/12）
+    FANBOX_TERM_ID: id, FANBOX_CTL: `http://127.0.0.1:${PORT}/api/agent`, FANBOX_CTL_TOKEN: AGENT_TOKEN,
+  };
   if (!/UTF-8/i.test(env.LC_ALL || env.LC_CTYPE || env.LANG || '')) env.LANG = 'zh_CN.UTF-8';
   // Rurutia 自带 starship 提示符：用 ZDOTDIR 注入（自带的 zdotdir 先 source 用户真实 ~/.zprofile/.zshrc
   // 保证 PATH/别名分毫不差，再叠加 starship）—— 只在本 App 终端生效、不碰用户任何 dotfile、卸载零残留。
@@ -700,12 +713,18 @@ ipcMain.handle('pty:spawn', (e, { id, cwd, cols, rows, theme }) => {
   p.onData((data) => {
     if (win && !win.isDestroyed()) win.webContents.send('pty:data', { id, data });
     recEvent(id, 'o', data);
-    const tail = ((termTails.get(id) || '') + data.replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][AB0]|\r/g, '')).slice(-4000);
-    termTails.set(id, tail); // 留最后 ~4KB，给微信 agent 看「最近输出」
+    const stripped = data.replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][AB0]|\r/g, '');
+    termTails.set(id, ((termTails.get(id) || '') + stripped).slice(-4000)); // 留最后 ~4KB，给微信 agent 看「最近输出」
+    termBufs.set(id, ((termBufs.get(id) || '') + stripped).slice(-200000)); // 大缓冲给 /api/agent/read
+    termLastOut.set(id, Date.now());
+    const ws = termWaiters.get(id);
+    if (ws) for (const fn of ws) { try { fn(stripped); } catch { /* 单个 waiter 异常不连累别人 */ } }
   });
   p.onExit(({ exitCode }) => {
     terminals.delete(id);
     termTails.delete(id);
+    termBufs.delete(id);
+    termLastOut.delete(id);
     refreshLidGuard(); // 最后一个终端退出即恢复休眠
     recStop(id);
     if (win && !win.isDestroyed()) win.webContents.send('pty:exit', { id, exitCode });
@@ -772,6 +791,112 @@ ipcMain.handle('starship:set', (e, { base, mods } = {}) => {
 ipcMain.on('pty:input', (e, { id, data }) => { const p = terminals.get(id); if (p) { p.write(data); recEvent(id, 'i', data); } });
 ipcMain.on('pty:resize', (e, { id, cols, rows }) => { const p = terminals.get(id); if (p) { try { p.resize(cols, rows); } catch { /* */ } recEvent(id, 'r', `${cols}x${rows}`); } });
 ipcMain.on('pty:kill', (e, { id }) => { const p = terminals.get(id); if (p) { try { p.kill(); } catch { /* */ } terminals.delete(id); refreshLidGuard(); recStop(id); } });
+
+// ---------- Agent 控制接口：把跨终端感知/控制能力开成本机 HTTP（server.js 的 /api/agent/* 调这里）----------
+// 让跑在翻箱终端里的 agent 指挥兄弟窗口：列表/读屏/输入/开窗/等待/关闭。安全模型与接口规范见 docs/12。
+const BARE_SHELL_RE = /^-?(zsh|bash|sh|fish|login)$/i;
+let agentReqSeq = 0;
+const agentCreateWaiters = new Map(); // reqId -> resolve（渲染进程建 tab 的回执）
+
+function agentTouch(id, action) { // 被 agent 控制的 tab 在界面上闪 ⚡：审计 + 围观
+  if (win && !win.isDestroyed()) win.webContents.send('agent:touch', { id, action });
+}
+async function agentList() {
+  const arr = [];
+  for (const [id, p] of terminals) {
+    const proc = (p && p.process) || '';
+    const cwd = await termCwdByPid(p && p.pid);
+    arr.push({
+      id, cwd, name: cwd ? path.basename(cwd) : '', proc,
+      busy: !!proc && !BARE_SHELL_RE.test(proc),
+      tail: (termTails.get(id) || '').slice(-500),
+    });
+  }
+  return { ok: true, terminals: arr };
+}
+function agentRead(id, lines) {
+  if (!terminals.has(id)) return { ok: false, error: 'no such terminal' };
+  const n = Math.max(1, Math.min(2000, lines || 200));
+  return { ok: true, id, text: (termBufs.get(id) || '').split('\n').slice(-n).join('\n') };
+}
+function agentSend(id, text, opts = {}) {
+  const p = terminals.get(id);
+  if (!p) return { ok: false, error: 'no such terminal' };
+  let t = String(text == null ? '' : text);
+  if (opts.paste) t = '\x1b[200~' + t + '\x1b[201~'; // bracketed paste：多行文本整块进 TUI，不被逐行提交
+  else t = t.replace(/\r\n|\n/g, '\r'); // 换行 → 回车才会真正提交
+  if (opts.submit !== false && !/\r$/.test(t)) t += '\r';
+  try { p.write(t); recEvent(id, 'i', t); agentTouch(id, 'send'); return { ok: true }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+}
+function agentCreate(opts = {}) {
+  return new Promise((resolve) => {
+    if (!win || win.isDestroyed()) return resolve({ ok: false, error: 'no window' });
+    const reqId = 'ac' + (++agentReqSeq);
+    agentCreateWaiters.set(reqId, resolve);
+    win.webContents.send('agent:term-create', { reqId, cwd: typeof opts.cwd === 'string' ? opts.cwd : '' });
+    setTimeout(() => { if (agentCreateWaiters.delete(reqId)) resolve({ ok: false, error: 'renderer timeout' }); }, 10000);
+  }).then(async (r) => {
+    if (!r.ok) return r;
+    agentTouch(r.id, 'create');
+    if (!opts.autorun) return r;
+    // 等 shell 就绪（有过输出且静默 ≥400ms）再敲命令，login shell 初始化慢也不怕
+    const t0 = Date.now();
+    await new Promise((done) => {
+      const iv = setInterval(() => {
+        const last = termLastOut.get(r.id);
+        if ((last && Date.now() - last >= 400) || Date.now() - t0 > 8000) { clearInterval(iv); done(); }
+      }, 100);
+    });
+    const s = agentSend(r.id, String(opts.autorun));
+    return { ...r, autorun: s.ok };
+  });
+}
+ipcMain.on('agent:term-created', (e, { reqId, ok, id, error } = {}) => {
+  const resolve = agentCreateWaiters.get(reqId);
+  if (!resolve) return;
+  agentCreateWaiters.delete(reqId);
+  resolve(ok && id ? { ok: true, id } : { ok: false, error: error || 'create failed' });
+});
+function agentWait(id, opts = {}) {
+  return new Promise((resolve) => {
+    if (!terminals.has(id)) return resolve({ ok: false, error: 'no such terminal' });
+    let re = null;
+    if (opts.until) {
+      try { re = new RegExp(String(opts.until), 'm'); }
+      catch { return resolve({ ok: false, error: 'bad regex' }); }
+    }
+    const idleMs = Math.max(500, Math.min(30000, Number(opts.idleMs) || 2000));
+    const timeoutMs = Math.max(1000, Math.min(240000, Number(opts.timeoutMs) || 60000)); // 240s < node requestTimeout(300s)
+    const quietMode = opts.idle === 'quiet'; // quiet：只看输出静默（TUI 回答完）；默认还要求前台回到裸 shell
+    const started = Date.now();
+    let acc = ''; // 只累计 wait 开始后的新输出，正则也只匹配这段
+    let set = termWaiters.get(id);
+    if (!set) termWaiters.set(id, set = new Set());
+    const finish = (extra) => {
+      clearInterval(iv); set.delete(onData);
+      resolve({ elapsed: Date.now() - started, output: acc.slice(-8000), ...extra });
+    };
+    const onData = (s) => { acc = (acc + s).slice(-64000); if (re && re.test(acc)) finish({ ok: true, matched: true }); };
+    set.add(onData);
+    const iv = setInterval(() => {
+      const p = terminals.get(id);
+      if (!p) return finish({ ok: true, exited: true });
+      if (Date.now() - started >= timeoutMs) return finish({ ok: false, timeout: true });
+      if (re) return; // until 模式只认正则
+      if (Date.now() - (termLastOut.get(id) || started) < idleMs) return;
+      const proc = p.process || '';
+      if (quietMode || !proc || BARE_SHELL_RE.test(proc)) finish({ ok: true, idle: true });
+    }, 200);
+  });
+}
+function agentKill(id) {
+  const p = terminals.get(id);
+  if (!p) return { ok: false, error: 'no such terminal' };
+  try { p.kill(); agentTouch(id, 'kill'); return { ok: true }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+}
+global.__fanboxAgent = { token: AGENT_TOKEN, list: agentList, read: agentRead, send: agentSend, create: agentCreate, wait: agentWait, kill: agentKill };
 
 // ---------- 录制文件管理 IPC ----------
 // 列表：读每个 .cast 的头行拿元信息 + 文件大小/时长（末事件时间），按新→旧。失败的文件跳过不报错。
