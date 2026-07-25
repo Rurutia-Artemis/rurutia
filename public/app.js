@@ -771,8 +771,8 @@ function renderTextPreview(data) {
   const meta = `<div class="preview-meta"><span>${data.ext || 'txt'}</span><span>${fmtSize(data.size)}</span><span>${fmtTime(data.mtime)}</span></div>`;
   const ex = (data.ext || '').toLowerCase();
   if ((ex === 'md' || ex === 'markdown') && !window.__noMarked && window.marked) {
-    body.innerHTML = meta + `<div class="md-body">${window.marked.parse(data.content || '')}</div>`;
-    if (window.hljs) body.querySelectorAll('pre code').forEach((b) => { try { window.hljs.highlightElement(b); } catch {} });
+    body.innerHTML = meta;
+    body.appendChild(mdReadBody(data.content || '', data.path));
   } else if (ex === 'csv' || ex === 'tsv') {
     body.innerHTML = meta + csvTable(data.content || '', ex === 'tsv' ? '\t' : ',');
   } else if (ex === 'html' || ex === 'htm') {
@@ -787,6 +787,39 @@ function renderTextPreview(data) {
     body.appendChild(pre);
     if (window.hljs && !window.__noHljs) { try { window.hljs.highlightElement(code); } catch {} }
   }
+}
+// md 只读阅读体：渲染好的文章本体（代码高亮 + 本地图片能显出来），编辑器和跟随共用。
+// srcPath 用来把 `![](./图/封面.png)` 这类相对/本地绝对路径接到 /api/raw，不然本地配图一律裂图。
+function mdReadBody(md, srcPath) {
+  const div = document.createElement('div');
+  div.className = 'md-body';
+  div.innerHTML = window.marked ? window.marked.parse(md || '') : escapeHtml(md || '');
+  fixLocalImages(div, srcPath);
+  if (window.hljs && !window.__noHljs) div.querySelectorAll('pre code').forEach((b) => { try { window.hljs.highlightElement(b); } catch { /* */ } });
+  return div;
+}
+// 把 md 里指向本机文件的图片换成 /api/raw；外链 http(s)/data/blob 不动
+function fixLocalImages(root, srcPath) {
+  if (!srcPath) return;
+  const base = dirOf(srcPath);
+  root.querySelectorAll('img').forEach((im) => {
+    const raw = im.getAttribute('src') || '';
+    if (!raw || /^(https?:|data:|blob:|\/api\/|\/fs\/)/i.test(raw)) return;
+    let rel = raw.split('#')[0].split('?')[0];
+    try { rel = decodeURIComponent(rel); } catch { /* 本来就没编码 */ }
+    const abs = rel.startsWith('/') ? rel : normPath(base + '/' + rel);
+    im.setAttribute('src', '/api/raw?path=' + encodeURIComponent(abs));
+  });
+}
+// 折掉路径里的 ./ 和 ../，让相对图片路径能拼成真实绝对路径
+function normPath(p) {
+  const out = [];
+  for (const seg of p.split('/')) {
+    if (!seg || seg === '.') continue;
+    if (seg === '..') out.pop();
+    else out.push(seg);
+  }
+  return '/' + out.join('/');
 }
 function csvTable(text, delim) {
   const rows = text.split('\n').filter((r) => r.trim()).slice(0, 500).map((r) => r.split(delim));
@@ -1476,19 +1509,34 @@ async function mdEditor(e, data, mode = 'rich') {
   let content0 = cleanImgUrls(data.content || ''); // canonical：磁盘原始 markdown（顺手还原历史遗留的内部预览 URL）；唯一事实源，编辑器只从它初始化
   let getValue = null, baseline = '';
   let timer = null, paused = false;
-  let forceCode = false; // 该文件 Milkdown 往返有损 → 锁源码模式，富文本按钮灰显（用户选「无损才用富文本」）
+  let forceCode = false; // 该文件 Milkdown 往返有损 → 禁掉富文本（只剥夺「改」的权利，「看」仍走阅读模式）
   let reloading = false; // 外部变更重载 in-flight 锁：fs.watch 同一文件会连发多个事件，去重防并发 render 互踩
   let chain = Promise.resolve(); // 写盘串行化：防抖到点的保存和离开时的 flush 不互相踩
   const setStatus = (t) => { const s = $('#md-status'); if (s) s.textContent = t; };
-  // Milkdown 往返是否「语义无损」：所见即所得必然规范化语法（- → *、紧凑列表变松散、强调记号等），逐字节比会把干净文件也误判有损。
-  // 改用渲染结果比对：两份 markdown 渲成 HTML（去掉 <p> 包裹消除松/紧列表假阳性 + 折叠空白）后相等 = 内容无损 → 放行富文本；
-  // 不等 = 真丢了内容（如 <br/> 被吞、HTML 被删）→ 锁源码。marked 不可用时退回严格比对（保守锁源码，绝不误放行有损）。
+  // Milkdown 往返是否「语义无损」：所见即所得必然规范化语法（- → *、表格补空格对齐、强调记号拆分等），
+  // 逐字节比、甚至逐字节比 HTML，都会把干净文件误判有损。改用「语义指纹」：
+  // 两份 markdown 各渲成 HTML，取 ①可见文字（空白折叠）②结构骨架（标签序列 + 图片/链接目标），
+  // 两项都一致才算无损。只比文字会漏掉「图没了」，只比 HTML 会被排版差异带偏。
+  // marked 不可用时退回严格比对（保守禁掉富文本，绝不误放行有损）。
+  const semanticSig = (md) => {
+    const d = document.createElement('div');
+    d.innerHTML = window.marked.parse(md || '');
+    const text = (d.textContent || '').replace(/\s+/g, ' ').trim();
+    const bones = [];
+    d.querySelectorAll('*').forEach((el) => {
+      const t = el.tagName.toLowerCase();
+      if (t === 'p' || t === 'strong' || t === 'em' || t === 'span') return; // 段落包裹、行内强调被拆成相邻两段，是序列化风格不是内容
+      // 图注（alt）不出现在 textContent 里，但它是正文；不进指纹就等于放任图注被吞
+      const attr = t === 'img'
+        ? (el.getAttribute('src') || '') + '\u001f' + (el.getAttribute('alt') || '')
+        : (el.getAttribute('href') || '');
+      bones.push(t + attr);
+    });
+    return text + ' ' + bones.join('|');
+  };
   const semanticEqual = (a, b) => {
     if (!window.marked || window.__noMarked) return a === b;
-    let ha, hb;
-    try { ha = window.marked.parse(a || ''); hb = window.marked.parse(b || ''); } catch { return a === b; }
-    const n = (s) => String(s).replace(/>\s+</g, '><').replace(/<\/?p>/g, '').replace(/\s+/g, ' ').trim();
-    return n(ha) === n(hb);
+    try { return semanticSig(a) === semanticSig(b); } catch { return a === b; }
   };
   const doSave = async (force) => {
     if (!getValue || paused) return;
@@ -1513,35 +1561,47 @@ async function mdEditor(e, data, mode = 'rich') {
   autosaveFlush = flush;
   dirtyCheck = null;
   const render = async (m) => {
-    if (forceCode) m = 'code'; // 有损文件只允许源码，杜绝静默改写
+    if (forceCode && m === 'rich') m = 'read'; // 有损文件不给富文本改，但照样让人把文章看成文章
     mode = m;
     mona.disposeIfAny(); crepe.disposeIfAny();
-    const dis = forceCode; // 富文本按钮是否灰显
+    const hostCls = { rich: 'crepe-host', read: 'read-host', code: 'mona-host' }[m];
+    const seg = (id, label, on) =>
+      `<button class="seg-btn${m === id ? ' active' : ''}" data-m="${id}"${on ? '' : ' disabled title="此文件含富文本无法无损保存的语法，改请用源码"'}>${label}</button>`;
+    const hint = m === 'read'
+      ? (forceCode ? '只读 · 此文件富文本往返有损，要改请点源码' : '只读 · 要改请点富文本或源码')
+      : '自动保存 · ⌘S 立即保存';
     body.innerHTML =
-      `<div class="editor-bar"><button id="md-mode" class="ghost-btn"${dis ? ' disabled title="此文件含富文本无法无损保存的语法，已锁定源码模式"' : ''}>${m === 'rich' ? '源码' : '富文本'}</button><span id="md-status" class="editor-hint">${dis ? '源码模式（此文件富文本往返有损，已锁定）' : '自动保存 · ⌘S 立即保存'}</span></div>` +
-      `<div id="ed-host" class="${m === 'rich' ? 'crepe-host' : 'mona-host'}"></div>`;
-    const modeBtn = $('#md-mode');
-    if (modeBtn && !dis) modeBtn.onclick = async () => {
-      await flush();
-      const cur = getValue ? getValue() : content0;
-      if (cur !== baseline) content0 = cleanImgUrls(cur); // 只有真编辑过才采纳编辑器的值（顺手还原拖入图片的内部 URL）；没改就保留磁盘原文，不被 Milkdown 规范化
-      render(m === 'rich' ? 'code' : 'rich');
-    };
+      `<div class="editor-bar"><div class="ed-modes">${seg('rich', '富文本', !forceCode)}${seg('read', '阅读', true)}${seg('code', '源码', true)}</div>` +
+      `<span id="md-status" class="editor-hint">${hint}</span></div>` +
+      `<div id="ed-host" class="${hostCls}"></div>`;
+    body.querySelectorAll('.ed-modes .seg-btn').forEach((b) => {
+      if (b.disabled || b.dataset.m === m) return;
+      b.onclick = async () => {
+        await flush();
+        const cur = getValue ? getValue() : content0;
+        if (cur !== baseline) content0 = cleanImgUrls(cur); // 只有真编辑过才采纳编辑器的值（顺手还原拖入图片的内部 URL）；没改就保留磁盘原文，不被 Milkdown 规范化
+        render(b.dataset.m);
+      };
+    });
     const host = $('#ed-host');
-    if (m === 'rich') {
+    if (m === 'read') {
+      host.appendChild(mdReadBody(content0, e.path));
+      getValue = () => content0; // 只读：永远不脏，自动保存链路自然空转
+    } else if (m === 'rich') {
       const C = await crepe.load();
       if (!C) { render('code'); return; } // Crepe 加载失败 → 源码模式兜底
       // 保护 YAML frontmatter：Crepe 不识别会丢掉，剥离后只把正文交给它，保存时再拼回
       const fm = /^(---\r?\n[\s\S]*?\r?\n---\r?\n)/.exec(content0);
       const front = fm ? fm[1] : '';
       const inst = new C.Crepe({ root: host, defaultValue: front ? content0.slice(front.length) : content0 });
+      if (C.keepImageAlt) C.keepImageAlt(inst.editor); // 图注归 alt，别被 Milkdown 拿去存缩放比例
       await inst.create();
-      // 语义无损校验：Milkdown 序列化回来若渲染结果和磁盘原文不同（<br/> 被吞、HTML 被删等真丢内容）→ 锁源码，绝不让它静默落盘
+      // 语义无损校验：Milkdown 序列化回来若渲染结果和磁盘原文不同（<br/> 被吞、HTML 被删等真丢内容）→ 禁掉富文本，绝不让它静默落盘
       if (!semanticEqual(front + inst.getMarkdown(), content0)) {
         crepe.disposeIfAny();
         forceCode = true;
-        toast('此文件含富文本无法无损表示的内容，已切到源码模式编辑');
-        return render('code');
+        toast('此文件富文本往返有损，已切到只读阅读模式（要改点源码）');
+        return render('read');
       }
       try { inst.on((l) => l.markdownUpdated(() => queue())); } catch { /* 旧版 Crepe 无 .on，靠下面的 input 兜底 */ }
       host.addEventListener('input', () => queue(), true); // 兜底：键入路径一定触发
@@ -3461,6 +3521,27 @@ const term = {
     const write = () => { if (this.active) this.input(this.active, shQuote(p) + ' '); const s = this.sessions.find((x) => x.id === this.active); if (s) s.xterm.focus(); };
     if (wasHidden) setTimeout(write, 280); else write();
   },
+  // ⌘V / 右键粘贴：文字照常粘。网页、微信里复制的图片在剪贴板上没有路径，
+  // navigator.clipboard 只看得见文字，于是这类粘贴一直是「按了没反应」——
+  // 走主进程把位图落盘成临时 png，再把路径插进去，终端里的 agent 就能读到那张图了。
+  async pasteInto(xterm) {
+    this.pastedAt = Date.now(); // 同步打点：⌘V 还会顺着系统「编辑>粘贴」再触发一次 paste 事件，让那边认出是同一次
+    const bridge = window.fanboxClipboard && window.fanboxClipboard.readForPaste;
+    if (!bridge) { // 浏览器版没有主进程桥，退回纯文字
+      try { const t = await navigator.clipboard.readText(); if (t) xterm.paste(t); } catch { /* 无权限时走 Electron 菜单兜底 */ }
+      return;
+    }
+    const r = await bridge().catch(() => null);
+    if (!r) return;
+    if (r.kind === 'text') { xterm.paste(r.text); return; }
+    if (r.kind === 'image' || r.kind === 'file') {
+      this.insertPath(r.path);
+      if (r.kind === 'image') toast('剪贴板图片已存成文件，路径已插入终端');
+      return;
+    }
+    if (r.kind === 'error') toast('读剪贴板失败：' + (r.error || ''), true);
+    else toast('剪贴板是空的');
+  },
   // 一键在终端启动 coding agent：当前标签是空闲 shell 就地启动；正跑着东西（claude/codex/任何前台程序）
   // 则新开标签，不打断也不把命令打进别的程序里
   async launchAgent(cmd) {
@@ -3695,11 +3776,9 @@ const term = {
         return true;
       }
       if (cmd && (e.key === 'v' || e.key === 'V')) {
-        // ⌘V 粘贴
+        // ⌘V 粘贴：文字/图片/文件都收（图片和文件落成路径）
         e.preventDefault();
-        navigator.clipboard.readText().then(text => {
-          if (text) xterm.paste(text);
-        }).catch(() => { /* 无权限时走Electron菜单兜底 */ });
+        term.pasteInto(xterm);
         return false;
       }
       if (cmd && (e.key === '=' || e.key === '+' || e.key === '0')) {
@@ -3724,11 +3803,24 @@ const term = {
       if (hasSel) items.push({ label: '复制', fn: () => {
         try { navigator.clipboard.writeText(xterm.getSelection()); xterm.clearSelection(); } catch {}
       }});
-      items.push({ label: '粘贴', fn: async () => {
-        try { const text = await navigator.clipboard.readText(); if (text) xterm.paste(text); } catch {}
-      }});
+      items.push({ label: '粘贴', fn: () => term.pasteInto(xterm) });
       popupMenu(e, items);
     });
+    // 走系统「编辑 > 粘贴」菜单的那条路：图片会以 File 形式落在 clipboardData 上，
+    // xterm 只认文字会当没粘。这里截下来落盘换路径，和 ⌘V 一个口径。
+    host.addEventListener('paste', (ev) => {
+      const files = ev.clipboardData ? [...(ev.clipboardData.files || [])] : [];
+      const img = files.find((f) => f.type.startsWith('image/'));
+      if (!img || !window.fanboxDrop) return; // 纯文字粘贴交给 xterm 自己处理
+      ev.preventDefault();
+      ev.stopPropagation(); // 别让 xterm 拿这个事件去粘一段空文本
+      if (Date.now() - (term.pastedAt || 0) < 800) return; // ⌘V 那条路已经插过了，别插第二遍
+      const ext = (img.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+      img.arrayBuffer()
+        .then((buf) => window.fanboxDrop.saveTemp(`粘贴图片-${fmtStamp()}.${ext}`, buf))
+        .then((r) => { if (r && r.ok) { term.insertPath(r.path); toast('剪贴板图片已存成文件，路径已插入终端'); } })
+        .catch(() => toast('剪贴板图片存盘失败', true));
+    }, true);
 
     // 选中即复制（iTerm2 默认行为）
     xterm.onSelectionChange(() => {
@@ -5103,8 +5195,8 @@ async function liveMd(e, first) {
   const range = follow.lastContent == null ? null : changedRange(follow.lastContent, content);
   const nearEnd = !range || range.end >= content.split('\n').length - 4;
   const keep = body.scrollTop;
-  body.innerHTML = `<div class="md-body">${window.marked.parse(content)}</div>`;
-  if (window.hljs && !window.__noHljs) body.querySelectorAll('pre code').forEach((b) => { try { window.hljs.highlightElement(b); } catch { /* */ } });
+  body.innerHTML = '';
+  body.appendChild(mdReadBody(content, e.path));
   follow.lastContent = content;
   if (nearEnd) body.scrollTo({ top: body.scrollHeight, behavior: first ? 'auto' : 'smooth' });
   else body.scrollTop = keep;

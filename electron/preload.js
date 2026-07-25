@@ -47,6 +47,8 @@ contextBridge.exposeInMainWorld('fanboxFs', {
 contextBridge.exposeInMainWorld('fanboxClipboard', {
   copyImage: (path) => ipcRenderer.invoke('clip:image', { path }),
   copyFile: (path) => ipcRenderer.invoke('clip:file', { path }),
+  // 终端粘贴用：剪贴板里是文字/图片/文件？图片和文件都换成本机路径（navigator.clipboard 只看得见文字）
+  readForPaste: () => ipcRenderer.invoke('clip:read'),
 });
 
 contextBridge.exposeInMainWorld('fanboxDrop', {

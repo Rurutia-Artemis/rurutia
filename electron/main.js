@@ -736,6 +736,33 @@ ipcMain.handle('clip:image', (e, { path: p }) => {
   try { const img = nativeImage.createFromPath(p); if (img.isEmpty()) return { ok: false, error: '不是可读图片' }; clipboard.writeImage(img); return { ok: true }; }
   catch (err) { return { ok: false, error: err.message }; }
 });
+// 终端粘贴：⌘V 时问一句剪贴板里到底是什么。
+// 文字照常回文字；网页/微信里复制的图片没有路径，落盘临时目录换一个路径回去——
+// 终端里的 agent 只认路径，图片本体塞不进 PTY。访达里 ⌘C 的文件同理，直接给真实路径。
+ipcMain.handle('clip:read', () => {
+  try {
+    const text = clipboard.readText();
+    if (text) return { kind: 'text', text }; // 文字优先：表格类应用同时放文字和位图，别把复制的表格粘成图片路径
+    const fileUrl = process.platform === 'darwin' ? clipboard.read('public.file-url') : '';
+    if (fileUrl) {
+      try {
+        const fp = decodeURIComponent(new URL(fileUrl).pathname);
+        if (fs.existsSync(fp)) return { kind: 'file', path: fp };
+      } catch { /* 不是合法 file:// 就当没有 */ }
+    }
+    const img = clipboard.readImage();
+    if (!img.isEmpty()) {
+      const dir = path.join(app.getPath('temp'), 'fanbox-drops');
+      fs.mkdirSync(dir, { recursive: true });
+      const d = new Date(), z = (x) => String(x).padStart(2, '0');
+      const name = `粘贴图片-${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}.png`;
+      const dest = path.join(dir, name);
+      fs.writeFileSync(dest, img.toPNG());
+      return { kind: 'image', path: dest };
+    }
+    return { kind: 'empty' };
+  } catch (err) { return { kind: 'error', error: err.message }; }
+});
 ipcMain.handle('clip:file', (e, { path: p }) => new Promise((resolve) => {
   const { execFile } = require('child_process');
   // argv 传路径，避免拼进 AppleScript 字面量被注入
