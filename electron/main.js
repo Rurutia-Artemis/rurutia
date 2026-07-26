@@ -401,6 +401,14 @@ ipcMain.handle('win:focus', () => {
 // 原生拖拽会间歇失灵（聚焦态命中缓存过期，Electron 上游 bug：表现为「点别的窗口回来
 // 能拖一次，之后又锁死」）。渲染层检测到「按住拖拽条但窗口没跟着动」时改走这里手动移窗。
 let dragBase = null; // start 时的窗口位置；move 报文只带相对按下点的位移
+// 界面缩放：渲染层（zoom-patch.js）按显示器记忆档位，这里只负责落到 webContents 上。
+// 用 zoomFactor 而不是把 CSS 全改成 rem——后者要动 style.css 里成百上千个 px，
+// 工作量大、易漏，还会和上游 diff 打架。终端字号由渲染层按反比补偿，见 zoom-patch.js。
+ipcMain.on('win:zoom', (e, m = {}) => {
+  const z = Math.max(0.5, Math.min(2, Number(m.z) || 1));
+  try { e.sender.setZoomFactor(z); } catch { /* 窗口正在销毁 */ }
+});
+
 ipcMain.on('win:drag', (e, m = {}) => {
   const w = BrowserWindow.fromWebContents(e.sender);
   if (!w || w.isDestroyed()) return;

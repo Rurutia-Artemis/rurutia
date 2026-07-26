@@ -212,6 +212,10 @@
     '.ro-src i { width: 6px; height: 6px; border-radius: 2px; flex: 0 0 auto; }',
     '.ro-src b { color: var(--text-dim); font-weight: 500; }',
     '.ro-srcnote { margin-left: auto; color: var(--text-faint); font: 9px/1 var(--font-mono, monospace); letter-spacing: .06em; }',
+    // 读数口径开关：净用量（默认）/ 含缓存重读。做成小胶囊挂在来源行末尾，不抢版面
+    '.ro-cachesw { flex: none; padding: 2px 6px; border: 1px solid var(--border); border-radius: 5px; background: none; color: var(--text-faint); font: 9px/1 var(--font-mono, monospace); letter-spacing: .04em; cursor: pointer; transition: color 160ms ease, border-color 160ms ease; }',
+    '.ro-cachesw:hover { color: var(--text-dim); border-color: color-mix(in srgb, var(--text) 26%, transparent); }',
+    '.ro-cachesw.raw { color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 45%, transparent); }',
     '.ro-rule { position: relative; z-index: 3; height: 1px; margin: 13px 16px 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--rbg) 45%, transparent) 30%, color-mix(in srgb, var(--rbg) 45%, transparent) 70%, transparent); }',
     // ---- 仓位 ----
     '.ro-flow { position: relative; z-index: 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 13px 14px 12px; min-height: 0; overflow-y: auto; align-content: start; }',
@@ -374,7 +378,8 @@
     '<div class="ro-trend">—</div>' +
     '<div class="ro-srcrow"><span class="ro-src"><i style="background:var(--err)"></i><b class="ro-src-claude">—</b></span>' +
     '<span class="ro-src"><i style="background:var(--accent)"></i><b class="ro-src-codex">—</b></span>' +
-    '<span class="ro-srcnote">本机日志 · 每天 00:00 起</span></div>' +
+    '<span class="ro-srcnote">本机日志 · 每天 00:00 起</span>' +
+    '<button class="ro-cachesw" title="切换读数口径">—</button></div>' +
     '</div>' +
     '<div class="ro-rule"></div>' +
     '<div class="ro-flow"></div>' +
@@ -1196,6 +1201,9 @@
     return {
       ok: true, total: total,
       claudeToday: Math.round(total * .82), codexToday: Math.round(total * .18),
+      // demo 也给两个口径（净用量按实测的 6% 比例造），好让口径开关在无头验收里能测
+      totalFresh: Math.round(total * .06),
+      claudeTodayFresh: Math.round(total * .06 * .82), codexTodayFresh: Math.round(total * .06 * .18),
       perCwd: per,
       codexSessions: [{ agent: 'codex', cwd: '/tmp/CodexApp', todayTokens: Math.round(total * .18), active: true }],
     };
@@ -1257,15 +1265,41 @@
     trendEl.innerHTML = n > 0
       ? '<b>⚡ ' + n + ' 路</b>在烧' + (lastTokSpeed > 0 ? ' · ' + fmtTok(Math.round(lastTokSpeed)) + ' tok/s' : '') + (extActive ? ' · 含外部' : '')
       : '今日 00:00 起 · agent 一开工就开始涨';
-    srcClaudeEl.textContent = 'Claude ' + fmtTok(lastFeed.claudeToday || 0);
-    srcCodexEl.textContent = 'Codex ' + fmtTok(lastFeed.codexToday || 0);
+    srcClaudeEl.textContent = 'Claude ' + fmtTok(rawMode ? (lastFeed.claudeToday || 0) : (lastFeed.claudeTodayFresh || 0));
+    srcCodexEl.textContent = 'Codex ' + fmtTok(rawMode ? (lastFeed.codexToday || 0) : (lastFeed.codexTodayFresh || 0));
+  }
+  // 读数口径。默认「净用量」= 不含 cache_read：agent 每轮都要把整个上下文重读一遍，
+  // 那部分实测占 94%，含它的读数动辄几亿几十亿，完全看不出今天到底用了多少。
+  // 想看含缓存的原始量（比如对账官方计费）点一下切过去，选择记在 localStorage。
+  var RAW_KEY = 'rb_obs_raw';
+  var rawMode = false;
+  try { rawMode = localStorage.getItem(RAW_KEY) === '1'; } catch (e) { /* */ }
+  var cacheSwEl = aside.querySelector('.ro-cachesw');
+  function feedNow() { return rawMode ? (lastFeed.total || 0) : (lastFeed.totalFresh || 0); }
+  function paintCacheSw() {
+    if (!cacheSwEl) return;
+    cacheSwEl.textContent = rawMode ? '含缓存' : '净用量';
+    cacheSwEl.classList.toggle('raw', rawMode);
+    cacheSwEl.title = rawMode
+      ? '当前：含缓存重读（agent 每轮重读上下文都计入，数字会大一个量级）。点击切回净用量'
+      : '当前：净用量（不含缓存重读，这是真正新消耗的）。点击查看含缓存的原始量';
+  }
+  if (cacheSwEl) {
+    cacheSwEl.onclick = function () {
+      rawMode = !rawMode;
+      try { localStorage.setItem(RAW_KEY, rawMode ? '1' : '0'); } catch (e) { /* */ }
+      paintCacheSw();
+      // 口径一换数量级就差十几倍，别让轮子从旧值一路滚过去——直接落位重画
+      firstFeed = true; feedTotal(feedNow()); paintTrend();
+    };
+    paintCacheSw();
   }
   async function tokensTick() {
     try {
       var d = DEMO ? demoTokensFeed() : await api('/api/obs-tokens');
       if (!d || !d.ok) return;
       lastFeed = d;
-      feedTotal(d.total || 0);
+      feedTotal(feedNow()); // 按当前口径喂（净用量 / 含缓存重读，见 ro-cachesw）
       paintBayMilestones();
       syncExtBays();
       paintTrend();

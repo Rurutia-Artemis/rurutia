@@ -86,6 +86,7 @@ contextBridge.exposeInMainWorld('fanboxWin', {
   openPv: (p) => ipcRenderer.invoke('pv:open', { path: p }), // Rurutia：在独立预览窗打开文件
   // 窗口活跃态（失焦/隐藏/最小化 → active:false）：idle-patch.js 据此整体挂起 CSS 动画
   onState: (cb) => { const h = (e, m) => cb(m); ipcRenderer.on('win:state', h); return () => ipcRenderer.removeListener('win:state', h); },
+  setZoom: (z) => ipcRenderer.send('win:zoom', { z }), // 界面缩放（zoom-patch.js，按显示器分别记忆）
 });
 
 // Agent 控制接口（/api/agent/*）的渲染侧配合：main 请求开新终端 tab + 被控 tab 闪标记

@@ -1872,7 +1872,7 @@ async function obsClaudeToday() {
   const keepCutoff = Date.now() - CLAUDE_EVENTS_KEEP_MS;
   let dirs;
   try { dirs = await fsp.readdir(CLAUDE_PROJ); } catch { return { total: 0, perCwd: {} }; }
-  let total = 0; const perCwd = {};
+  let total = 0, totalFresh = 0; const perCwd = {};
   const liveFiles = new Set(); // 本轮见到、且还在 8 天保留窗口内的文件；收尾反查该从 claudeFileCache 扔掉谁
   await Promise.all(dirs.map(async (d) => {
     const base = path.join(CLAUDE_PROJ, d);
@@ -1889,15 +1889,23 @@ async function obsClaudeToday() {
       } catch { /* */ }
     }));
     if (!files.length) return;
-    let sum = 0;
+    let sum = 0, sumFresh = 0;
     for (const { fp, st } of files) {
       try {
         const evs = await parseClaudeFile(fp, st);
-        for (const e of evs) { if (e.t >= ds) sum += e.in + e.out + e.cc + e.cr; }
+        for (const e of evs) {
+          if (e.t < ds) continue;
+          sum += e.in + e.out + e.cc + e.cr;
+          // 不含缓存重读的口径：agent 每轮都要把整个上下文重读一遍，cr（cache_read）会把数字
+          // 撑到实际新增量的十几倍——实测占比 94%，读数动辄几亿几十亿，完全失去"今天用了多少"的意义。
+          // 两个口径都算出来，前端给开关，默认走这个。
+          sumFresh += e.in + e.out + e.cc;
+        }
       } catch { /* 单文件坏不挡整体 */ }
     }
     if (!sum) return;
     total += sum;
+    totalFresh += sumFresh;
     let c = obsCwdCache.get(d);
     if (!c || Date.now() - c.t > 600000) {
       let cwd = null;
@@ -1913,7 +1921,7 @@ async function obsClaudeToday() {
     lastClaudeCacheGC = nowGC;
     for (const k of claudeFileCache.keys()) { if (!liveFiles.has(k)) claudeFileCache.delete(k); }
   }
-  return { total, perCwd };
+  return { total, totalFresh, perCwd };
 }
 
 async function obsCodexToday() {
@@ -1933,13 +1941,13 @@ async function obsCodexToday() {
   };
   await walk(CODEX_SESS, 0);
   const now = Date.now();
-  let total = 0; const perCwd = {}; const sessions = [];
+  let total = 0, totalFresh = 0; const perCwd = {}; const sessions = [];
   for (const f of files.filter((x) => x.mtimeMs >= ds)) {
     let c = codexScanCache.get(f.fp);
-    if (!c) { c = { offset: 0, base: 0, baseT: 0, cur: 0, curT: 0, cwd: null }; codexScanCache.set(f.fp, c); }
-    if (f.size < c.offset) { c.offset = 0; c.base = 0; c.baseT = 0; c.cur = 0; c.curT = 0; } // 文件被截断重写：重来
+    if (!c) { c = { offset: 0, base: 0, baseF: 0, baseT: 0, cur: 0, curF: 0, curT: 0, cwd: null }; codexScanCache.set(f.fp, c); }
+    if (f.size < c.offset) { c.offset = 0; c.base = 0; c.baseF = 0; c.baseT = 0; c.cur = 0; c.curF = 0; c.curT = 0; } // 文件被截断重写：重来
     // 跨午夜：缓存里「最新快照」已落在今日之前 → 它就是新一天的基线
-    if (c.curT && c.curT < ds && c.curT > c.baseT) { c.base = c.cur; c.baseT = c.curT; }
+    if (c.curT && c.curT < ds && c.curT > c.baseT) { c.base = c.cur; c.baseF = c.curF; c.baseT = c.curT; }
     if (f.size > c.offset) {
       try {
         const fh = await fsp.open(f.fp, 'r');
@@ -1961,11 +1969,14 @@ async function obsCodexToday() {
             if (!line.includes('"total_token_usage"')) continue;
             let d2; try { d2 = JSON.parse(line); } catch { continue; }
             const info = d2 && d2.payload && d2.payload.info;
-            const tt = info && info.total_token_usage && info.total_token_usage.total_tokens;
+            const tu = info && info.total_token_usage;
+            const tt = tu && tu.total_tokens;
             if (tt == null) continue;
+            // 同 Claude 侧：另记一份剔掉 cached_input_tokens 的快照，供「不含缓存重读」口径求差
+            const tf = tt - (tu.cached_input_tokens || 0);
             const t = Date.parse(d2.timestamp || '') || f.mtimeMs;
-            if (t < ds) { if (t >= c.baseT) { c.base = tt; c.baseT = t; } }
-            else if (t >= c.curT) { c.cur = tt; c.curT = t; }
+            if (t < ds) { if (t >= c.baseT) { c.base = tt; c.baseF = tf; c.baseT = t; } }
+            else if (t >= c.curT) { c.cur = tt; c.curF = tf; c.curT = t; }
           }
         }
       } catch { /* 单文件坏不挡整体 */ }
@@ -1973,6 +1984,7 @@ async function obsCodexToday() {
     const todayTok = c.curT >= ds ? Math.max(0, c.cur - c.base) : 0;
     if (!todayTok) continue;
     total += todayTok;
+    totalFresh += c.curT >= ds ? Math.max(0, (c.curF || 0) - (c.baseF || 0)) : 0;
     const key = c.cwd || 'codex';
     perCwd[key] = (perCwd[key] || 0) + todayTok;
     sessions.push({ agent: 'codex', cwd: c.cwd || '', todayTokens: todayTok, active: now - f.mtimeMs < 45000 });
@@ -1980,7 +1992,7 @@ async function obsCodexToday() {
   // 已过期文件出缓存（只保留今天还在看的）
   const live = new Set(files.filter((x) => x.mtimeMs >= ds).map((x) => x.fp));
   for (const k of codexScanCache.keys()) { if (!live.has(k)) codexScanCache.delete(k); }
-  return { total, perCwd, sessions };
+  return { total, totalFresh, perCwd, sessions };
 }
 
 async function obsTokens() {
@@ -1999,6 +2011,10 @@ async function obsTokens() {
   const data = {
     ok: true, at: Date.now(), dayStart: day.getTime(),
     claudeToday: cc.total, codexToday: cx.total, total: cc.total + cx.total,
+    // 「不含缓存重读」口径：agent 每轮重读整个上下文，cache_read 实测占 94%，
+    // 含它的读数动辄几亿几十亿，看不出"今天到底用了多少"。前端给开关切换，默认走 fresh。
+    claudeTodayFresh: cc.totalFresh, codexTodayFresh: cx.totalFresh,
+    totalFresh: (cc.totalFresh || 0) + (cx.totalFresh || 0),
     perCwd, codexSessions: cx.sessions,
   };
   obsTokensCache = { at: Date.now(), data };
