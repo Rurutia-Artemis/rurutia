@@ -100,12 +100,17 @@ function createWindow() {
     minWidth: 920, minHeight: 600,
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#0b0c0a',
-    vibrancy: 'sidebar',
-    visualEffectState: 'active',
+    // 这里原本挂着 vibrancy: 'sidebar' + visualEffectState: 'active'。撤掉：style.css 的
+    // body { background: var(--bg) } 是全不透明色，那块 NSVisualEffectView 从来没有一个像素露出来过，
+    // 但 macOS 仍在为它实时高斯模糊桌面背景，且 'active' 让它在 App 失焦后继续刷。
+    // 纯粹是白送给 WindowServer 的钱（实测 WindowServer 常驻 ~40% CPU）。
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // 关掉拼写检查：这里的输入场景是终端命令/路径、markdown、中文聊天，没有一样是
+      // 英文自然语言拼写检查该管的，Electron 默认开着纯陪跑，还跟着每次敲键触发 CPU。
+      spellcheck: false,
     },
   });
   // 拖动/缩放后防抖记忆，关窗再存一次兜底
@@ -113,6 +118,25 @@ function createWindow() {
   const remember = () => { clearTimeout(bt); bt = setTimeout(saveBounds, 400); };
   win.on('resize', remember);
   win.on('move', remember);
+
+  // 没人在看的时候别画：失焦 / 隐藏到 Dock / 最小化 一律通知渲染层整体挂起 CSS 动画。
+  // 静态画面在合成器里是零成本的（实测「全部元素画出来但动效暂停」= 0.3% CPU），
+  // 而常驻动效满帧要吃掉 ~54%。这是整个 App 性价比最高的一刀。
+  // 两个信号分开推，别混为一谈：
+  //   active  = 有没有焦点 → 只管**视觉动效**该不该停。失焦时动效停掉，省的就是这一笔。
+  //   visible = 是不是真的看得见（没最小化、没 hide 到 Dock）→ 管**数据轮询**该不该停。
+  // 分开的理由：这个 App 的核心用法就是「开着它盯 agent 干活，同时在另一个窗口/副屏做别的事」。
+  // 要是把失焦也当成"没人看"而停掉轮询，副屏上那块面板会定格在失焦那一刻——用户瞥一眼看到的
+  // 永远是旧快照，分不清 agent 是还在跑、卡死了、还是早跑完了，这恰恰是这块面板存在的意义。
+  // 所以：失焦只停动效（画面静止但数字照常更新），真看不见了才连轮询一起停。
+  const pushWinState = () => {
+    if (!win || win.isDestroyed()) return;
+    const visible = win.isVisible() && !win.isMinimized();
+    try { win.webContents.send('win:state', { active: visible && win.isFocused(), visible }); }
+    catch { /* 渲染层还没起来，did-finish-load 会补发 */ }
+  };
+  for (const ev of ['focus', 'blur', 'show', 'hide', 'restore', 'minimize']) win.on(ev, pushWinState);
+  win.webContents.on('did-finish-load', pushWinState);
   // macOS：点左上角红叉只隐藏到 Dock（保活渲染进程，所有界面/终端状态原样保留），真正退出走 ⌘Q。
   win.on('close', (e) => {
     saveBounds();
@@ -214,11 +238,17 @@ function startShotWatch() {
   };
   try {
     shotWatcher = fs.watch(dir, { persistent: false }, (evt, filename) => {
+      // fs.watch 只要打过一次回调（不管这次文件名是不是截图），就证明它在这台机器/
+      // 这个目录上确实能收到事件——轮询存在的唯一理由（怕 watch 哑火）已经不成立，立刻收摊。
+      stopShotPoll();
       maybeNotify(filename ? filename.toString() : '');
     });
   } catch { /* 无权限等，静默放弃 watch，仍有轮询兜底 */ }
   // 轮询兜底：fs.watch 在 macOS（FSEvents）上常漏掉「第一张」截图事件，
   // 每 1.2s 扫一遍目录，把启动后出现、还没发过的新截图补上 → 第一张也稳。
+  // 但在 watch 正常工作的前提下，它只是启动后一小段窗口期的补丁，不该跟 app 生命周期一样长——
+  // 常驻轮询一天要唤醒进程 ~7 万次，白吃能耗。所以：watch 一响就立刻收摊（见上），
+  // 外加一条 60s 硬寿命兜底，防止 watch 建起来了却始终不响。
   clearInterval(shotPollTimer);
   shotPollTimer = setInterval(() => {
     fs.readdir(dir, (err, names) => {
@@ -233,6 +263,13 @@ function startShotWatch() {
       }
     });
   }, 1200);
+  // 只有 watch 真的建起来了才给轮询设寿命。上面 catch 里 watch 建失败时 shotWatcher 仍是 null，
+  // 那种情况下轮询是**唯一**的截图感知机制，掐了等于截图直通车直接失效——宁可一直轮询。
+  if (shotWatcher) setTimeout(stopShotPoll, 60 * 1000);
+}
+// 停掉轮询兜底：fs.watch 已证明自己能用，或者 60s 寿命到点，两条路径共用同一个收摊函数
+function stopShotPoll() {
+  if (shotPollTimer) { clearInterval(shotPollTimer); shotPollTimer = null; }
 }
 
 // ---------- 更新检测：查 GitHub Releases，有新版本通知渲染层引导下载 ----------
@@ -488,6 +525,13 @@ async function setLidIntent(on) {
 // 原生菜单——关键是 Edit role，终端里的 ⌘C/⌘V 才生效
 function buildMenu() {
   const isMac = process.platform === 'darwin';
+  // 模板里每个 label 都要调一次 M()，而模块级 M() 每次都同步 readFileSync 读 config.json——
+  // 一次 buildMenu 就是 20+ 次重复同步读同一个文件。buildMenu 在启动/合盖切换/终端数 0↔1
+  // 跳变时都会触发，对终端 App 来说一下午好几次；主进程被同步 IO 卡住的几毫秒里，pty:data
+  // 的终端输出转发要排队，观感上就是终端「顿」一下。这里用局部变量遮蔽模块级 M，函数体内
+  // 只读一次 uiLang()，其余调用点原样不动（局部作用域优先，行为完全等价）。
+  const lang = uiLang();
+  const M = (zh, en) => (lang === 'zh' ? zh : en);
   const template = [
     ...(isMac ? [{ label: 'Rurutia', submenu: [
       { role: 'about', label: M('关于 Rurutia', 'About Rurutia') },

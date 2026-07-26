@@ -88,7 +88,9 @@
     'html[data-mode="light"] #rb-obs .ro-grain { display: none; }',
     // 顶部五色跑马灯（皮肤状态色）
     '.ro-track { position: absolute; z-index: 8; top: 0; right: 0; left: 0; height: 3px; overflow: hidden; background: color-mix(in srgb, var(--text) 5%, transparent); }',
-    '.ro-train { position: absolute; top: 0; left: -22%; display: flex; width: 26%; height: 100%; animation: ro-train 8s steps(80) infinite; }',
+    // 跑马灯改 transform 平移：原来动 left 属于布局属性，每步都要重排整条轨道。位移按自身宽度换算
+    // （自身 26% 父宽，父坐标 -22%→100% 等价于自身 -84.6%→384.6%），轨迹与原来完全一致。
+    '.ro-train { position: absolute; top: 0; left: 0; display: flex; width: 26%; height: 100%; animation: ro-train 8s steps(80) infinite; }',
     '.ro-train i { flex: 1; }',
     '.ro-train i:nth-child(1) { background: var(--err); }',
     '.ro-train i:nth-child(2) { background: var(--yellow); }',
@@ -150,19 +152,33 @@
     '.rb-dg.off, .rb-sep.off, .rb-pt.off { width: 0; opacity: 0; }',
     '.rb-sep { display: inline-block; vertical-align: top; width: .26em; height: 1em; overflow: hidden; transition: width 300ms cubic-bezier(.23,1,.32,1), opacity 300ms ease; }',
     '.rb-pt { display: inline-block; vertical-align: top; width: .3em; height: 1em; transition: width 300ms cubic-bezier(.23,1,.32,1), opacity 300ms ease; }',
-    '.rb-reel { display: block; will-change: transform; }',
+    // will-change 不写死在这里：全部读数滚轮（简写4位+精确11位+K模式8位+全显两行~17位，
+    // 量级~30个元素）常年占着合成器纹理，但滚轮多数时间是静止的（只有轮询到新 token 数、
+    // 或用户切读数模式时才滚）。改成 JS 按需挂——见下方 setReelsWC，随 heroRaf 的起停开关。
+    '.rb-reel { display: block; }',
     '.rb-reel b, .rb-sep b, .rb-pt b { display: block; height: 1em; line-height: 1; font-weight: 600; text-align: center; color: var(--text); }',
     // 色阶配色：t0 素色 → t1 蓝移 → t2 紫外 → t3 鎏金 → t4 棱镜（渐变文字缓慢流动，只作用于大字）
     // 千分位逗号（.rb-sep）与数字/小数点一起吃渐变——白逗号夹在渐变数字里太跳（用户报的 bug）
     (function () {
+      // 渐变挂在**列容器**（.rb-reel / .rb-pt / .rb-sep）上，不是里面的每个 <b>。
+      // 这是本次性能治理里唯一一条实测有效的大改：原来 30 个数字列 × 每列 11 个 <b> = 约 330 个元素
+      // 各自扛着 background-clip:text + 动 background-position，实测这条动画独占观察舱动效开销的 82%
+      // （关掉它省 24.8 点，而关掉色相旋转/锥形转圈/跑马灯各自都省不到 2 点）。成本随动画元素个数走，
+      // 降帧（steps）完全无效——动画只要在跑，每帧都要重画字形蒙版。提到容器上元素数降到 1/11，实测省 19 点。
+      // 注意不能再往上提到 .rb-dg：.rb-reel 带 transform 会形成独立绘制上下文，父级的 background-clip:text
+      // 抓不到它的文字，数字会整个消失（试过，白屏）。.rb-reel 自己是那层 transform 的持有者，正好是上限。
       var sel = function (t, pre) {
-        return ['.rb-reel', '.rb-pt', '.rb-sep'].map(function (p) { return (pre || '') + '#rb-obs.' + t + ' .rb-big ' + p + ' b'; }).join(', ');
+        return ['.rb-reel', '.rb-pt', '.rb-sep'].map(function (p) { return (pre || '') + '#rb-obs.' + t + ' .rb-big ' + p; }).join(', ');
       };
+      var selB = function (t) { return sel(t).split(', ').map(function (s) { return s + ' b'; }).join(', '); };
       var flow = function (c, dk) { return 'linear-gradient(100deg, color-mix(in srgb, ' + c + ' 55%, #fff) 0%, ' + c + ' 32%, color-mix(in srgb, ' + c + ' 70%, ' + dk + ') 60%, ' + c + ' 82%, color-mix(in srgb, ' + c + ' 55%, #fff) 100%)'; };
       var flowLight = function (c, dk) { return 'linear-gradient(100deg, ' + c + ' 0%, color-mix(in srgb, ' + c + ' 70%, ' + dk + ') 50%, ' + c + ' 100%)'; };
       var L = 'html[data-mode="light"] ';
       return [
+        // 回 linear：steps() 降帧对这条动画一点用都没有（实测），而 linear 的流动更顺
         [sel('t1'), sel('t2'), sel('t3'), sel('t4')].join(', ') + ' { color: transparent; background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-size: 64px 100%; animation: ro-flow 5.6s linear infinite; }',
+        // 数字本体让位：自身填充透明，让上面容器那层被字形裁过的渐变透出来
+        [selB('t1'), selB('t2'), selB('t3'), selB('t4')].join(', ') + ' { color: inherit; -webkit-text-fill-color: inherit; }',
         sel('t1') + ' { background-image: ' + flow('var(--info)', '#003') + '; }',
         sel('t2') + ' { background-image: ' + flow('var(--rb-uv)', '#103') + '; }',
         sel('t3') + ' { background-image: ' + flow('var(--yellow)', '#530') + '; }',
@@ -234,7 +250,11 @@
     '.ro-mod.ext .ro-run { background-image: linear-gradient(90deg, var(--accent), var(--info)); }',
     '.ro-mod.done .ro-run { background-image: linear-gradient(90deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)); background-size: 100% 100%; }',
     '.ro-grid { position: relative; z-index: 2; display: grid; gap: 6px; }',
-    '.ro-cell { aspect-ratio: 1; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); transform: translateZ(0); transition: transform 200ms cubic-bezier(.23,1,.32,1), background-color 320ms ease, border-color 320ms ease, box-shadow 320ms ease; }',
+    // 不再常驻 translateZ(0)：单卡 24/40 格，观察舱峰值 6 张卡 + 外部仓位卡能堆到 150-250+ 格，
+    // 面板收起时只是 #rb-obs 整体 translateX 移出可视区（没 display:none/卸载），常驻提升的图层
+    // 会跟着一起常驻显存。图层提升挪到 .chasing/.pop 这两个真正会切 transform 的瞬时状态类上
+    // （见下方），格子过渡动画/追灯/pop 弹跳观感不变。
+    '.ro-cell { aspect-ratio: 1; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); transition: transform 200ms cubic-bezier(.23,1,.32,1), background-color 320ms ease, border-color 320ms ease, box-shadow 320ms ease; }',
     ['err', 'yellow', 'accent', 'ok', 'info'].map(function (t) {
       var v = 'var(--' + t + ')';
       return '.ro-cell.' + t + ' { color: ' + v + '; border-color: color-mix(in srgb, ' + v + ' 78%, transparent); background: color-mix(in srgb, ' + v + ' 66%, transparent); }\n' +
@@ -243,6 +263,9 @@
     // 第六色：紫外（--rb-uv 专色）——彩纸轮转的第四张牌，皮肤状态色里没有紫
     '.ro-cell.uv { color: var(--rb-uv); border-color: color-mix(in srgb, var(--rb-uv) 78%, transparent); background: color-mix(in srgb, var(--rb-uv) 66%, transparent); }',
     'html[data-mode="light"] .ro-cell.uv { border-color: var(--rb-uv); background: color-mix(in srgb, var(--rb-uv) 90%, transparent); }',
+    // 图层提升只挂在这两个真正会动 transform 的瞬时状态上：追灯每 640ms 挪一格、pop 是 340ms 一次性
+    // 弹跳，持续时间短、同时命中的格子数也就个位数，撑不出常驻提升的成本
+    '.ro-cell.chasing, .ro-cell.pop { will-change: transform; }',
     '.ro-cell.chasing { outline: 1px solid color-mix(in srgb, var(--text) 55%, transparent); outline-offset: 1px; transform: translateY(-2px) scale(1.08); }',
     '.ro-cell.pop { animation: ro-pop 340ms cubic-bezier(.23,1,.32,1); }',
     // ===== 收工 = 彩虹流光（一次性庆典 + 8.5s 持续流光后自动恢复） =====
@@ -252,7 +275,9 @@
     '.ro-mod.done .ro-rim { display: block; }',
     '.ro-mod.done { border-color: transparent; box-shadow: 0 0 26px -6px color-mix(in srgb, var(--err) 30%, transparent), 0 0 40px -10px color-mix(in srgb, var(--info) 30%, transparent); }',
     'html[data-mode="light"] .ro-mod.done { box-shadow: none; }',
-    '.ro-mod.done .ro-grid { animation: ro-huerun 4s linear infinite; }',
+    // hue-rotate 是滤镜：满帧跑等于每帧把 96 个格子连同各自的 box-shadow 重新栅格化再过一遍色相矩阵。
+    // steps(60) = 15fps，色相是连续大范围渐变，15fps 和 60fps 肉眼分不出，成本除以四。
+    '.ro-mod.done .ro-grid { animation: ro-huerun 4s steps(60) infinite; }',
     '.ro-mod.done .ro-cell { border-color: transparent; box-shadow: 0 0 10px -1px currentColor; }',
     'html[data-mode="light"] .ro-mod.done .ro-cell { box-shadow: none; }',
     // ===== 常驻收工（rest）：庆典谢幕后不再打回原形，静静保持彩虹荣誉态，直到下一轮真实工作 =====
@@ -260,7 +285,7 @@
     '.ro-mod.rest { border: 1px solid transparent; background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(120deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)) border-box;',
     '  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent), 0 0 16px -7px color-mix(in srgb, var(--err) 30%, transparent), 0 0 20px -8px color-mix(in srgb, var(--info) 30%, transparent); }',
     'html[data-mode="light"] .ro-mod.rest { box-shadow: none; }',
-    '.ro-mod.rest .ro-grid { animation: ro-huerun 14s linear infinite; }', // 慢速流动：完成了，但还活着
+    '.ro-mod.rest .ro-grid { animation: ro-huerun 14s steps(70) infinite; }', // 慢速流动：完成了，但还活着（5fps 足够，见 done 档注释）
     '.ro-mod.rest .ro-cell { border-color: transparent; }',
     '.ro-st.rest { background: var(--text); box-shadow: 0 0 10px var(--text); }',
     '.ro-mod.rest .ro-run { background-image: linear-gradient(90deg, var(--err), var(--yellow), var(--ok), var(--info), var(--accent)); }',
@@ -308,7 +333,7 @@
     '.ro-cfg-reset:hover { color: var(--text); background: var(--accent-soft, rgba(128,128,128,.12)); }',
     '.ro-cfg-f small { margin-left: auto; color: var(--text-faint); font: 8.5px/1 var(--font-mono, monospace); }',
     '@keyframes ro-breathe { 0%,100% { opacity: 1; } 50% { opacity: .45; } }',
-    '@keyframes ro-train { to { left: 100%; } }',
+    '@keyframes ro-train { from { transform: translateX(-84.6%); } to { transform: translateX(384.6%); } }',
     '@keyframes ro-flow { to { background-position: 64px 0; } }',
     '@keyframes ro-settle { 0% { transform: scale(1.04); } 100% { transform: scale(1); } }',
     '@keyframes ro-badgepop { 0% { transform: scale(.8); } 55% { transform: scale(1.14); } 100% { transform: scale(1); } }',
@@ -729,6 +754,17 @@
   var heroV = 0, heroTarget = 0, heroRate = 0, heroRaf = 0, heroLastT = 0, firstFeed = true;
   var SETTLE_MS = 300, heroSettleT = 0; // 落位计时：滚动可以过程连滚，静止必须整位
   var lastTokSpeed = 0; // tok/s，趋势行显示
+  // 滚轮的图层提升按需挂（配合上面 .rb-reel 撤掉写死的 will-change）：heroRaf 是全部滚轮唯一的动力源，
+  // 所以「rAF 在跑」就等价于「滚轮在动」。跑起来才给全部滚轮加 will-change，落位停下立刻摘掉——
+  // 静止时（占绝大多数时间）不再白占约 30 张合成器纹理。toggle 一次才 querySelectorAll 一次，
+  // 一轮轮询最多两次，可忽略。
+  var reelsWC = false;
+  function setReelsWC(on) {
+    if (on === reelsWC) return;
+    reelsWC = on;
+    var els = document.querySelectorAll('#rb-obs .rb-reel');
+    for (var i = 0; i < els.length; i++) els[i].style.willChange = on ? 'transform' : 'auto';
+  }
   function paintHeroNumber(s) {
     if (mode === 'compact') paintCompact(heroV, s);
     else if (mode === 'kilo') paintKilo(heroV, s);
@@ -741,6 +777,7 @@
     if (!isOpen() || document.hidden) { // 不可见：直接收尾落位，不留半路轮子
       heroV = heroTarget; heroSettleT = 0; heroRaf = 0;
       paintHeroNumber(1); paintTier(heroV);
+      setReelsWC(false);
       return;
     }
     var s = 0;
@@ -752,7 +789,7 @@
     paintHeroNumber(s);
     paintTier(heroV);
     var more = heroV < heroTarget || s < 1;
-    if (!more) heroSettleT = 0;
+    if (!more) { heroSettleT = 0; setReelsWC(false); } // 落位归整了，摘掉提升
     heroRaf = more ? requestAnimationFrame(heroFrame) : 0;
   }
   function feedTotal(total) {
@@ -769,13 +806,14 @@
       heroSettleT = 0; lastTokSpeed = 0;
       heroV = heroTarget = total;
       paintHeroNumber(1); paintTier(heroV, true);
+      setReelsWC(false);
       return;
     }
     if (total <= heroTarget + 1) { heroTarget = Math.max(heroTarget, total); return; }
     lastTokSpeed = (total - heroV) / (POLL_MS / 1000);
     heroRate = (total - heroV) / POLL_MS;
     heroTarget = total;
-    if (!heroRaf) { heroLastT = performance.now(); heroRaf = requestAnimationFrame(heroFrame); }
+    if (!heroRaf) { heroLastT = performance.now(); setReelsWC(true); heroRaf = requestAnimationFrame(heroFrame); }
   }
 
   // ---------- 模块渲染（数量自适应 + 可换绑 + 外部仓位） ----------
@@ -836,7 +874,10 @@
       el.querySelector('.ro-nm').style.color = 'hsl(' + hueOf(s) + ' 62% 58%)';
       el.querySelector('.ro-pick').onclick = function (ev) { openMenu(ev, slot); };
       flow.appendChild(el);
-      var m = { sid: s.id, cwd: s.cwd || s.startDir || '', el: el, cellEls: [].slice.call(el.querySelectorAll('.ro-cell')), runEl: el.querySelector('.ro-run'), cols: L.cols, ms: null, doneUntil: 0 };
+      // stEl（状态灯）随 runEl 一起在创建时缓存：statusTick 1000ms 一 tick、每个活跃模块都要摸一下，
+      // 别再靠 querySelector 现查。chaseIdx 记的是当前追灯格在 cellEls 里的下标（不是 DOM 引用），
+      // chaseTick 直接按下标取消/命中，不再靠 '.ro-cell.chasing' 这个 class 选择器巡场
+      var m = { sid: s.id, cwd: s.cwd || s.startDir || '', el: el, cellEls: [].slice.call(el.querySelectorAll('.ro-cell')), runEl: el.querySelector('.ro-run'), stEl: el.querySelector('.ro-st'), chaseIdx: -1, cols: L.cols, ms: null, doneUntil: 0 };
       a.cells.forEach(function (tone, i) { if (tone && m.cellEls[i]) m.cellEls[i].classList.add(tone); });
       if (a.rest) applyRest(m, a, true); // 常驻彩虹挂在 act 上，重建后原样接回
       mods.push(m);
@@ -878,9 +919,26 @@
     });
     document.addEventListener('mousedown', onOut, true);
   }
+  var lastActGC = 0;
   function refreshSessions(force) {
     var key = sessionsKey();
     if (force || key !== lastKey) { lastKey = key; rebuildModules(); }
+    // act 按终端 id 只增不删，而 id 是 term.seq 递增、永不复用，所以它的 key 数 ==「本次启动以来
+    // 开过的终端总数」。关标签页时没人通知这里清（app.js 的 closeTab 不知道有这个对象）。
+    // 一天开关几十个标签、App 又常连着开好几周，会堆到几百上千条。照 extMods 那套按存活集合差集回收，
+    // 30s 一次足够（这函数 2s 一跳，别每次都全量比对）。
+    var now = Date.now();
+    if (now - lastActGC < 30000) return;
+    lastActGC = now;
+    var live = {};
+    sessionsNow().forEach(function (s) { live[s.id] = 1; });
+    Object.keys(act).forEach(function (k) {
+      if (live[k]) return;
+      var a = act[k];
+      // 还挂着庆典/常驻彩虹的先留着，等动画谢幕（doneUntil 过期、rest 撤了）下一轮再收
+      if (a && (a.rest || (a.done && a.done > now))) return;
+      delete act[k];
+    });
   }
 
   // ---------- 格子事件消化 + 巡场 ----------
@@ -925,12 +983,15 @@
   function chaseTick() {
     var now = Date.now();
     mods.forEach(function (m, i) {
-      var prev = m.el.querySelector('.ro-cell.chasing');
-      if (prev) prev.classList.remove('chasing');
+      // 追灯下标记在 m.chaseIdx 上，直接按下标取消/命中 cellEls——不再每 640ms 靠
+      // '.ro-cell.chasing' 选择器巡一遍格子找上一个追灯在哪
+      if (m.chaseIdx >= 0 && m.cellEls[m.chaseIdx]) m.cellEls[m.chaseIdx].classList.remove('chasing');
+      m.chaseIdx = -1;
       if (m.doneUntil > now || actOf(m.sid).rest) return;
       var step = Math.floor(Date.now() / 640) + i * 5;
-      var c = m.cellEls[step % m.cellEls.length];
-      if (c) c.classList.add('chasing');
+      var idx = step % m.cellEls.length;
+      var c = m.cellEls[idx];
+      if (c) { c.classList.add('chasing'); m.chaseIdx = idx; }
     });
   }
 
@@ -957,7 +1018,7 @@
         else if (a.turn && a.turn.spent >= a.turn.est) { a.demoHold = now + 9000; }
         else { a.last = now; if (a.turn) { a.turn.spentB += 9600; a.turn.secs++; } }
       }
-      var stEl = m.el.querySelector('.ro-st');
+      var stEl = m.stEl; // 创建时已缓存，不再每 tick 现查
       var working = now - a.last < 4000;
       var agent = AGENT_BINS.indexOf(String(a.proc).toLowerCase()) !== -1;
       var cls = working ? 'working' : (agent ? 'waiting' : 'idle');
@@ -1165,8 +1226,11 @@
         var el = modShell({ ext: true, cols: 6, rows: 4 });
         el.querySelector('.ro-nm').textContent = 'Codex · ' + baseName(cs.cwd);
         el.querySelector('.ro-nm').style.color = 'var(--accent)';
-        el.querySelector('.ro-st').className = 'ro-st working';
-        x = extMods[cs.cwd] = { el: el, cellEls: [].slice.call(el.querySelectorAll('.ro-cell')), runEl: el.querySelector('.ro-run'), cols: 6, ptr: 0, lastSeen: now, active: true, ms: null, doneUntil: 0 };
+        var stEl0 = el.querySelector('.ro-st');
+        stEl0.className = 'ro-st working';
+        // stEl 跟 mods 数组那份模块对象同一套字段结构缓存下来（不是热路径必需，statusTick/chaseTick
+        // 都不摸 extMods，但结构对齐避免以后谁复用同一段逻辑时 m.stEl 在这半边 undefined）
+        x = extMods[cs.cwd] = { el: el, cellEls: [].slice.call(el.querySelectorAll('.ro-cell')), runEl: el.querySelector('.ro-run'), stEl: stEl0, cols: 6, ptr: 0, lastSeen: now, active: true, ms: null, doneUntil: 0 };
         refreshSessions(true);
       }
       x.lastSeen = now;
@@ -1183,8 +1247,7 @@
       if (seen[k]) return;
       x.active = false;
       x.el.classList.remove('working');
-      var stEl = x.el.querySelector('.ro-st');
-      if (stEl) stEl.className = 'ro-st';
+      if (x.stEl) x.stEl.className = 'ro-st';
       if (now - x.lastSeen > 60000) { delete extMods[k]; refreshSessions(true); }
     });
   }
@@ -1228,11 +1291,18 @@
   function stopAll() {
     timers.forEach(clearInterval); timers = [];
     if (heroRaf) { cancelAnimationFrame(heroRaf); heroRaf = 0; }
+    setReelsWC(false); // 面板收起/窗口失焦：滚轮的图层提升一并摘掉
     closeMenu(); closeCfg();
   }
   document.addEventListener('visibilitychange', function () {
     if (!isOpen()) return;
     if (document.hidden) stopAll(); else startAll();
+  });
+  // 窗口失焦/隐藏到 Dock 时（idle-patch.js 发的信号）连轮询一起停：面板开着也没人在看，
+  // 七个 interval 里最快的 640ms 一跳，还会连带打后端接口扫盘。回到前台立刻 startAll 补一轮全量。
+  document.addEventListener('rb-active', function (e) {
+    if (!isOpen()) return;
+    if (e.detail) startAll(); else stopAll();
   });
 
   // 初始状态：记住上次开合；演示模式默认打开

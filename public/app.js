@@ -12,6 +12,15 @@ try {
   }
 } catch (e) { /* */ }
 
+// 窗口是否「真的没人看得见」——用来决定**数据轮询**停不停。
+// 注意别拿 <html> 上的 rb-idle 类判断：那是 idle-patch.js 的**动效**闸，失焦即置位；
+// 而失焦不等于看不见（双屏 / 窗口摆在旁边盯着 agent 干活是本 App 的核心用法），
+// 那种时候画面可以静止，数字必须照常更新，否则用户瞥一眼看到的是定格的旧快照。
+// 真相源是 idle-patch.js 派发的 rb-active 事件，它只在最小化 / 隐藏到 Dock / 标签页切走时才置 false。
+let __appVisible = true;
+document.addEventListener('rb-active', (e) => { __appVisible = !!e.detail; });
+function isAppIdle() { return !__appVisible; }
+
 const $ = (s) => document.querySelector(s);
 const api = (p) => fetch(p).then((r) => r.json());
 const apiPost = (p, body) => fetch(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
@@ -328,11 +337,17 @@ async function guardDirty() {
 const isMdName = (n) => /\.(md|markdown)$/i.test(String(n || ''));
 
 // ---------- 导航 ----------
+let __navSeq = 0; // 导航请求序号：只认最后一次发起的那笔，先发后到的一律丢弃
 async function navigate(p, pushHistory = true) {
   if (!await guardDirty()) return;
   if (pushHistory && !follow.navving) restoreFileAreaIfHidden(); // 用户主动导航时，终端铺满/全铺就退出，让文件区回来
+  const mySeq = ++__navSeq;
   try {
     const data = await api('/api/list?path=' + encodeURIComponent(p));
+    // 连点目录/面包屑时会有多笔 /api/list 同时在途。若先发的那笔因为目录更大而后返回，
+    // 它会把 state.cwd/entries/breadcrumb 整体覆盖回上一个目录，画面翻回用户没点的地方——
+    // 更糟的是后续「新建/重命名/删除/在此处开终端」会作用在那个错目录上，updateWatches 也盯错地方。
+    if (mySeq !== __navSeq) return; // 已经有更新的导航发出去了，这笔作废
     if (data.error) { toast('无法打开：' + data.error, true); return; }
     if (pushHistory && state.cwd) state.history.push(state.cwd);
     state.cwd = data.path;
@@ -1277,6 +1292,11 @@ async function ieSave(st, asNew) {
 // 内容没动却会点亮「改」徽标。自己发起的打开记下路径，3 秒内该文件的变更事件按噪声丢弃
 const selfOpened = new Map(); // 绝对路径 -> 时间戳
 async function openWith(p, withApp) {
+  // 唯一的删除入口在文件变更处理里，只有当这个路径**恰好落在正被监听的目录**、
+  // 且真等到一次匹配的变更事件时才会清。「在 Finder 显示」了个不相关文件、或打开后立刻切走目录，
+  // 那条记录就永远等不到触发条件。所以这里按时间自行扫一遍：3 秒的噪声窗口早过了的一律丢。
+  const stale = Date.now() - 10000;
+  for (const [k, t] of selfOpened) { if (t < stale) selfOpened.delete(k); }
   selfOpened.set(p, Date.now());
   const r = await apiPost('/api/open', { path: p, with: withApp });
   if (r.ok) {
@@ -4281,13 +4301,20 @@ const usagePanel = {
     $('#usage-body').classList.toggle('hidden', !on);
     $('#usage-arrow').textContent = on ? '▾' : '▸';
     clearInterval(this.timer); this.timer = null;
-    if (on) { this.refresh(); this.timer = setInterval(() => this.refresh(), 45000); }
+    // 展开 **且** 窗口有人看才跑。45s 一次是 HTTP 往返 + 后端扫会话目录 + 整段 innerHTML 重写，
+    // 面板默认展开，用户切去别的 App 几小时的话这些全是白跑。回前台时 apply() 会立刻补一次 refresh，
+    // 不会让人看到过期数据。
+    if (on && !isAppIdle() && !document.hidden) { this.refresh(); this.timer = setInterval(() => this.refresh(), 45000); }
   },
   bind() {
     $('#usage-toggle').onclick = () => {
       localStorage.setItem('fb_usage_open', this.open() ? '0' : '1');
       this.apply();
     };
+    // 窗口活跃度变化时重新裁决：rb-active 由 idle-patch.js 发（含桌面版「可见但失焦」），
+    // visibilitychange 兜住 web 版切标签页
+    document.addEventListener('rb-active', () => this.apply());
+    document.addEventListener('visibilitychange', () => this.apply());
     this.apply();
   },
 };
@@ -4818,6 +4845,11 @@ const followPrio = (p) => isFollowArtifact(p) ? 0 : ((isHtmlName(p) || isMdName(
 // 变更事件入口（已过噪声/自打开过滤）：同一文件继续写 → 只刷视图；换了文件 → 节流切目标
 function followChange(dir, sub) {
   if (!follow.on) return;
+  // 窗口看不见时不抢屏也不干活：这条链路后面是 navigate() 重拉目录 + followRender() 做
+  // md/code 高亮重渲染（图片/视频还会带新 mtime 绕过缓存整份重下）。agent 跑测试/重构时
+  // 写文件极频繁，你开会那几小时里这些全是没人看的网络往返 + DOM 重建。
+  // 恢复可见时由下面的 rb-active 监听补跟一次最新变更，不会落下画面。
+  if (isAppIdle() || document.hidden) return;
   // 绑定的终端 tab 被关掉：跟随失去对象，全部动作就地停
   if (follow.sid && typeof term !== 'undefined' && !term.sessions.some((x) => x.id === follow.sid)) {
     setFileFollow(false, '绑定的终端已关闭，文件跟随已停');
@@ -4964,6 +4996,24 @@ function renderFollowNarration() {
 }
 function startFollowNarration() { stopFollowNarration(); follow.timers.narr = setInterval(renderFollowNarration, 1200); renderFollowNarration(); }
 function stopFollowNarration() { if (follow.timers.narr) { clearInterval(follow.timers.narr); follow.timers.narr = null; } const el = $('#follow-narration'); if (el) { el.classList.add('hidden'); el.innerHTML = ''; } }
+// 窗口没人看的时候别念旁白：这个轮询 1.2s 一跳，每跳都要从 xterm buffer 取 40 行、逐行
+// translateToString、跑几条正则，最后再 innerHTML 重写一次——切到后台时这些字一个都没人读。
+// 只摘 interval、不调 stopFollowNarration()：后者会把元素藏起来并清空，回前台会先闪一下空白；
+// 留着最后一帧，恢复时 startFollowNarration() 立刻重画。
+function syncFollowNarration() {
+  if (!follow.on) return; // 跟随本身没开，这里一概不插手
+  if (isAppIdle() || document.hidden) {
+    if (follow.timers.narr) { clearInterval(follow.timers.narr); follow.timers.narr = null; }
+  } else if (!follow.timers.narr) startFollowNarration();
+}
+document.addEventListener('rb-active', syncFollowNarration);
+document.addEventListener('visibilitychange', syncFollowNarration);
+// 回到可见：把开会期间攒下的最新一笔变更补跟上，别让画面停在几小时前那个文件
+document.addEventListener('rb-active', function (e) {
+  if (!e.detail || !follow.on) return;
+  var recent = state.changeLog.find(function (c) { return Date.now() - c.ts < 300000 && inFollowScope(c.path); });
+  if (recent && recent.path !== follow.path) followSwitch(recent.path);
+});
 // 找出新内容相对旧内容的变动行区间（首尾共同前后缀夹逼，够准且 O(n)）
 function changedRange(oldStr, newStr) {
   const a = oldStr.split('\n'), b = newStr.split('\n');
@@ -5226,7 +5276,13 @@ async function init() {
   await loadRoots();
   await loadFavorites();
   loadAgentProjects();
-  setInterval(loadAgentProjects, 120000); // agent 项目入口保持新鲜（服务端有 60s 缓存，开销很小）
+  // agent 项目入口保持新鲜。原注释说「服务端有 60s 缓存，开销很小」是错的：那边 TTL 只有 60s，
+  // 比这里 120s 的轮询周期还短，所以每次请求到达时缓存必然已过期，后端都要重新 readdir 整个
+  // ~/.claude/projects + 递归遍历 ~/.codex/sessions 并逐个 stat——用得越久目录越多，越扫越贵。
+  // 已把服务端 TTL 提到 130s（长于轮询周期，缓存才真的有意义），这里再加可见性判断：
+  // 窗口收进 Dock 就别扫盘了，回来时补一次。
+  setInterval(function () { if (!isAppIdle() && !document.hidden) loadAgentProjects(); }, 120000);
+  document.addEventListener('rb-active', function (e) { if (e.detail) loadAgentProjects(); });
   await navigate(state.home, false);
   // 恢复上次终端开合状态（dock 方位已由 applyDock 自带记忆）
   if (localStorage.getItem('fb_term_open') === '1' && term.available()) term.open();

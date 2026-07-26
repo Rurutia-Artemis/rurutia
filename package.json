@@ -1,6 +1,6 @@
 {
   "name": "fanbox",
-  "version": "2.14.2",
+  "version": "2.15.0",
   "description": "Rurutia — the cockpit for coding agents. Command Claude Code or Codex, watch every file and line they change, and take over anytime.",
   "bin": {
     "fanbox": "server.js"
@@ -36,7 +36,27 @@
       "public/**/*",
       "server.js",
       "package.json",
-      "!node_modules/@xterm/**"
+      "!node_modules/@xterm/**",
+      "!node_modules/node-pty/bin/**",
+      "!node_modules/node-pty/prebuilds/win32-*/**",
+      "!node_modules/node-pty/deps/winpty/**",
+      "!node_modules/node-pty/src/**",
+      "!node_modules/node-pty/lib/windowsTerminal.js",
+      "!node_modules/node-pty/node-addon-api/**",
+      "!node_modules/node-pty/build/Makefile",
+      "!node_modules/node-pty/build/config.gypi",
+      "!node_modules/node-pty/build/binding.Makefile",
+      "!node_modules/node-pty/build/gyp-mac-tool",
+      "!node_modules/node-pty/build/*.target.mk",
+      "!node_modules/node-pty/build/Release/.deps/**",
+      "!node_modules/node-pty/build/Release/obj.target/**",
+      "!node_modules/node-pty/build/Release/.forge-meta",
+      "!node_modules/node-pty/build/Release/node-addon-api/**",
+      "!node_modules/node-pty/**/*.map",
+      "!node_modules/node-pty/**/*.test.js",
+      "!node_modules/qrcode/node_modules/**",
+      "!electron/wechat/test-server.js",
+      "!public/vendor/**/*.map"
     ],
     "asar": true,
     "npmRebuild": false,

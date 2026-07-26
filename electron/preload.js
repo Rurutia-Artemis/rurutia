@@ -82,6 +82,8 @@ contextBridge.exposeInMainWorld('fanboxWin', {
   focus: () => ipcRenderer.invoke('win:focus'), // 点通知拉回前台
   trafficLights: (show) => ipcRenderer.invoke('win:traffic', { show }), // 全屏预览时藏/显左上角系统按钮
   openPv: (p) => ipcRenderer.invoke('pv:open', { path: p }), // Rurutia：在独立预览窗打开文件
+  // 窗口活跃态（失焦/隐藏/最小化 → active:false）：idle-patch.js 据此整体挂起 CSS 动画
+  onState: (cb) => { const h = (e, m) => cb(m); ipcRenderer.on('win:state', h); return () => ipcRenderer.removeListener('win:state', h); },
 });
 
 contextBridge.exposeInMainWorld('fanboxEnv', {

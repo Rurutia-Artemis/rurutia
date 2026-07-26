@@ -272,7 +272,11 @@ kbd {
 }
 /* 项目类型徽章 */
 .proj-tag { font-family: var(--font-mono); font-size: 9px; font-weight: 700; line-height: 1; letter-spacing: 0.02em; padding: 2px 4px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); text-transform: lowercase; }
-.grid .item .icon .proj-tag { position: absolute; top: 5px; right: 5px; background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(3px); }
+/* 撤 backdrop-filter：它要求合成器把徽章背后的内容单独采样再模糊，无法便宜地缓存复用，而在
+ * 5120×2880 输出下每层的采样预算按物理分辨率线性放大。文件网格常几十个条目同屏，只要里面有项目
+ * 文件夹就是几十个这种图层叠在一起。改成把底色不透明度从 78% 提到 93%——从「磨砂半透」变成
+ * 「实心近不透」，是本轮唯一肉眼可辨的观感变化，换来的是这一层彻底退出合成器的重采样路径。 */
+.grid .item .icon .proj-tag { position: absolute; top: 5px; right: 5px; background: color-mix(in srgb, var(--bg) 93%, transparent); }
 .list .row .fname .proj-tag { margin-left: 6px; vertical-align: middle; }
 .proj-node { color: #3fb950; border-color: #3fb95066; background: #3fb95018; }
 .proj-web { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
@@ -287,7 +291,8 @@ kbd {
 .grid .item .icon .thumb-wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
 .grid .item .icon .thumb { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 5px; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.22); background: var(--bg-3); }
 .grid .item .icon .thumb-wrap.is-video .thumb { filter: brightness(0.92); }
-.grid .item .icon .play-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); pointer-events: none; }
+/* 同 .proj-tag，撤 backdrop-filter：每个视频缩略图都带一枚，量同样上得去。底色 .5 → .68 补住对比 */
+.grid .item .icon .play-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; background: rgba(0, 0, 0, 0.68); display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .grid .item .icon .svg-icon { display: flex; filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.12)); }
 .grid .item .fname { font-size: 12px; word-break: break-all; line-height: 1.3; max-height: 32px; overflow: hidden; color: var(--text); }
 
@@ -1124,14 +1129,30 @@ body { transition: background-color 0.28s ease, color 0.28s ease; }
 /* 变更角标显示计数（改·N），文本由 JS 写进 data-changed */
 .item.changed::after, .row.changed::after { content: attr(data-changed); }
 .row.changed::after { animation: changedPulse 0.45s ease; }
-/* WOW1 活的仪表盘：发光强度随「热度」(--heat：改得越频繁越亮)，持续轻呼吸；写入瞬间弹一下 + 荡涟漪 */
+/* WOW1 活的仪表盘：发光强度随「热度」(--heat：改得越频繁越亮)，持续轻呼吸；写入瞬间弹一下 + 荡涟漪
+ *
+ * v2.14.3 性能改造：呼吸原来直接动 box-shadow —— 模糊半径逐帧从 5+18*heat 变到 10+34*heat（峰值 44px），
+ * 动态模糊半径的阴影每帧都要重新栅格化，进不了合成器缓存。而这个 App 的日常就是 agent 批量改文件，
+ * 一次连写十个就是十份逐帧重绘同时跑（每条挂 4.5s，见 app.js 的 sweep）。
+ * 现在：辉光挪到 ::before，box-shadow 取原来 50% 处的峰值写死（只栅格化一次，永久缓存），
+ * 呼吸改用 opacity + scale —— 两个都是合成器免费属性。描边留在元素本身（本来就是静态的），
+ * 只是 1.5px↔2.5px 的粗细呼吸并进 ::before 的缩放里，观感等价。 */
 .item.changed, .row.changed {
-  box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 calc(6px + 26px * var(--heat, 0.4)) color-mix(in srgb, var(--accent) calc(55% * var(--heat, 0.4)), transparent);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+/* 不设 z-index：无 spread 的外阴影本来就只画在盒子外侧（盒内会被裁掉），既盖不住条目自身内容，
+ * 也不必冒「祖先没形成层叠上下文 → z-index:-1 把光晕沉到父级背景底下直接看不见」的险 */
+.item.changed::before, .row.changed::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  border-radius: inherit;
+  /* 峰值辉光写死：等于原 keyframes 50% 那一帧 */
+  box-shadow: 0 0 calc(10px + 34px * var(--heat, 0.4)) color-mix(in srgb, var(--accent) calc(70% * var(--heat, 0.4)), transparent);
   animation: changedBreath 2.2s ease-in-out infinite;
 }
+/* 谷值 opacity .62 ≈ 原来 40%/70% 的亮度比；scale 让光晕跟着一起收放，补回原来半径变化的观感 */
 @keyframes changedBreath {
-  0%, 100% { box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 calc(5px + 18px * var(--heat, 0.4)) color-mix(in srgb, var(--accent) calc(40% * var(--heat, 0.4)), transparent); }
-  50% { box-shadow: inset 0 0 0 2.5px var(--accent), 0 0 calc(10px + 34px * var(--heat, 0.4)) color-mix(in srgb, var(--accent) calc(70% * var(--heat, 0.4)), transparent); }
+  0%, 100% { opacity: 0.62; transform: scale(0.985); }
+  50% { opacity: 1; transform: scale(1); }
 }
 /* 写入瞬间：卡片弹一下 */
 .item.live-edit { animation: liveZap 0.5s ease; }
@@ -1253,8 +1274,16 @@ body { transition: background-color 0.28s ease, color 0.28s ease; }
 .rp-item.active { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
 .rp-item-top { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rp-item-sub { font-size: 10.5px; color: var(--text-faint); margin-top: 2px; font-variant-numeric: tabular-nums; }
-.rp-dot-live { width: 7px; height: 7px; border-radius: 50%; background: #e5484d; flex: none; box-shadow: 0 0 0 0 rgba(229,72,77,0.6); animation: rpLive 1.4s ease-out infinite; }
-@keyframes rpLive { 0% { box-shadow: 0 0 0 0 rgba(229,72,77,0.5); } 100% { box-shadow: 0 0 0 6px rgba(229,72,77,0); } }
+/* 正在录制的红点：涟漪原来动 box-shadow 的 spread（0→6px），逐帧重栅格。改成经典 ripple 写法——
+ * 一个固定尺寸的 ::after 用 transform:scale + opacity 扩散淡出，两个都是合成器免费属性。
+ * 边框颜色预烘焙成不透明度固定的纯色，淡出交给 opacity。观感仍是「红圈一圈圈荡开」。 */
+.rp-dot-live { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #e5484d; flex: none; }
+.rp-dot-live::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.5);
+  animation: rpLive 1.4s ease-out infinite;
+}
+@keyframes rpLive { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(2.7); opacity: 0; } }
 .rp-item-del { float: right; opacity: 0; color: var(--text-faint); font-size: 12px; padding: 0 3px; }
 .rp-item:hover .rp-item-del { opacity: 1; }
 .rp-item-del:hover { color: #e5484d; }

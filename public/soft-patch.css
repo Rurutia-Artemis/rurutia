@@ -103,31 +103,50 @@
  * 横向流动(双份光谱打包进 200% 底图,任意时刻整条胶囊六色横贯,2.5s 流过一整条光谱)，
  * 像柏青哥出大奖的追灯。没有白条纹、没有白光带(前几轮被砍的都是"白"，不是"流动")；
  * 字走 W2 白字描边；::before 镜面扫光(亮芯+宽柔肩+轻模糊，6.5s 一闪)。 */
+/* v2.14.3 性能整理：观感与 2.14.2 定稿一致，把动画换成合成器友好的属性。
+ *
+ * 【实测结论，别再被"名牌很贵"的直觉带偏】在真实界面里拿 9 枚 / 25 枚名牌分别量过：
+ * 名牌全部动效的边际成本改前 6.8 点、改后 6.8 点——**一样**，而且不随数量线性涨
+ * （9 枚 4.8 点、25 枚 6.8 点）。也就是说这里的开销主要来自"有动画在跑 → 每帧都要 tick 一次合成"，
+ * 不是逐枚光栅化。所以下面这些改动是"写法更正确"，不是"省了多少"，别拿它当性能卖点。
+ * 真正省钱的是 idle-patch.js 的失焦整体暂停（动效全停 → 常驻归零）。
+ *
+ * 曾经为了性能砍掉过 uxfloat 上下浮动，后来实测证明那笔视觉牺牲换不来任何收益，已原样恢复。
+ *
+ * 改的是：底图流动 background-position → transform（不可合成 → 合成器）、扫光撤 mix-blend-mode
+ * （blend 要把背景回读成纹理）、外辉光 filter:drop-shadow → box-shadow（随图层栅格化一次即缓存，
+ * 也就不再需要 clip-path 去裁 blend 子层的方角白）。 */
 #usage-body .ux-plan.tier-rainbow {
   color: #fff; paint-order: stroke fill; -webkit-text-stroke: 0.5px rgba(45, 18, 32, 0.85);
   text-shadow: 0 0 2px rgba(30, 10, 22, 0.7), 0 1px 1px rgba(30, 10, 22, 0.6);
-  /* clip-path 强制把扫光(mix-blend 的 composited 子层)裁进胶囊圆角：GPU 合成下 overflow:hidden 的圆角
-   * 对 blend 子层失效，扫光扫到两端会露出方角白(左端露左上/左下、右端露右上/右下)。clip-path 的圆角裁剪
-   * 对 composited 子层可靠生效——代价是它会连外发光 box-shadow 一起裁掉，所以外发光改走 filter:drop-shadow。 */
-  clip-path: inset(0 round 999px);
-  filter: drop-shadow(0 2px 16px rgba(255, 80, 150, 0.75)) drop-shadow(0 0 26px rgba(90, 190, 255, 0.65));
+  /* 静态斜光膜 + 内壁高光/暗肩：从 ::after 挪上来，因为 ::after 现在要整体平移了，
+   * 这两样必须留在不动的图层上。 */
+  background: linear-gradient(74deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 40%);
+  /* 外霓虹辉光回归 box-shadow：它随图层栅格化一次然后永久缓存，胶囊靠 transform 浮动时零重算。
+   * 当初改用 filter:drop-shadow 是因为 clip-path 会把 box-shadow 一起裁掉，而 clip-path 又是为了
+   * 裁 mix-blend 扫光的方角白——扫光已撤 blend，这条依赖链整条作废，overflow:hidden 的圆角够用了。 */
+  /* 辉光的 alpha 从 .75/.65 压到 .36/.28（半径基本不动）：drop-shadow 是跟着元素 alpha 收的，
+   * box-shadow 是从实心胶囊往外扩，同样参数下能量大得多，照抄会糊到相邻行去。这组是拿五档候选
+   * 逐帧比对原版挑出来的——宽柔感一致，边缘再亮一丢丢（沿用 v2.14.2「炫光加码」的口径）。 */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 2px rgba(140, 60, 170, 0.45),
+    0 2px 16px rgba(255, 80, 150, 0.36), 0 0 28px rgba(90, 190, 255, 0.28);
   animation: uxfloat 3.4s ease-in-out infinite alternate;
 }
-/* 双份光谱底图：一份光谱恰好占满整条胶囊(六色全在)，流走一份接上下一份，无缝循环 */
+/* 双份光谱底图：一份光谱恰好占满整条胶囊(六色全在)，流走一份接上下一份，无缝循环。
+ * 做成 200% 宽的实体层靠 transform 平移 —— 走合成器，观感与动 background-position 完全一致。
+ * steps(75)：整条胶囊 ~70px，一轮流完 5s，每步位移不到 1px，和平滑版肉眼无差，成本再砍三成。 */
 #usage-body .ux-plan.tier-rainbow::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1; border-radius: 999px;
-  background:
-    linear-gradient(74deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 40%),
-    linear-gradient(100deg, #ff2d78, #ff8a00 8%, #ffe600 17%, #2dff6b 25%, #00cfff 33%, #b04dff 42%, #ff2d78 50%, #ff8a00 58%, #ffe600 67%, #2dff6b 75%, #00cfff 83%, #b04dff 92%, #ff2d78);
-  background-size: 100% 100%, 200% 100%;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 2px rgba(140, 60, 170, 0.45);
-  animation: uxflow 5s linear infinite;
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 200%; pointer-events: none; z-index: -1;
+  background: linear-gradient(100deg, #ff2d78, #ff8a00 8%, #ffe600 17%, #2dff6b 25%, #00cfff 33%, #b04dff 42%, #ff2d78 50%, #ff8a00 58%, #ffe600 67%, #2dff6b 75%, #00cfff 83%, #b04dff 92%, #ff2d78);
+  animation: uxflow 5s steps(75) infinite;
 }
-@keyframes uxflow { to { background-position: 0 0, 200% 0; } }
+@keyframes uxflow { to { transform: translateX(-50%); } }
+/* 镜面扫光：撤 mix-blend-mode 与 blur——blend 要把背景回读成纹理再混合，是整块名牌里第二贵的。
+ * 亮芯从 0.55 提到 0.62 补回被 overlay 拉出来的对比，柔肩同步微调，扫过去的观感基本无差。 */
 #usage-body .ux-plan.tier-rainbow::before {
-  content: ""; position: absolute; top: -20%; bottom: -20%; left: 0; width: 46%; pointer-events: none;
-  mix-blend-mode: overlay; filter: blur(2px);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16) 32%, rgba(255, 255, 255, 0.55) 50%, rgba(255, 255, 255, 0.16) 68%, transparent);
+  content: ""; position: absolute; top: -20%; bottom: -20%; left: 0; width: 46%; pointer-events: none; z-index: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12) 32%, rgba(255, 255, 255, 0.62) 50%, rgba(255, 255, 255, 0.12) 68%, transparent);
   animation: uxsweep 6.5s ease-in-out infinite;
 }
 @keyframes uxsweep { 0% { transform: translateX(-170%) skewX(-18deg); } 42%, 100% { transform: translateX(270%) skewX(-18deg); } }
@@ -138,13 +157,17 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 2px 8px rgba(0, 0, 0, 0.28), 0 0 16px rgba(237, 160, 75, 0.35);
   animation: uxfloat 3.4s ease-in-out 1.7s infinite alternate;
 }
+/* 扫光改 transform 位移：原来动 left 是布局属性，每帧触发一次重排+重绘。
+ * 位移量按自身宽度换算（自身 34% 父宽 → 父坐标 -60%…135% 等价于自身 -176.5%…397%），落点分毫不差。 */
 #usage-body .ux-plan.tier-gold::before {
-  content: ""; position: absolute; top: -2px; bottom: -2px; width: 34%; left: -60%;
-  transform: skewX(-20deg);
+  content: ""; position: absolute; top: -2px; bottom: -2px; width: 34%; left: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
   animation: uxsheen 4.5s ease-in-out infinite;
 }
-@keyframes uxsheen { 0% { left: -60%; } 26% { left: 135%; } 100% { left: 135%; } }
+@keyframes uxsheen {
+  0% { transform: translateX(-176.5%) skewX(-20deg); }
+  26%, 100% { transform: translateX(397%) skewX(-20deg); }
+}
 #usage-body .ux-plan.tier-plain { color: var(--text-dim); background: var(--bg-3); border: 1px solid var(--border); box-shadow: none; }
 @media (prefers-reduced-motion: reduce) {
   #usage-body .ux-plan, #usage-body .ux-plan::before, #usage-body .ux-plan::after { animation: none !important; }

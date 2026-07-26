@@ -1385,12 +1385,17 @@ async function serveThumb(req, res, p, size) {
     res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'max-age=604800' });
     const rs = fs.createReadStream(cacheFile);
     rs.on('error', () => { try { res.destroy(); } catch { /* */ } }); // 读缓存中途出错别让未捕获 error 打挂进程
+    res.on('close', () => { if (!rs.destroyed) rs.destroy(); }); // 客户端中断 → 别把 fd 漏在等 drain 上（同 serveRaw 的注释）
     rs.pipe(res);
   };
   if (fs.existsSync(cacheFile)) return sendCache();
   let pr = thumbInflight.get(cacheFile);
   if (!pr) { pr = generateThumb(src, e, s, cacheFile, isImg).finally(() => thumbInflight.delete(cacheFile)); thumbInflight.set(cacheFile, pr); }
-  try { await pr; sendCache(); }
+  // 生成了新缩略图就顺手裁一次（fire-and-forget，不挡响应）。缓存 key 含 mtime，
+  // 同一个文件改一次就多一个键——本来就是设计上会无限涨的东西，400MB 的 LRU 裁剪必须接在这条
+  // **热路径**上。原来只有启动时和 HEIC 那条冷门支路会调，日常翻文件夹根本走不到，
+  // 于是缓存一路涨到远超 400MB，要等下次重启 App 才裁一回。
+  try { await pr; pruneThumbs().catch(() => { /* 裁剪失败不影响出图 */ }); sendCache(); }
   catch { res.writeHead(415); res.end('no thumb'); } // 前端 onerror 回退矢量图标
 }
 
@@ -1404,6 +1409,7 @@ async function serveHeicAsJpeg(req, res, file, st) {
     res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'max-age=604800' });
     const rs = fs.createReadStream(cacheFile);
     rs.on('error', () => { try { res.destroy(); } catch { /* */ } });
+    res.on('close', () => { if (!rs.destroyed) rs.destroy(); }); // 同上：客户端中断别漏 fd
     rs.pipe(res);
   };
   if (fs.existsSync(cacheFile)) return send();
@@ -1425,7 +1431,15 @@ function serveRaw(req, res, filePath) {
     if (err || !st.isFile()) { res.writeHead(404); res.end('not found'); return; }
     if (HEIC_EXT.has(ext(file))) return serveHeicAsJpeg(req, res, file, st); // HEIC → 转码 jpeg，绕过下面的原始字节路径
     const type = MIME[ext(file)] || 'application/octet-stream';
-    const onStreamErr = (rs) => rs.on('error', () => { try { res.destroy(); } catch { /* */ } });
+    // 读流出错 → 掐响应；响应先死（客户端中断）→ 掐读流。后半条是必须的：
+    // pipe 只在数据流动时推进，客户端一断，rs 会卡在等 res 排空(drain)——一个永远不会来的信号，
+    // 于是 fd 和 ReadStream 对象都永久挂着。而这个 HTTP 服务和 Electron 主进程是同一个进程
+    // （electron/main.js 直接 require 本文件），fd 表跟 pty 终端、fs.watch 共用系统上限。
+    // 拖视频进度条、划到下一张图、关预览面板都会中断请求，一天几十上百次，几天下来就撞上限。
+    const onStreamErr = (rs) => {
+      rs.on('error', () => { try { res.destroy(); } catch { /* */ } });
+      res.on('close', () => { if (!rs.destroyed) rs.destroy(); });
+    };
     const range = req.headers.range;
     if (range) {
       const m = /bytes=(\d*)-(\d*)/.exec(range);
@@ -1547,6 +1561,13 @@ const CLAUDE_PROJ = path.join(HOME, '.claude', 'projects');
 const CODEX_SESS = path.join(HOME, '.codex', 'sessions');
 const claudeFileCache = new Map(); // file -> { offset, lastMsgId, events: [{t, in, out, cc, cr}] }
 let usageResultCache = { at: 0, data: null };
+// events 数组只 push 不裁剪的话，长期活跃的会话文件会让它无限变长（每次增量解析都是新事件，
+// 旧事件永远留着）。8 天 = claudeUsage() 自己的文件 cutoff（下面 claudeUsage 里的 8*86400000），
+// 也覆盖了它 week 桶最多回看 7 天的需求：超过 8 天的事件不可能被任何消费方用到，裁掉零风险。
+// 不裁到「今天」是因为 obsClaudeToday()（真正的热路径消费方）虽然只要今天的数据，
+// 但 claudeUsage()（/api/agent-usage，当前无前端调用，见下方 GC 注释）还要用到 7 天内的数据，
+// 裁太狠会在它被调用时悄悄改变功能语义。
+const CLAUDE_EVENTS_KEEP_MS = 8 * 86400000;
 
 async function parseClaudeFile(file, stat) {
   let c = claudeFileCache.get(file);
@@ -1577,6 +1598,13 @@ async function parseClaudeFile(file, stat) {
     const t = Date.parse(d.timestamp || '') || stat.mtimeMs;
     c.events.push({ t, in: u.input_tokens || 0, out: u.output_tokens || 0, cc: u.cache_creation_input_tokens || 0, cr: u.cache_read_input_tokens || 0 });
   }
+  // 裁掉超出保留窗口的老事件（从头部丢，events 按解析顺序天然按时间递增）。
+  // 只动 events 数组本身：offset 是文件字节偏移、lastMsgId 是去重用的最后消息 id，
+  // 两者都跟增量读取的「文件」语义绑定，跟 events 数组长度无关，裁剪不影响下一轮续读。
+  const evCutoff = Date.now() - CLAUDE_EVENTS_KEEP_MS;
+  let dropTo = 0;
+  while (dropTo < c.events.length && c.events[dropTo].t < evCutoff) dropTo++;
+  if (dropTo > 0) c.events.splice(0, dropTo);
   return c.events;
 }
 
@@ -1754,12 +1782,21 @@ async function curlSysProxyLine() {
 // 返回值约定：成功 = { fiveHour, sevenDay }；取不到时不再返回 null，而是带原因
 // { unavailable: 'no-oauth' | 'request-failed' | 'no-windows' }，让前端能恒显「官方限额」区并解释原因。
 let claudeOfficialCache = { at: 0, data: null };
+let claudeOfficialCooldown = 0; // 失败/限流后的冷却截止时刻；和成功缓存分开记
 async function claudeOfficialLimits() {
   // 这个 usage 接口有严格速率限制（频繁查会 rate_limit_error）。成功结果缓存 10 分钟、
   // 限流/失败时沿用上次缓存（标 stale）——既降低查询频率不再撞限流，又不会清成「没数据」。
   const TTL = 10 * 60 * 1000;
+  const FAIL_COOLDOWN = 2 * 60 * 1000;
   const cached = claudeOfficialCache.data;
   if (cached && !cached.unavailable && Date.now() - claudeOfficialCache.at < TTL) return cached;
+  // 失败冷却是独立的一道闸。原来只有成功时才更新 .at，于是 TTL 比的是「上次**成功**时刻」——
+  // 一旦撞上 rate_limit_error，那个条件就再也为真不了，之后用量面板每 45s 轮询都会照打一次，
+  // 对着一个正在限流的接口连续猛打只会把限流窗口拖得更长，整天都刷不出数字。
+  // 现在：失败后先冷却 2 分钟，期间直接返回上次的 stale 结果，不发请求。
+  if (Date.now() < claudeOfficialCooldown) {
+    return (cached && !cached.unavailable) ? { ...cached, stale: true } : { unavailable: 'rate-limited' };
+  }
   const token = await claudeOAuthToken();
   if (!token) return (cached && !cached.unavailable) ? { ...cached, stale: true } : { unavailable: 'no-oauth' };
   // 不用 Node https：该接口的防护按 TLS 指纹拦——同样的请求头 curl 能 200、Node 直接 403。
@@ -1800,7 +1837,9 @@ async function claudeOfficialLimits() {
       lastErr = 'no-windows'; break; // 正常响应但确实无窗口：不重试，避免对严格限流的接口多打一次
     } catch { lastErr = 'request-failed'; /* 仅瞬时失败才再试一次 */ }
   }
-  // 没拿到新数据：有过成功缓存就沿用（stale 总比「没数据」强），否则如实报原因
+  // 没拿到新数据：进入冷却期，别让 45s 一次的轮询接着捶这个接口
+  claudeOfficialCooldown = Date.now() + FAIL_COOLDOWN;
+  // 有过成功缓存就沿用（stale 总比「没数据」强），否则如实报原因
   if (cached && !cached.unavailable) return { ...cached, stale: true };
   return { unavailable: lastErr };
 }
@@ -1815,14 +1854,26 @@ async function claudeOfficialLimits() {
 let obsTokensCache = { at: 0, data: null };
 const obsCwdCache = new Map();    // Claude 项目目录名 -> { cwd, t }
 const codexScanCache = new Map(); // rollout 文件 -> { offset, base, baseT, cur, curT, cwd }
+// claudeFileCache 的清理本来只写在 claudeUsage()（/api/agent-usage）里。那条路由确实有人调
+// （app.js 的用量面板 45s 一次），但它只在面板展开且窗口活跃时才跑——面板一收、窗口一失焦就停，
+// 清理跟着停摆。而 obsClaudeToday() 是 5s 一次的真热路径，却从不清理：进程活多久，解析过的每个
+// 会话 .jsonl 就在 Map 里躺多久。所以这里补一份不依赖面板开合的清理，60s 节流一次
+// （保留判定用 8 天窗口，理由见 obsClaudeToday 里的 keepCutoff 注释）。
+let lastClaudeCacheGC = 0;
 
 async function obsClaudeToday() {
   const day = new Date(); day.setHours(0, 0, 0, 0);
   const ds = day.getTime();
   const cutoff = Date.now() - 2 * 86400000; // 跨午夜留余量
+  // 缓存保留窗口必须按**所有**消费方里最宽的那个算，不能跟着本函数的 2 天解析窗口走：
+  // claudeUsage()（/api/agent-usage，用量面板每 45s 打一次）要回看 8 天。若按 2 天清，
+  // 2-8 天的文件会被反复踢出缓存，claudeUsage 下次再要时 offset 归零、整份文件重读重解析——
+  // 那是比不清理更糟的常驻开销。这里用 8 天判保留，2 天判解析，两者互不干扰。
+  const keepCutoff = Date.now() - CLAUDE_EVENTS_KEEP_MS;
   let dirs;
   try { dirs = await fsp.readdir(CLAUDE_PROJ); } catch { return { total: 0, perCwd: {} }; }
   let total = 0; const perCwd = {};
+  const liveFiles = new Set(); // 本轮见到、且还在 8 天保留窗口内的文件；收尾反查该从 claudeFileCache 扔掉谁
   await Promise.all(dirs.map(async (d) => {
     const base = path.join(CLAUDE_PROJ, d);
     let names; try { names = await fsp.readdir(base); } catch { return; }
@@ -1832,6 +1883,8 @@ async function obsClaudeToday() {
       try {
         const st = await fsp.stat(fp);
         if (!newest || st.mtimeMs > newest.st.mtimeMs) newest = { fp, st };
+        // 这个 map 本来就为了算 newest 而 stat 了目录下全部文件，顺手按 8 天窗口登记保留名单，零额外成本
+        if (st.mtimeMs >= keepCutoff) liveFiles.add(fp);
         if (st.mtimeMs >= cutoff) files.push({ fp, st });
       } catch { /* */ }
     }));
@@ -1854,6 +1907,12 @@ async function obsClaudeToday() {
     const key = c.cwd || d;
     perCwd[key] = (perCwd[key] || 0) + sum;
   }));
+  // 节流：清理不必卡进 5s 轮询的关键路径，60s 全量比对一次 key 足够及时地收掉早滚出窗口的文件
+  const nowGC = Date.now();
+  if (nowGC - lastClaudeCacheGC > 60000) {
+    lastClaudeCacheGC = nowGC;
+    for (const k of claudeFileCache.keys()) { if (!liveFiles.has(k)) claudeFileCache.delete(k); }
+  }
   return { total, perCwd };
 }
 
@@ -1925,8 +1984,11 @@ async function obsCodexToday() {
 }
 
 async function obsTokens() {
-  // 缓存 4s < 前端 5s 轮询：每次轮询基本都拿到新鲜数据，多窗口仍共享一次扫描
-  if (obsTokensCache.data && Date.now() - obsTokensCache.at < 4000) return obsTokensCache.data;
+  // 原来写 4000ms，但前端 POLL_MS=5000（public/observer-patch.js）：上次写入缓存到下次请求
+  // 恒定 ≈5000ms > 4000ms，单窗口按 5s 节奏轮询时这条缓存从来命中不了，注释里的意图和实际
+  // 效果是反的。改到 4800（略低于 5000，留一点定时器抖动的余量）。它真正管用的场景是
+  // 多个观察舱窗口同时开着、轮询时间点没对齐：后到的请求能捡到前一个刚写的缓存，省一次磁盘全扫。
+  if (obsTokensCache.data && Date.now() - obsTokensCache.at < 4800) return obsTokensCache.data;
   const [cc, cx] = await Promise.all([
     obsClaudeToday().catch(() => ({ total: 0, perCwd: {} })),
     obsCodexToday().catch(() => ({ total: 0, perCwd: {}, sessions: [] })),
@@ -1959,7 +2021,9 @@ async function readCwdFromHead(file, bytes) {
 }
 
 async function agentProjects(force = false) {
-  if (!force && agentProjCache.data && Date.now() - agentProjCache.at < 60000) return agentProjCache.data;
+  // TTL 必须 > 前端轮询周期（app.js 是 120s），否则每次请求到达时缓存刚好过期，等于没缓存——
+  // 而这个函数要 readdir 整个 ~/.claude/projects 再递归遍历 ~/.codex/sessions 逐个 stat，不便宜。
+  if (!force && agentProjCache.data && Date.now() - agentProjCache.at < 130000) return agentProjCache.data;
   const cutoff = Date.now() - 30 * 86400000;
   const map = new Map(); // cwd -> { lastActive, agents: Set }
   const add = (cwd, t, agent) => {
