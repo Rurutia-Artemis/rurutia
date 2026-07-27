@@ -11,6 +11,12 @@
 
 ## [Unreleased]
 
+## [2.15.1] - 2026-07-27
+
+### Fixed
+
+- **设置面板里「fanbox-agent skill」永远显示「不可用」，装不上**：`skills/` 目录没写进 electron-builder 的 `files` 白名单，打包出来的 app.asar 里根本没有这个 skill（实测 621 个条目里一条 `/skills` 路径都没有）。`builtinSkillStatus()` 读 `SKILL.md` 失败 → 返回空列表 → 前端把「包里没带」显示成「不可用」。白名单补上 `skills/**/*`。装了旧版的人升级到本版后，⚙ 设置面板里那行会变成可点的「安装」
+
 ## [2.15.0] - 2026-07-26
 
 ### Added
